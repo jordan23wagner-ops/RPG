@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Enemy } from '../types/game';
 
 interface DungeonViewProps {
@@ -9,6 +9,57 @@ interface DungeonViewProps {
 
 export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [playerPos, setPlayerPos] = useState({ x: 400, y: 450 });
+  const [enemyPos, setEnemyPos] = useState({ x: 600, y: 200 });
+  const keysPressed = useRef<{ [key: string]: boolean }>({});
+
+  const MOVE_SPEED = 5;
+  const CANVAS_WIDTH = 1000;
+  const CANVAS_HEIGHT = 600;
+  const BOUNDARY_PADDING = 50;
+
+  const drawCharacter = (ctx: CanvasRenderingContext2D, x: number, y: number, isPlayer: boolean) => {
+    ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetY = 8;
+
+    ctx.beginPath();
+    ctx.arc(x, y - 15, 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = isPlayer ? '#6366f1' : '#ef4444';
+    ctx.fillRect(x - 20, y + 5, 40, 35);
+
+    ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
+    ctx.fillRect(x - 25, y + 5, 12, 30);
+    ctx.fillRect(x + 13, y + 5, 12, 30);
+
+    ctx.shadowColor = 'transparent';
+  };
+
+  const drawTorch = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.fillStyle = '#8b7355';
+    ctx.fillRect(x - 3, y - 20, 6, 25);
+
+    ctx.fillStyle = 'rgba(255, 140, 0, 0.8)';
+    ctx.beginPath();
+    ctx.arc(x, y - 20, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 200, 0, 0.5)';
+    ctx.beginPath();
+    ctx.arc(x, y - 20, 10, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawStone = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) => {
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = '#2a2a2a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, width, height);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -17,120 +68,128 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const drawCharacter = (x: number, y: number, isPlayer: boolean) => {
-      ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetY = 5;
+    const animate = () => {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      ctx.beginPath();
-      ctx.arc(x, y - 15, 20, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = isPlayer ? '#6366f1' : '#ef4444';
-      ctx.fillRect(x - 20, y + 5, 40, 35);
-
-      ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
-      ctx.fillRect(x - 25, y + 5, 12, 30);
-      ctx.fillRect(x + 13, y + 5, 12, 30);
-
-      ctx.shadowColor = 'transparent';
-    };
-
-    const render = () => {
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      for (let x = 0; x < 10; x++) {
-        for (let y = 0; y < 8; y++) {
-          ctx.fillStyle = (x + y) % 2 === 0 ? '#374151' : '#2d3748';
-          ctx.fillRect(x * 80, y * 75, 80, 75);
-          ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x * 80, y * 75, 80, 75);
-        }
+      ctx.fillStyle = '#16213e';
+      for (let i = 0; i < 20; i++) {
+        const x = (i * 80) % CANVAS_WIDTH;
+        const y = Math.sin(i) * 50 + 300;
+        drawStone(ctx, x, y, 60, 80);
       }
 
-      const playerX = 200;
-      const playerY = 400;
-      drawCharacter(playerX, playerY, true);
+      drawTorch(ctx, 100, 100);
+      drawTorch(ctx, CANVAS_WIDTH - 100, 100);
+      drawTorch(ctx, 150, CANVAS_HEIGHT - 80);
+      drawTorch(ctx, CANVAS_WIDTH - 150, CANVAS_HEIGHT - 80);
+
+      drawCharacter(ctx, playerPos.x, playerPos.y, true);
 
       if (enemy && enemy.health > 0) {
-        const enemyX = 600;
-        const enemyY = 200;
-        drawCharacter(enemyX, enemyY, false);
+        drawCharacter(ctx, enemyPos.x, enemyPos.y, false);
 
-        ctx.font = 'bold 16px Arial';
+        ctx.font = 'bold 18px Arial';
         ctx.fillStyle = '#ef4444';
         ctx.textAlign = 'center';
-        ctx.fillText(enemy.name, enemyX, enemyY - 50);
+        ctx.fillText(enemy.name, enemyPos.x, enemyPos.y - 60);
 
         const healthPercent = (enemy.health / enemy.max_health) * 100;
         ctx.fillStyle = '#1f2937';
-        ctx.fillRect(enemyX - 50, enemyY - 30, 100, 8);
+        ctx.fillRect(enemyPos.x - 60, enemyPos.y - 35, 120, 10);
         ctx.fillStyle = healthPercent > 30 ? '#22c55e' : '#ef4444';
-        ctx.fillRect(enemyX - 50, enemyY - 30, (healthPercent / 100) * 100, 8);
+        ctx.fillRect(enemyPos.x - 60, enemyPos.y - 35, (healthPercent / 100) * 120, 10);
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2;
-        ctx.strokeRect(enemyX - 50, enemyY - 30, 100, 8);
+        ctx.strokeRect(enemyPos.x - 60, enemyPos.y - 35, 120, 10);
+
+        const distX = playerPos.x - enemyPos.x;
+        const distY = playerPos.y - enemyPos.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+
+        ctx.font = '12px Arial';
+        ctx.fillStyle = distance < 100 ? '#fbbf24' : '#999999';
+        ctx.textAlign = 'center';
+        ctx.fillText(`[SPACE to attack] (Distance: ${Math.round(distance)}px)`, CANVAS_WIDTH / 2, 30);
       }
 
-      ctx.font = 'bold 14px Arial';
+      ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#fbbf24';
       ctx.textAlign = 'left';
       ctx.fillText(`Floor ${floor}`, 20, 30);
 
       ctx.fillStyle = 'rgba(200,200,200,0.8)';
-      ctx.font = '14px Arial';
-      ctx.fillText('Click enemy or press SPACE to attack', 20, 60);
+      ctx.font = '12px Arial';
+      ctx.fillText('Use Arrow Keys to move', 20, 60);
+
+      requestAnimationFrame(animate);
     };
 
-    render();
-  }, [enemy, floor]);
-
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !enemy || enemy.health <= 0) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    const enemyX = 600;
-    const enemyY = 200;
-
-    const distX = clickX - enemyX;
-    const distY = clickY - enemyY;
-    const distance = Math.sqrt(distX * distX + distY * distY);
-
-    if (distance < 60) {
-      onAttack();
-    }
-  };
+    animate();
+  }, [playerPos, enemyPos, enemy, floor]);
 
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      keysPressed.current[e.key] = true;
+
       if (e.code === 'Space') {
         e.preventDefault();
         if (enemy && enemy.health > 0) {
-          onAttack();
+          const distX = playerPos.x - enemyPos.x;
+          const distY = playerPos.y - enemyPos.y;
+          const distance = Math.sqrt(distX * distX + distY * distY);
+          if (distance < 120) {
+            onAttack();
+          }
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [enemy, onAttack]);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysPressed.current[e.key] = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [playerPos, enemyPos, enemy, onAttack]);
+
+  useEffect(() => {
+    const moveInterval = setInterval(() => {
+      setPlayerPos((prev) => {
+        let newX = prev.x;
+        let newY = prev.y;
+
+        if (keysPressed.current['ArrowUp'] || keysPressed.current['w'] || keysPressed.current['W']) {
+          newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
+        }
+        if (keysPressed.current['ArrowDown'] || keysPressed.current['s'] || keysPressed.current['S']) {
+          newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
+        }
+        if (keysPressed.current['ArrowLeft'] || keysPressed.current['a'] || keysPressed.current['A']) {
+          newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
+        }
+        if (keysPressed.current['ArrowRight'] || keysPressed.current['d'] || keysPressed.current['D']) {
+          newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
+        }
+
+        return { x: newX, y: newY };
+      });
+    }, 1000 / 60);
+
+    return () => clearInterval(moveInterval);
+  }, []);
 
   return (
-    <div className="flex flex-col gap-4 items-center">
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={600}
-        onClick={handleCanvasClick}
-        className="bg-gray-800 border-4 border-yellow-600 rounded-lg cursor-crosshair"
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
+      className="bg-gray-900 border-4 border-yellow-600 rounded-lg"
+    />
   );
 }
