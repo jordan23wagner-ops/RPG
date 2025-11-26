@@ -1,6 +1,6 @@
-import { Heart, Zap, TrendingUp, Coins, Package, ArrowDown } from 'lucide-react';
+import { Heart, Zap, TrendingUp, Coins, Package, ArrowDown, Sparkles } from 'lucide-react';
 import { Character, Item } from '../types/game';
-import { getRarityColor } from '../utils/gameLogic';
+import { getRarityColor, getRarityBgColor } from '../utils/gameLogic';
 
 interface GameUIProps {
   character: Character;
@@ -115,21 +115,33 @@ export function GameUI({
             {equippedItems.map(item => (
               <div
                 key={item.id}
-                className="bg-gray-800 border border-green-600 rounded px-2 py-0.5 text-xs flex justify-between items-center"
+                className={`${getRarityBgColor(item.rarity)} border ${item.rarity === 'unique' ? 'border-red-600' : item.rarity === 'mythic' ? 'border-purple-600' : 'border-green-600'} rounded px-2 py-1 text-xs`}
               >
-                <div>
-                  <div className={`font-semibold text-xs ${getRarityColor(item.rarity)}`}>
-                    {item.name}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className={`font-semibold text-xs ${getRarityColor(item.rarity)}`}>
+                      {item.name}
+                    </div>
+                    {item.damage && <div className="text-red-400 text-xs">+{item.damage} DMG</div>}
+                    {item.armor && <div className="text-blue-400 text-xs">+{item.armor} ARM</div>}
                   </div>
-                  {item.damage && <div className="text-red-400 text-xs">+{item.damage} DMG</div>}
-                  {item.armor && <div className="text-blue-400 text-xs">+{item.armor} ARM</div>}
+                  <button
+                    onClick={() => onEquip(item.id)}
+                    className="px-1 py-0.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded flex-shrink-0 ml-1"
+                  >
+                    Unequip
+                  </button>
                 </div>
-                <button
-                  onClick={() => onEquip(item.id)}
-                  className="px-1.5 py-0.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded flex-shrink-0"
-                >
-                  Unequip
-                </button>
+                {item.affixes && item.affixes.length > 0 && (
+                  <div className="mt-1 space-y-0.5 border-t border-gray-600 pt-1">
+                    {item.affixes.map((affix, idx) => (
+                      <div key={idx} className="text-gray-300 text-xs flex items-center gap-1">
+                        <Sparkles className="w-2 h-2" />
+                        {affix.name} +{affix.value}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -165,21 +177,34 @@ export function GameUI({
             {unequippedItems.map(item => (
               <div
                 key={item.id}
-                className="bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-xs flex justify-between items-center hover:border-gray-600"
+                className={`${getRarityBgColor(item.rarity)} border ${item.rarity === 'unique' ? 'border-red-500' : item.rarity === 'mythic' ? 'border-purple-500' : 'border-gray-700'} rounded px-2 py-0.5 text-xs hover:opacity-80 transition-opacity`}
               >
-                <div>
-                  <div className={`font-semibold text-xs ${getRarityColor(item.rarity)}`}>
-                    {item.name}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className={`font-semibold text-xs ${getRarityColor(item.rarity)}`}>
+                      {item.name}
+                    </div>
+                    {item.damage && <div className="text-red-400 text-xs">+{item.damage} DMG</div>}
+                    {item.armor && <div className="text-blue-400 text-xs">+{item.armor} ARM</div>}
                   </div>
-                  {item.damage && <div className="text-red-400 text-xs">+{item.damage} DMG</div>}
-                  {item.armor && <div className="text-blue-400 text-xs">+{item.armor} ARM</div>}
+                  <button
+                    onClick={() => onEquip(item.id)}
+                    className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded whitespace-nowrap flex-shrink-0 ml-1"
+                  >
+                    Equip
+                  </button>
                 </div>
-                <button
-                  onClick={() => onEquip(item.id)}
-                  className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded whitespace-nowrap flex-shrink-0"
-                >
-                  Equip
-                </button>
+                {item.affixes && item.affixes.length > 0 && (
+                  <div className="mt-0.5 space-y-0 border-t border-gray-700 pt-0.5">
+                    {item.affixes.slice(0, 2).map((affix, idx) => (
+                      <div key={idx} className="text-gray-300 text-xs flex items-center gap-1">
+                        <Sparkles className="w-2 h-2" />
+                        {affix.name} +{affix.value}
+                      </div>
+                    ))}
+                    {item.affixes.length > 2 && <div className="text-gray-400 text-xs">+{item.affixes.length - 2} more</div>}
+                  </div>
+                )}
               </div>
             ))}
           </div>

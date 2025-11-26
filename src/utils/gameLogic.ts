@@ -1,14 +1,67 @@
-import { Enemy, Item } from '../types/game';
+import { Enemy, Item, Affix } from '../types/game';
 
 const enemyNames = [
   'Fallen', 'Zombie', 'Skeleton', 'Dark Cultist', 'Corrupted Warrior',
   'Shadow Beast', 'Demon', 'Wraith', 'Necromancer', 'Hell Spawn'
 ];
 
-const weaponPrefixes = ['Rusty', 'Sharp', 'Heavy', 'Ancient', 'Blessed', 'Cursed', 'Legendary'];
-const weaponNames = ['Sword', 'Axe', 'Mace', 'Dagger', 'Spear', 'Bow'];
-const armorPrefixes = ['Leather', 'Chain', 'Plate', 'Dragon', 'Shadow', 'Divine'];
-const armorTypes = ['Armor', 'Helmet', 'Boots'];
+const meleeWeapons = ['Sword', 'Axe', 'Mace', 'Cleaver', 'Warhammer', 'Flail'];
+const rangedWeapons = ['Bow', 'Crossbow', 'Longbow', 'Shortbow'];
+const mageWeapons = ['Staff', 'Wand', 'Orb', 'Scepter', 'Tome'];
+
+const weaponPrefixes = {
+  melee: ['Brutal', 'Savage', 'Executioner\'s', 'Berserker\'s', 'Demon'],
+  ranged: ['Piercing', 'Swift', 'Sniper\'s', 'Ranger\'s', 'Phantom'],
+  mage: ['Arcane', 'Mystic', 'Spellweaver\'s', 'Wizard\'s', 'Ethereal']
+};
+
+const armorPrefixes = {
+  melee: ['Plate', 'Dragon', 'Titanium', 'Obsidian', 'Indestructible'],
+  ranged: ['Leather', 'Shadow', 'Swift', 'Assassin\'s', 'Phantom'],
+  mage: ['Silk', 'Enchanted', 'Mystic', 'Arcane', 'Celestial']
+};
+
+const affixPools = {
+  melee_weapon: [
+    { name: 'of Strength', stat: 'strength' as const, value: 5 },
+    { name: 'of Power', stat: 'damage' as const, value: 8 },
+    { name: 'Lifesteal', stat: 'health' as const, value: 3 },
+    { name: 'of Rending', stat: 'damage' as const, value: 5 },
+    { name: 'Crushing', stat: 'strength' as const, value: 3 }
+  ],
+  ranged_weapon: [
+    { name: 'of Dexterity', stat: 'dexterity' as const, value: 5 },
+    { name: 'of Precision', stat: 'damage' as const, value: 8 },
+    { name: 'of Swiftness', stat: 'dexterity' as const, value: 3 },
+    { name: 'Piercing', stat: 'damage' as const, value: 5 },
+    { name: 'of Accuracy', stat: 'dexterity' as const, value: 4 }
+  ],
+  mage_weapon: [
+    { name: 'of Intelligence', stat: 'intelligence' as const, value: 5 },
+    { name: 'of Spellpower', stat: 'damage' as const, value: 8 },
+    { name: 'of Mana', stat: 'mana' as const, value: 10 },
+    { name: 'Arcane', stat: 'intelligence' as const, value: 3 },
+    { name: 'of Wisdom', stat: 'intelligence' as const, value: 4 }
+  ],
+  melee_armor: [
+    { name: 'of Protection', stat: 'armor' as const, value: 5 },
+    { name: 'of Fortitude', stat: 'health' as const, value: 15 },
+    { name: 'of the Titan', stat: 'armor' as const, value: 8 },
+    { name: 'Ironbound', stat: 'armor' as const, value: 3 }
+  ],
+  ranged_armor: [
+    { name: 'of Evasion', stat: 'dexterity' as const, value: 4 },
+    { name: 'of Agility', stat: 'dexterity' as const, value: 5 },
+    { name: 'of Shadows', stat: 'armor' as const, value: 4 },
+    { name: 'of Speed', stat: 'dexterity' as const, value: 3 }
+  ],
+  mage_armor: [
+    { name: 'of Insight', stat: 'intelligence' as const, value: 4 },
+    { name: 'of Mana Shield', stat: 'mana' as const, value: 15 },
+    { name: 'of Sorcery', stat: 'intelligence' as const, value: 5 },
+    { name: 'of the Archmage', stat: 'mana' as const, value: 10 }
+  ]
+};
 
 export function generateEnemy(floor: number, playerLevel: number): Enemy {
   const level = playerLevel + Math.floor(floor / 3);
@@ -27,40 +80,98 @@ export function generateEnemy(floor: number, playerLevel: number): Enemy {
   };
 }
 
+function getRandomAffixes(itemType: string, rarity: string): Affix[] {
+  const affixPool = affixPools[itemType as keyof typeof affixPools] || [];
+  if (!affixPool.length) return [];
+
+  const affixCount = {
+    common: 0,
+    magic: 1,
+    rare: 2,
+    legendary: 3,
+    mythic: 4,
+    unique: 5
+  }[rarity] || 0;
+
+  const affixes: Affix[] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < affixCount; i++) {
+    let idx = Math.floor(Math.random() * affixPool.length);
+    while (used.has(idx) && used.size < affixPool.length) {
+      idx = Math.floor(Math.random() * affixPool.length);
+    }
+    if (!used.has(idx)) {
+      used.add(idx);
+      const affix = affixPool[idx];
+      affixes.push({
+        ...affix,
+        value: Math.floor(affix.value * (1 + Math.random() * 0.3))
+      });
+    }
+  }
+
+  return affixes;
+}
+
 export function generateLoot(enemyLevel: number, floor: number): Partial<Item> | null {
   const dropChance = Math.random();
-
   if (dropChance > 0.4) return null;
 
   const rarityRoll = Math.random();
-  let rarity: 'common' | 'magic' | 'rare' | 'legendary';
+  let rarity: 'common' | 'magic' | 'rare' | 'legendary' | 'mythic' | 'unique';
 
-  if (rarityRoll < 0.6) rarity = 'common';
-  else if (rarityRoll < 0.85) rarity = 'magic';
-  else if (rarityRoll < 0.97) rarity = 'rare';
-  else rarity = 'legendary';
+  if (rarityRoll < 0.50) rarity = 'common';
+  else if (rarityRoll < 0.75) rarity = 'magic';
+  else if (rarityRoll < 0.90) rarity = 'rare';
+  else if (rarityRoll < 0.98) rarity = 'legendary';
+  else if (rarityRoll < 0.99) rarity = 'mythic';
+  else rarity = 'unique';
 
   const rarityMultiplier = {
     common: 1,
-    magic: 1.5,
-    rare: 2.5,
-    legendary: 4
+    magic: 1.3,
+    rare: 1.8,
+    legendary: 2.5,
+    mythic: 3.5,
+    unique: 5
   }[rarity];
 
   const isWeapon = Math.random() > 0.4;
 
   if (isWeapon) {
-    const prefix = weaponPrefixes[Math.floor(Math.random() * weaponPrefixes.length)];
-    const weaponType = weaponNames[Math.floor(Math.random() * weaponNames.length)];
+    const weaponClassRoll = Math.random();
+    let weaponType: 'melee_weapon' | 'ranged_weapon' | 'mage_weapon';
+    let weaponList: string[];
+    let prefixList: string[];
+
+    if (weaponClassRoll < 0.5) {
+      weaponType = 'melee_weapon';
+      weaponList = meleeWeapons;
+      prefixList = weaponPrefixes.melee;
+    } else if (weaponClassRoll < 0.75) {
+      weaponType = 'ranged_weapon';
+      weaponList = rangedWeapons;
+      prefixList = weaponPrefixes.ranged;
+    } else {
+      weaponType = 'mage_weapon';
+      weaponList = mageWeapons;
+      prefixList = weaponPrefixes.mage;
+    }
+
+    const prefix = prefixList[Math.floor(Math.random() * prefixList.length)];
+    const weapon = weaponList[Math.floor(Math.random() * weaponList.length)];
     const damage = Math.floor((5 + enemyLevel * 2 + Math.random() * 10) * rarityMultiplier);
+    const affixes = getRandomAffixes(weaponType, rarity);
 
     return {
-      name: `${prefix} ${weaponType}`,
-      type: 'weapon',
+      name: `${prefix} ${weapon}`,
+      type: weaponType,
       rarity,
       damage,
-      value: damage * 5,
-      equipped: false
+      value: Math.floor(damage * 5 * rarityMultiplier),
+      equipped: false,
+      affixes
     };
   } else {
     const isPotion = Math.random() > 0.7;
@@ -75,17 +186,38 @@ export function generateLoot(enemyLevel: number, floor: number): Partial<Item> |
       };
     }
 
-    const prefix = armorPrefixes[Math.floor(Math.random() * armorPrefixes.length)];
-    const armorType = armorTypes[Math.floor(Math.random() * armorTypes.length)];
+    const armorClassRoll = Math.random();
+    let armorType: 'melee_armor' | 'ranged_armor' | 'mage_armor';
+    let prefixList: string[];
+    let armorSlot: 'armor' | 'helmet' | 'boots';
+    const slotRoll = Math.random();
+    if (slotRoll < 0.33) armorSlot = 'armor';
+    else if (slotRoll < 0.66) armorSlot = 'helmet';
+    else armorSlot = 'boots';
+
+    if (armorClassRoll < 0.5) {
+      armorType = 'melee_armor';
+      prefixList = armorPrefixes.melee;
+    } else if (armorClassRoll < 0.75) {
+      armorType = 'ranged_armor';
+      prefixList = armorPrefixes.ranged;
+    } else {
+      armorType = 'mage_armor';
+      prefixList = armorPrefixes.mage;
+    }
+
+    const prefix = prefixList[Math.floor(Math.random() * prefixList.length)];
     const armor = Math.floor((3 + enemyLevel * 1.5 + Math.random() * 5) * rarityMultiplier);
+    const affixes = getRandomAffixes(armorType, rarity);
 
     return {
-      name: `${prefix} ${armorType}`,
-      type: armorType.toLowerCase() as 'armor' | 'helmet' | 'boots',
+      name: `${prefix} ${armorSlot.charAt(0).toUpperCase() + armorSlot.slice(1)}`,
+      type: armorType,
       rarity,
       armor,
-      value: armor * 8,
-      equipped: false
+      value: Math.floor(armor * 8 * rarityMultiplier),
+      equipped: false,
+      affixes
     };
   }
 }
@@ -96,6 +228,20 @@ export function getRarityColor(rarity: string): string {
     case 'magic': return 'text-blue-400';
     case 'rare': return 'text-yellow-400';
     case 'legendary': return 'text-orange-500';
+    case 'mythic': return 'text-purple-500';
+    case 'unique': return 'text-red-500';
     default: return 'text-gray-400';
+  }
+}
+
+export function getRarityBgColor(rarity: string): string {
+  switch (rarity) {
+    case 'common': return 'bg-gray-700';
+    case 'magic': return 'bg-blue-900';
+    case 'rare': return 'bg-yellow-900';
+    case 'legendary': return 'bg-orange-900';
+    case 'mythic': return 'bg-purple-900';
+    case 'unique': return 'bg-red-900';
+    default: return 'bg-gray-700';
   }
 }

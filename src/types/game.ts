@@ -16,16 +16,23 @@ export interface Character {
   updated_at: string;
 }
 
+export interface Affix {
+  name: string;
+  value: number;
+  stat: 'strength' | 'dexterity' | 'intelligence' | 'health' | 'mana' | 'damage' | 'armor';
+}
+
 export interface Item {
   id: string;
   character_id: string;
   name: string;
-  type: 'weapon' | 'armor' | 'helmet' | 'boots' | 'potion';
-  rarity: 'common' | 'magic' | 'rare' | 'legendary';
+  type: 'weapon' | 'armor' | 'helmet' | 'boots' | 'potion' | 'melee_weapon' | 'ranged_weapon' | 'mage_weapon' | 'melee_armor' | 'ranged_armor' | 'mage_armor';
+  rarity: 'common' | 'magic' | 'rare' | 'legendary' | 'mythic' | 'unique';
   damage?: number;
   armor?: number;
   value: number;
   equipped: boolean;
+  affixes?: Affix[];
   created_at: string;
 }
 
