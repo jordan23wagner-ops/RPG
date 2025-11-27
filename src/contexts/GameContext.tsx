@@ -7,7 +7,11 @@ import {
 } from 'react';
 import { supabase } from '../lib/supabase';
 import { Character, Item, Enemy } from '../types/game';
-import { generateEnemy, generateLoot } from '../utils/gameLogic';
+import {
+  generateEnemy,
+  generateLoot,
+  getEquipmentSlot,
+} from '../utils/gameLogic';
 
 interface GameContextType {
   character: Character | null;
@@ -28,10 +32,6 @@ interface GameContextType {
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
-
-// groupings for equipment logic
-const WEAPON_TYPES = ['melee_weapon', 'ranged_weapon', 'mage_weapon'] as const;
-const ARMOR_TYPES = ['melee_armor', 'ranged_armor', 'mage_armor'] as const;
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [character, setCharacter] = useState<Character | null>(null);
@@ -242,7 +242,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      // Generate loot (always returns something now)
       let loot = generateLoot(
         currentEnemy.level,
         floor,
@@ -339,70 +338,42 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const item = items.find(i => i.id === itemId);
     if (!item || item.type === 'potion') return;
 
-    const isWeapon = WEAPON_TYPES.includes(item.type as any);
-    const isArmor = ARMOR_TYPES.includes(item.type as any);
+    const slot = getEquipmentSlot(item);
 
     try {
       if (item.equipped) {
-        // Simple toggle off
+        // Toggle off
         await supabase
           .from('items')
           .update({ equipped: false })
           .eq('id', itemId);
-      } else if (isWeapon) {
-        // Unequip all other weapons, then equip this one
-        const equippedWeapons = items.filter(
-          i =>
-            i.equipped &&
-            WEAPON_TYPES.includes(i.type as any),
-        );
-        if (equippedWeapons.length) {
-          await supabase
-            .from('items')
-            .update({ equipped: false })
-            .in(
-              'id',
-              equippedWeapons.map(i => i.id),
-            );
-        }
-        await supabase
-          .from('items')
-          .update({ equipped: true })
-          .eq('id', itemId);
-      } else if (isArmor) {
-        // Unequip all other armor, then equip this one
-        const equippedArmor = items.filter(
-          i =>
-            i.equipped &&
-            ARMOR_TYPES.includes(i.type as any),
-        );
-        if (equippedArmor.length) {
-          await supabase
-            .from('items')
-            .update({ equipped: false })
-            .in(
-              'id',
-              equippedArmor.map(i => i.id),
-            );
-        }
-        await supabase
-          .from('items')
-          .update({ equipped: true })
-          .eq('id', itemId);
       } else {
-        // Fallback: behave like old logic (one per exact type)
-        const sameTypeEquipped = items.find(
-          i => i.equipped && i.type === item.type,
-        );
-        if (sameTypeEquipped) {
+        // Find any equipped items that conflict with this slot
+        let conflictingIds: string[] = [];
+
+        if (slot) {
+          conflictingIds = items
+            .filter(equippedItem => {
+              if (!equippedItem.equipped) return false;
+              const eqSlot = getEquipmentSlot(equippedItem);
+              // Only one item per exact slot; all weapons share the same slot
+              if (slot === 'weapon' && eqSlot === 'weapon') return true;
+              if (eqSlot === slot) return true;
+              return false;
+            })
+            .map(i => i.id);
+        }
+
+        if (conflictingIds.length > 0) {
           await supabase
             .from('items')
             .update({ equipped: false })
-            .eq('id', sameTypeEquipped.id);
+            .in('id', conflictingIds);
         }
+
         await supabase
           .from('items')
-          .update({ equipped: !item.equipped })
+          .update({ equipped: true })
           .eq('id', itemId);
       }
     } catch (err) {
