@@ -151,8 +151,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const attack = async () => {
     if (!character || !currentEnemy) return;
 
-    const equippedWeapon = items.find(i => i.type === 'weapon' && i.equipped);
-    const weaponDamage = equippedWeapon?.damage || 0;
-
-    const playerDamage = Math.floor(
-      character.strength * 0.5 + weapo*
+const equippedWeapon = items.find(i => i.type === 'weapon' && i.equipped);
+const weaponDamage = equippedWeapon?.damage || 0;
+const playerDamage = Math.floor(
+  character.strength * 0.5 +
+  weaponDamage +
+  Math.random() * 10
+);
