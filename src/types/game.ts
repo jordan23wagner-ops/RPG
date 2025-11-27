@@ -273,3 +273,18 @@ function onEnemyDeath(enemy: Enemy, character: Character) {
 if (enemy.health <= 0) {
   onEnemyDeath(enemy, character);
 }
+
+const droppedItem = rollLoot(enemy, character);
+
+if (droppedItem) {
+  // 1) Save to DB (Supabase or whatever)
+  // await supabase.from('items').insert(droppedItem);
+
+  // 2) AND/OR update in-memory inventory state
+  // characterInventory.push(droppedItem);
+
+  // 3) AND/OR send message to UI
+  // sendToClient({ type: 'loot_drop', item: droppedItem });
+} else {
+  console.log('Enemy died, no loot drop.');
+}
