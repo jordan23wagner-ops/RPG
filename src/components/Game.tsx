@@ -6,6 +6,7 @@ import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
 import { LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { EquipmentPanel } from './EquipmentPanel';
 
 export function Game() {
   const [shopOpen, setShopOpen] = useState(false);
@@ -47,7 +48,7 @@ export function Game() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4">
-      <div className="flex items-center justify-between mb-6 max-w-[1400px] mx-auto">
+      <div className="flex items-center justify-between mb-6 max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
         <button
           onClick={handleSignOut}
@@ -58,7 +59,8 @@ export function Game() {
         </button>
       </div>
 
-      <div className="flex gap-6 max-w-[1400px] mx-auto">
+      {/* Main row: left HUD + dungeon */}
+      <div className="flex gap-6 max-w-7xl mx-auto">
         <div className="w-80 flex-shrink-0">
           <GameUI
             character={character}
@@ -76,6 +78,11 @@ export function Game() {
         <div className="flex-1 flex justify-center">
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} />
         </div>
+      </div>
+
+      {/* NEW: wide gear panel under the dungeon */}
+      <div className="max-w-7xl mx-auto">
+        <EquipmentPanel items={items} onEquip={equipItem} />
       </div>
 
       {shopOpen && (
