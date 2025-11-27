@@ -66,3 +66,54 @@ interface LootEntry {
   baseValue: number;
   rarity: LootRarity;
   weight: number;
+
+const LOOT_TABLE: LootEntry[] = [
+  {
+    name: 'Rusty Sword',
+    type: 'melee_weapon',
+    baseDamage: 3,
+    baseValue: 5,
+    rarity: 'common',
+    weight: 40,
+  },
+  {
+    name: 'Cracked Leather Armor',
+    type: 'melee_armor',
+    baseArmor: 2,
+    baseValue: 5,
+    rarity: 'common',
+    weight: 40,
+  },
+  {
+    name: 'Apprentice Wand',
+    type: 'mage_weapon',
+    baseDamage: 4,
+    baseValue: 10,
+    rarity: 'magic',
+    weight: 20,
+  },
+  {
+    name: 'Hunter Bow',
+    type: 'ranged_weapon',
+    baseDamage: 5,
+    baseValue: 12,
+    rarity: 'magic',
+    weight: 20,
+  },
+  {
+    name: 'Knight’s Helm',
+    type: 'helmet',
+    baseArmor: 5,
+    baseValue: 50,
+    rarity: 'rare',
+    weight: 10,
+  },
+  {
+    name: 'Dragonplate Chest',
+    type: 'armor',
+    baseArmor: 10,
+    baseValue: 200,
+    rarity: 'legendary',
+    weight: 2,
+  },
+];
