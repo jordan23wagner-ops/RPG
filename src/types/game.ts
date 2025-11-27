@@ -268,3 +268,8 @@ function onEnemyDeath(enemy: Enemy, character: Character) {
     console.log('Enemy died, no loot drop.');
   }
 }
+
+// Example: in your combat loop / attack handler
+if (enemy.health <= 0) {
+  onEnemyDeath(enemy, character);
+}
