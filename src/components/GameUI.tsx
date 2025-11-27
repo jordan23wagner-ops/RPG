@@ -63,7 +63,7 @@ const equipmentSlotIcon = (slotId: EquipmentUISlotId) => {
   switch (slotId) {
     case 'mainHand':
     case 'offHand':
-      return <Package className="w-4 h-4" />; // could swap to Sword later
+      return <Package className="w-4 h-4" />;
     case 'helmet':
     case 'chest':
     case 'boots':
@@ -172,7 +172,7 @@ export function GameUI({
       <div
         className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px] ${SLOT_LAYOUT[slotId]}`}
       >
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center justify-between gap-1 mb-1">
           <span className="flex items-center gap-1 text-gray-300">
             {equipmentSlotIcon(slotId)}
             <span className="uppercase tracking-wide text-[9px] text-gray-400">
@@ -310,7 +310,7 @@ export function GameUI({
             <User2 className="w-20 h-20 text-gray-400" />
           </div>
 
-          <div className="grid grid-cols-3 auto-rows-[70px] gap-2 relative z-10">
+          <div className="grid grid-cols-3 auto-rows-[90px] gap-2 relative z-10">
             {EQUIPMENT_UI_SLOTS.map(slot => (
               <div key={slot.id}>
                 {renderEquipmentSlot(slot.id, slot.label)}
