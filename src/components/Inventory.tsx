@@ -1,4 +1,4 @@
-import { Package, Sword, Shield, FlaskConical } from 'lucide-react';
+import { Package, Sword, Shield, FlaskConical, User2 } from 'lucide-react';
 import { Item } from '../types/game';
 import {
   getRarityColor,
@@ -30,14 +30,14 @@ type EquipmentUISlotId =
 const EQUIPMENT_UI_SLOTS: { id: EquipmentUISlotId; label: string }[] = [
   { id: 'helmet', label: 'Helmet' },
   { id: 'amulet', label: 'Amulet' },
+  { id: 'ring1', label: 'Ring 1' },
+  { id: 'ring2', label: 'Ring 2' },
   { id: 'mainHand', label: 'Main Hand' },
   { id: 'offHand', label: 'Off Hand' },
   { id: 'chest', label: 'Armor' },
-  { id: 'belt', label: 'Belt' },
   { id: 'gloves', label: 'Gloves' },
+  { id: 'belt', label: 'Belt' },
   { id: 'boots', label: 'Boots' },
-  { id: 'ring1', label: 'Ring 1' },
-  { id: 'ring2', label: 'Ring 2' },
   { id: 'trinket', label: 'Trinket' },
 ];
 
@@ -59,6 +59,26 @@ const equipmentSlotIcon = (slotId: EquipmentUISlotId) => {
     default:
       return <Package className="w-4 h-4" />;
   }
+};
+
+// Tailwind layout for a 3×5 gear grid
+const SLOT_LAYOUT: Record<EquipmentUISlotId, string> = {
+  // row 1
+  helmet: 'row-start-1 col-start-2',
+  // row 2 (rings + amulet)
+  ring1: 'row-start-2 col-start-1',
+  amulet: 'row-start-2 col-start-2',
+  ring2: 'row-start-2 col-start-3',
+  // row 3 (hands + chest)
+  mainHand: 'row-start-3 col-start-1',
+  chest: 'row-start-3 col-start-2',
+  offHand: 'row-start-3 col-start-3',
+  // row 4 (gloves + belt)
+  gloves: 'row-start-4 col-start-1',
+  belt: 'row-start-4 col-start-2',
+  // row 5 (boots + trinket)
+  boots: 'row-start-5 col-start-2',
+  trinket: 'row-start-5 col-start-3',
 };
 
 export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
@@ -103,11 +123,10 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
       case 'mainHand':
         return weaponItem;
       case 'offHand':
-        // Only show something here if the weapon is two-handed,
-        // so 2H weapons visually occupy both slots.
+        // Show 2H weapon in both hands visually
         if (weaponItem && isTwoHanded(weaponItem)) return weaponItem;
         return undefined;
-      // amulet / belt / gloves / rings don't have items yet
+      // amulet / belt / gloves / rings have no item types yet
       default:
         return undefined;
     }
@@ -118,15 +137,19 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
 
     if (!item) {
       return (
-        <div className="bg-gray-900/60 border border-gray-700 rounded-md p-2 flex flex-col items-center justify-center text-[10px] text-gray-400 gap-1">
+        <div
+          className={`bg-gray-900/60 border border-gray-700 rounded-md p-2 flex flex-col items-center justify-center text-[10px] text-gray-400 gap-1 ${SLOT_LAYOUT[slotId]}`}
+        >
           <div className="opacity-60">{equipmentSlotIcon(slotId)}</div>
-          <div>{label}</div>
+          <div className="uppercase tracking-wide">{label}</div>
         </div>
       );
     }
 
     return (
-      <div className="bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px]">
+      <div
+        className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px] ${SLOT_LAYOUT[slotId]}`}
+      >
         <div className="flex items-center justify-between gap-1">
           <span className="flex items-center gap-1 text-gray-300">
             {equipmentSlotIcon(slotId)}
@@ -176,18 +199,24 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
         <h4 className="text-sm font-semibold text-gray-400 mb-2">
           Equipped Gear
         </h4>
-        <div className="grid grid-cols-4 gap-2">
-          {EQUIPMENT_UI_SLOTS.map(slot => (
-            <div key={slot.id}>{renderEquipmentSlot(slot.id, slot.label)}</div>
-          ))}
+
+        <div className="relative border border-gray-700 rounded-lg p-3 bg-gray-950/70">
+          {/* Character silhouette in the middle */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10">
+            <User2 className="w-24 h-24 text-gray-400" />
+          </div>
+
+          <div className="grid grid-cols-3 auto-rows-[70px] gap-2 relative z-10">
+            {EQUIPMENT_UI_SLOTS.map(slot => (
+              <div key={slot.id}>{renderEquipmentSlot(slot.id, slot.label)}</div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* BACKPACK / POTIONS */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-400 mb-2">
-          Backpack
-        </h4>
+        <h4 className="text-sm font-semibold text-gray-400 mb-2">Backpack</h4>
         {unequippedItems.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             No items in backpack
