@@ -33,10 +33,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
     loadCharacter();
   }, []);
 
-  // Load Character + Items
+  const loadItems = async (characterId: string) => {
+    const { data } = await supabase
+      .from('items')
+      .select('*')
+      .eq('character_id', characterId);
+
+    if (data) {
+      setItems(data as Item[]);
+    }
+  };
+
   const loadCharacter = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
@@ -52,4 +64,95 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (chars && chars.length > 0) {
         const char = chars[0] as Character;
         setCharacter(char);
-        await loadIt
+        await loadItems(char.id);
+        generateNewEnemy(char.level);
+      }
+    } catch (error) {
+      console.error('Error loading character:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createCharacter = async (name: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('characters')
+        .insert([
+          {
+            user_id: user.id,
+            name,
+            level: 1,
+            experience: 0,
+            health: 100,
+            max_health: 100,
+            mana: 50,
+            max_mana: 50,
+            strength: 10,
+            dexterity: 10,
+            intelligence: 10,
+            gold: 0,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const char = data as Character;
+
+      setCharacter(char);
+      generateNewEnemy(1);
+
+      await supabase.from('items').insert([
+        {
+          character_id: char.id,
+          name: 'Rusty Sword',
+          type: 'weapon',
+          rarity: 'common',
+          damage: 5,
+          value: 10,
+          equipped: true,
+        },
+      ]);
+
+      await loadItems(char.id);
+    } catch (error) {
+      console.error('Error creating character:', error);
+    }
+  };
+
+  const generateNewEnemy = (playerLevel: number) => {
+    const enemy = generateEnemy(floor, playerLevel);
+    setCurrentEnemy(enemy);
+  };
+
+  const updateCharacter = async (updates: Partial<Character>) => {
+    if (!character) return;
+
+    const newChar: Character = {
+      ...character,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    setCharacter(newChar);
+
+    await supabase
+      .from('characters')
+      .update(updates)
+      .eq('id', character.id);
+  };
+
+  const attack = async () => {
+    if (!character || !currentEnemy) return;
+
+    const equippedWeapon = items.find(i => i.type === 'weapon' && i.equipped);
+    const weaponDamage = equippedWeapon?.damage || 0;
+
+    const playerDamage = Math.floor(
+      character.strength * 0.5 + weapo*
