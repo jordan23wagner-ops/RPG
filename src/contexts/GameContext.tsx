@@ -1,11 +1,5 @@
 // src/contexts/GameContext.tsx
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { Character, Item, Enemy, rollLoot } from '../types/game';
 import { generateEnemy } from '../utils/gameLogic';
@@ -36,7 +30,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [floor, setFloor] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // ---------- LOADERS ----------
+  useEffect(() => {
+    loadCharacter();
+  }, []);
+
+  // ---------- DATA LOADERS ----------
 
   const loadItems = async (characterId: string) => {
     const { data, error } = await supabase
@@ -59,6 +57,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
       if (!user) {
         setLoading(false);
         return;
@@ -72,7 +71,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         .limit(1);
 
       if (error) {
-        console.error('Error loading characters:', error);
+        console.error('Error loading character:', error);
         setLoading(false);
         return;
       }
@@ -84,18 +83,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         generateNewEnemy(char.level);
       }
     } catch (error) {
-      console.error('Error loading character:', error);
+      console.error('Error in loadCharacter:', error);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadCharacter();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---------- CHARACTER CREATION ----------
 
   const createCharacter = async (name: string) => {
     try {
@@ -131,7 +123,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setCharacter(char);
       generateNewEnemy(1);
 
-      // starter weapon (no id – let DB generate uuid)
+      // starter weapon
       await supabase.from('items').insert([
         {
           character_id: char.id,
@@ -150,8 +142,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ---------- HELPERS ----------
-
   const generateNewEnemy = (playerLevel: number) => {
     const enemy = generateEnemy(floor, playerLevel);
     setCurrentEnemy(enemy);
@@ -165,6 +155,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       ...updates,
       updated_at: new Date().toISOString(),
     };
+
     setCharacter(newChar);
 
     const { error } = await supabase
@@ -177,12 +168,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ---------- COMBAT / LOOT ----------
+  // ---------- COMBAT & LOOT ----------
 
   const attack = async () => {
     if (!character || !currentEnemy) return;
 
-    // Weapon: treat anything with damage as a weapon for now
+    // find a weapon (any equipped item with damage first, then plain weapon)
     const equippedWeapon =
       items.find((i) => i.equipped && i.damage && i.damage > 0) ??
       items.find((i) => i.type === 'weapon' && i.equipped);
@@ -197,7 +188,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     setCurrentEnemy(enemyAfterHit);
 
-    // Enemy dies
+    // ---- ENEMY DIES ----
     if (newEnemyHealth <= 0) {
       const newExp = character.experience + currentEnemy.experience;
       const newGold = character.gold + currentEnemy.gold;
@@ -231,23 +222,42 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      // ---- LOOT ROLL (100% drop in rollLoot right now) ----
+      // ---------- LOOT DROP ----------
       const loot = rollLoot(enemyAfterHit, character);
       console.log('rollLoot result:', loot);
 
       if (loot) {
-        // Strip client-side id before inserting (DB has uuid id)
-        const { id, ...insertPayload } = loot as any;
+        // Map extended item types to DB enum values
+        const dbType =
+          loot.type === 'melee_weapon' ||
+          loot.type === 'ranged_weapon' ||
+          loot.type === 'mage_weapon'
+            ? 'weapon'
+            : loot.type === 'melee_armor' ||
+              loot.type === 'ranged_armor' ||
+              loot.type === 'mage_armor'
+            ? 'armor'
+            : loot.type;
 
         const { error } = await supabase.from('items').insert([
           {
-            ...insertPayload,
-            character_id: character.id, // ensure correct ownership
+            character_id: character.id,
+            name: loot.name,
+            type: dbType,
+            rarity: loot.rarity,
+            damage: loot.damage ?? null,
+            armor: loot.armor ?? null,
+            value: loot.value,
+            equipped: false,
+            // let DB handle id/created_at, and we’re not persisting affixes yet
           },
         ]);
 
         if (error) {
-          console.error('Error inserting loot into Supabase:', error);
+          console.error(
+            'Error inserting loot into Supabase:',
+            error.message || error
+          );
         } else {
           console.log('Loot successfully inserted into Supabase');
           await loadItems(character.id);
@@ -256,11 +266,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
         console.log('No loot returned from rollLoot');
       }
 
-      // Spawn new enemy
+      // spawn next enemy
       setTimeout(() => generateNewEnemy(newLevel), 1000);
     } else {
-      // Enemy counter-attack
+      // ---- ENEMY COUNTER-ATTACK ----
       setTimeout(() => {
+        // re-check in case state changed
         if (!character || !currentEnemy) return;
 
         const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
@@ -356,6 +367,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (user) {
       await supabase.from('items').insert([
         {
@@ -394,8 +406,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     </GameContext.Provider>
   );
 }
-
-// ---------- Hook ----------
 
 export function useGame() {
   const context = useContext(GameContext);
