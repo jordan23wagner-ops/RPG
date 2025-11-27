@@ -29,6 +29,10 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+// groupings for equipment logic
+const WEAPON_TYPES = ['melee_weapon', 'ranged_weapon', 'mage_weapon'] as const;
+const ARMOR_TYPES = ['melee_armor', 'ranged_armor', 'mage_armor'] as const;
+
 export function GameProvider({ children }: { children: ReactNode }) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -139,7 +143,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         {
           character_id: char.id,
           name: 'Rusty Sword',
-          type: 'melee_weapon', // matches your loot types
+          type: 'melee_weapon',
           rarity: 'common',
           damage: 5,
           value: 10,
@@ -179,12 +183,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --------------- Combat / Loot (100% drop) ---------------
+  // --------------- Combat / Loot ---------------
 
   const attack = async () => {
     if (!character || !currentEnemy) return;
 
-    // consider all weapon types
     const equippedWeapon = items.find(
       i =>
         i.equipped &&
@@ -239,14 +242,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      // 🔹 Use your generateLoot function
+      // Generate loot (always returns something now)
       let loot = generateLoot(
         currentEnemy.level,
         floor,
         currentEnemy.rarity,
       );
 
-      // 🔸 Guarantee *something* drops
       if (!loot) {
         loot = {
           name: 'Tarnished Trinket',
@@ -283,7 +285,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setTimeout(() => {
         if (!character || !currentEnemy) return;
 
-        const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
+        const enemyDamage = Math.floor(
+          currentEnemy.damage + Math.random() * 5,
+        );
         const totalArmor = items
           .filter(i => i.equipped && i.armor)
           .reduce((sum, i) => sum + (i.armor || 0), 0);
@@ -314,7 +318,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!potion) return;
 
     const healAmount = 50;
-    const newHealth = Math.min(character.max_health, character.health + healAmount);
+    const newHealth = Math.min(
+      character.max_health,
+      character.health + healAmount,
+    );
 
     await updateCharacter({ health: newHealth });
 
@@ -332,22 +339,75 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const item = items.find(i => i.id === itemId);
     if (!item || item.type === 'potion') return;
 
-    // Unequip any currently equipped item of same category
-    const sameTypeEquipped = items.find(
-      i => i.equipped && i.type === item.type,
-    );
+    const isWeapon = WEAPON_TYPES.includes(item.type as any);
+    const isArmor = ARMOR_TYPES.includes(item.type as any);
 
-    if (sameTypeEquipped) {
-      await supabase
-        .from('items')
-        .update({ equipped: false })
-        .eq('id', sameTypeEquipped.id);
+    try {
+      if (item.equipped) {
+        // Simple toggle off
+        await supabase
+          .from('items')
+          .update({ equipped: false })
+          .eq('id', itemId);
+      } else if (isWeapon) {
+        // Unequip all other weapons, then equip this one
+        const equippedWeapons = items.filter(
+          i =>
+            i.equipped &&
+            WEAPON_TYPES.includes(i.type as any),
+        );
+        if (equippedWeapons.length) {
+          await supabase
+            .from('items')
+            .update({ equipped: false })
+            .in(
+              'id',
+              equippedWeapons.map(i => i.id),
+            );
+        }
+        await supabase
+          .from('items')
+          .update({ equipped: true })
+          .eq('id', itemId);
+      } else if (isArmor) {
+        // Unequip all other armor, then equip this one
+        const equippedArmor = items.filter(
+          i =>
+            i.equipped &&
+            ARMOR_TYPES.includes(i.type as any),
+        );
+        if (equippedArmor.length) {
+          await supabase
+            .from('items')
+            .update({ equipped: false })
+            .in(
+              'id',
+              equippedArmor.map(i => i.id),
+            );
+        }
+        await supabase
+          .from('items')
+          .update({ equipped: true })
+          .eq('id', itemId);
+      } else {
+        // Fallback: behave like old logic (one per exact type)
+        const sameTypeEquipped = items.find(
+          i => i.equipped && i.type === item.type,
+        );
+        if (sameTypeEquipped) {
+          await supabase
+            .from('items')
+            .update({ equipped: false })
+            .eq('id', sameTypeEquipped.id);
+        }
+        await supabase
+          .from('items')
+          .update({ equipped: !item.equipped })
+          .eq('id', itemId);
+      }
+    } catch (err) {
+      console.error('Error equipping item:', err);
     }
-
-    await supabase
-      .from('items')
-      .update({ equipped: !item.equipped })
-      .eq('id', itemId);
 
     await loadItems(character.id);
   };
@@ -381,9 +441,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!character) return;
 
     // Sell all unequipped, non-potion items
-    const sellable = items.filter(
-      i => !i.equipped && i.type !== 'potion',
-    );
+    const sellable = items.filter(i => !i.equipped && i.type !== 'potion');
 
     if (sellable.length === 0) return;
 
@@ -395,10 +453,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     await updateCharacter({ gold: character.gold + totalValue });
 
-    const { error } = await supabase
-      .from('items')
-      .delete()
-      .in('id', ids);
+    const { error } = await supabase.from('items').delete().in('id', ids);
 
     if (error) {
       console.error('Error selling all items:', error);
