@@ -56,3 +56,13 @@ export interface GameSession {
   started_at: string;
   ended_at?: string;
 }
+type LootRarity = Item['rarity'];
+
+interface LootEntry {
+  name: string;
+  type: Item['type'];
+  baseDamage?: number;
+  baseArmor?: number;
+  baseValue: number;
+  rarity: LootRarity;
+  weight: number;
