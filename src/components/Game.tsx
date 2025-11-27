@@ -22,7 +22,8 @@ export function Game() {
     equipItem,
     nextFloor,
     sellItem,
-    buyPotion
+    buyPotion,
+    sellAllItems,
   } = useGame();
 
   const handleSignOut = async () => {
@@ -57,7 +58,7 @@ export function Game() {
         </button>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex gap-6 max-w-7xl mx-auto">
         <div className="w-80 flex-shrink-0">
           <GameUI
             character={character}
@@ -68,15 +69,12 @@ export function Game() {
             onNextFloor={nextFloor}
             enemyDefeated={enemyDefeated}
             onOpenShop={() => setShopOpen(true)}
+            onSellAll={sellAllItems}
           />
         </div>
 
         <div className="flex-1 flex justify-center">
-          <DungeonView
-            enemy={currentEnemy}
-            floor={floor}
-            onAttack={attack}
-          />
+          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} />
         </div>
       </div>
 
