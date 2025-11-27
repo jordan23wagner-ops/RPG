@@ -117,3 +117,154 @@ const LOOT_TABLE: LootEntry[] = [
     weight: 2,
   },
 ];
+
+function getDropChance(enemy: Enemy): number {
+  switch (enemy.rarity) {
+    case 'normal':
+      return 0.15; // 15%
+    case 'rare':
+      return 0.35; // 35%
+    case 'elite':
+      return 0.65; // 65%
+    case 'boss':
+      return 1.0; // always drop
+    default:
+      return 0.1;
+  }
+}
+
+function rollRarity(enemy: Enemy): LootRarity | null {
+  const roll = Math.random(); // 0–1
+  const dropChance = getDropChance(enemy);
+
+  if (roll > dropChance) {
+    // No loot drop at all
+    console.log('No loot dropped. roll=', roll, 'chance=', dropChance);
+    return null;
+  }
+
+  // Within a drop, bias higher rarities for higher-level enemies
+  const levelFactor = Math.min(enemy.level / 20, 1); // 0–1
+
+  const legendaryChance = 0.01 + 0.04 * levelFactor;
+  const rareChance = 0.05 + 0.10 * levelFactor;
+  const magicChance = 0.25 + 0.20 * levelFactor;
+  const commonChance = 1 - (legendaryChance + rareChance + magicChance);
+
+  const r = Math.random();
+
+  if (r < legendaryChance) return 'legendary';
+  if (r < legendaryChance + rareChance) return 'rare';
+  if (r < legendaryChance + rareChance + magicChance) return 'magic';
+  return 'common';
+}
+
+function pickLootEntry(rarity: LootRarity): LootEntry | null {
+  const candidates = LOOT_TABLE.filter((entry) => entry.rarity === rarity);
+  if (candidates.length === 0) {
+    console.warn('No loot entries for rarity', rarity);
+    return null;
+  }
+
+  const totalWeight = candidates.reduce((sum, e) => sum + e.weight, 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const entry of candidates) {
+    if (roll < entry.weight) {
+      return entry;
+    }
+    roll -= entry.weight;
+  }
+
+  // Fallback
+  return candidates[candidates.length - 1];
+}
+
+function generateAffixes(rarity: LootRarity): Affix[] {
+  const possibleAffixes: Omit<Affix, 'value'>[] = [
+    { name: 'of Strength', stat: 'strength' },
+    { name: 'of Dexterity', stat: 'dexterity' },
+    { name: 'of Intelligence', stat: 'intelligence' },
+    { name: 'of Health', stat: 'health' },
+    { name: 'of Mana', stat: 'mana' },
+    { name: 'of Power', stat: 'damage' },
+    { name: 'of Protection', stat: 'armor' },
+  ];
+
+  const rarityAffixCount: Record<LootRarity, number> = {
+    common: 0,
+    magic: 1,
+    rare: 2,
+    legendary: 3,
+    mythic: 4,
+    unique: 2, // tweak as you like
+  };
+
+  const count = rarityAffixCount[rarity] ?? 0;
+  const affixes: Affix[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const base = possibleAffixes[Math.floor(Math.random() * possibleAffixes.length)];
+    const value = 1 + Math.floor(Math.random() * (5 + i * 3)); // small scaling
+    affixes.push({
+      name: base.name,
+      stat: base.stat,
+      value,
+    });
+  }
+
+  return affixes;
+}
+
+import { v4 as uuidv4 } from 'uuid'; // or whatever ID generator you use
+
+export function rollLoot(enemy: Enemy, character: Character): Item | null {
+  const rarity = rollRarity(enemy);
+  if (!rarity) return null;
+
+  const blueprint = pickLootEntry(rarity);
+  if (!blueprint) return null;
+
+  const now = new Date().toISOString();
+  const affixes = generateAffixes(rarity);
+
+  const item: Item = {
+    id: uuidv4(),
+    character_id: character.id,
+    name: blueprint.name,
+    type: blueprint.type,
+    rarity,
+    damage: blueprint.baseDamage,
+    armor: blueprint.baseArmor,
+    value: blueprint.baseValue,
+    equipped: false,
+    affixes,
+    created_at: now,
+  };
+
+  console.log('Loot dropped:', item);
+
+  return item;
+}
+
+function onEnemyDeath(enemy: Enemy, character: Character) {
+  // existing stuff:
+  // - give XP
+  // - give gold
+  // - increment enemies_killed, etc.
+
+  const droppedItem = rollLoot(enemy, character);
+
+  if (droppedItem) {
+    // 1) Save to DB (Supabase or whatever)
+    // await supabase.from('items').insert(droppedItem);
+
+    // 2) AND/OR update in-memory inventory state
+    // characterInventory.push(droppedItem);
+
+    // 3) AND/OR send message to UI
+    // sendToClient({ type: 'loot_drop', item: droppedItem });
+  } else {
+    console.log('Enemy died, no loot drop.');
+  }
+}
