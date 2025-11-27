@@ -135,15 +135,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
       .eq('id', character.id);
   };
 
-  const attack = async () => {
+    const attack = async () => {
     if (!character || !currentEnemy) return;
 
     const equippedWeapon = items.find(i => i.type === 'weapon' && i.equipped);
     const weaponDamage = equippedWeapon?.damage || 0;
-    const playerDamage = Math.floor(character.strength * 0.5 + weaponDamage + Math.random() * 10);
+    const playerDamage = Math.floor(
+      character.strength * 0.5 + weaponDamage + Math.random() * 10
+    );
 
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
-    setCurrentEnemy({ ...currentEnemy, health: newEnemyHealth });
+    const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
+
+    setCurrentEnemy(enemyAfterHit);
 
     if (newEnemyHealth <= 0) {
       const newExp = character.experience + currentEnemy.experience;
@@ -168,9 +172,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (levelUp) {
         updates.level = newLevel;
         updates.max_health = character.max_health + 10;
-        updates.health = (character.max_health + 10);
+        updates.health = character.max_health + 10;
         updates.max_mana = character.max_mana + 5;
-        updates.mana = (character.max_mana + 5);
+        updates.mana = character.max_mana + 5;
         updates.strength = character.strength + 2;
         updates.dexterity = character.dexterity + 2;
         updates.intelligence = character.intelligence + 2;
@@ -178,17 +182,36 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      const loot = generateLoot(currentEnemy.level, floor, currentEnemy.rarity);
-      if (loot && character) {
-        await supabase.from('items').insert([{
-          character_id: character.id,
-          ...loot
-        }]);
+      const loot = rollLoot(enemyAfterHit, character);
+
+      if (loot) {
+        await supabase.from('items').insert([loot]);
         await loadItems(character.id);
       }
 
       setTimeout(() => generateNewEnemy(newLevel), 1000);
     } else {
+      setTimeout(() => {
+        const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
+        const equippedArmor = items
+          .filter(i => i.equipped && i.armor)
+          .reduce((sum, i) => sum + (i.armor || 0), 0);
+        const actualDamage = Math.max(1, enemyDamage - equippedArmor);
+        const newHealth = Math.max(0, character.health - actualDamage);
+
+        if (newHealth <= 0) {
+          updateCharacter({
+            health: character.max_health,
+            gold: Math.floor(character.gold * 0.5),
+          });
+          generateNewEnemy(character.level);
+        } else {
+          updateCharacter({ health: newHealth });
+        }
+      }, 500);
+    }
+  };
+ else {
       setTimeout(() => {
         const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
         const equippedArmor = items.filter(i => i.equipped && i.armor).reduce((sum, i) => sum + (i.armor || 0), 0);
