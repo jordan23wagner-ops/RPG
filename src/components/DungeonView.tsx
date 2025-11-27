@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import { Enemy } from '../types/game';
 
 interface DungeonViewProps {
@@ -9,16 +9,41 @@ interface DungeonViewProps {
 
 export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [playerPos, setPlayerPos] = useState({ x: 400, y: 450 });
-  const [enemyPos, setEnemyPos] = useState({ x: 600, y: 200 });
+
+  // Use refs instead of state so we don't re-render React 60fps
+  const playerPosRef = useRef({ x: 400, y: 450 });
+  const enemyPosRef = useRef({ x: 600, y: 200 });
   const keysPressed = useRef<{ [key: string]: boolean }>({});
+
+  // Keep latest enemy / floor / onAttack in refs so effects don't depend on them
+  const enemyRef = useRef<Enemy | null>(enemy);
+  const floorRef = useRef(floor);
+  const onAttackRef = useRef(onAttack);
 
   const MOVE_SPEED = 5;
   const CANVAS_WIDTH = 1000;
   const CANVAS_HEIGHT = 600;
   const BOUNDARY_PADDING = 50;
 
-  const drawCharacter = (ctx: CanvasRenderingContext2D, x: number, y: number, isPlayer: boolean) => {
+  // Sync props into refs when they change
+  useEffect(() => {
+    enemyRef.current = enemy;
+  }, [enemy]);
+
+  useEffect(() => {
+    floorRef.current = floor;
+  }, [floor]);
+
+  useEffect(() => {
+    onAttackRef.current = onAttack;
+  }, [onAttack]);
+
+  const drawCharacter = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    isPlayer: boolean,
+  ) => {
     ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 15;
@@ -38,7 +63,11 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.shadowColor = 'transparent';
   };
 
-  const drawTorch = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+  const drawTorch = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+  ) => {
     ctx.fillStyle = '#8b7355';
     ctx.fillRect(x - 3, y - 20, 6, 25);
 
@@ -53,7 +82,13 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.fill();
   };
 
-  const drawStone = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) => {
+  const drawStone = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => {
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(x, y, width, height);
     ctx.strokeStyle = '#2a2a2a';
@@ -61,6 +96,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.strokeRect(x, y, width, height);
   };
 
+  // Main render loop – set up once
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -68,10 +104,19 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const animate = () => {
+    let animationFrameId: number;
+
+    const render = () => {
+      const playerPos = playerPosRef.current;
+      const enemyPos = enemyPosRef.current;
+      const enemy = enemyRef.current;
+      const currentFloor = floorRef.current;
+
+      // Background
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // Stones
       ctx.fillStyle = '#16213e';
       for (let i = 0; i < 20; i++) {
         const x = (i * 80) % CANVAS_WIDTH;
@@ -79,13 +124,16 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         drawStone(ctx, x, y, 60, 80);
       }
 
+      // Torches
       drawTorch(ctx, 100, 100);
       drawTorch(ctx, CANVAS_WIDTH - 100, 100);
       drawTorch(ctx, 150, CANVAS_HEIGHT - 80);
       drawTorch(ctx, CANVAS_WIDTH - 150, CANVAS_HEIGHT - 80);
 
+      // Player
       drawCharacter(ctx, playerPos.x, playerPos.y, true);
 
+      // Enemy
       if (enemy && enemy.health > 0) {
         drawCharacter(ctx, enemyPos.x, enemyPos.y, false);
 
@@ -103,7 +151,12 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         ctx.fillStyle = '#1f2937';
         ctx.fillRect(enemyPos.x - 60, enemyPos.y - 35, 120, 10);
         ctx.fillStyle = healthPercent > 30 ? '#22c55e' : '#ef4444';
-        ctx.fillRect(enemyPos.x - 60, enemyPos.y - 35, (healthPercent / 100) * 120, 10);
+        ctx.fillRect(
+          enemyPos.x - 60,
+          enemyPos.y - 35,
+          (healthPercent / 100) * 120,
+          10,
+        );
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2;
         ctx.strokeRect(enemyPos.x - 60, enemyPos.y - 35, 120, 10);
@@ -115,37 +168,90 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         ctx.font = '12px Arial';
         ctx.fillStyle = distance < 100 ? '#fbbf24' : '#999999';
         ctx.textAlign = 'center';
-        ctx.fillText(`[SPACE to attack] (Distance: ${Math.round(distance)}px)`, CANVAS_WIDTH / 2, 30);
+        ctx.fillText(
+          `[SPACE to attack] (Distance: ${Math.round(distance)}px)`,
+          CANVAS_WIDTH / 2,
+          30,
+        );
       }
 
+      // HUD
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#fbbf24';
       ctx.textAlign = 'left';
-      ctx.fillText(`Floor ${floor}`, 20, 30);
+      ctx.fillText(`Floor ${currentFloor}`, 20, 30);
 
       ctx.fillStyle = 'rgba(200,200,200,0.8)';
       ctx.font = '12px Arial';
       ctx.fillText('Use Arrow Keys to move', 20, 60);
 
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(render);
     };
 
-    animate();
-  }, [playerPos, enemyPos, enemy, floor]);
+    render();
 
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once
+
+  // Movement loop – also run once, operates on refs
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const movePlayer = () => {
+      const prev = playerPosRef.current;
+      let newX = prev.x;
+      let newY = prev.y;
+
+      const keys = keysPressed.current;
+
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+        newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
+      }
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+        newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
+      }
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+        newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
+      }
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
+      }
+
+      playerPosRef.current = { x: newX, y: newY };
+
+      animationFrameId = requestAnimationFrame(movePlayer);
+    };
+
+    animationFrameId = requestAnimationFrame(movePlayer);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once
+
+  // Keyboard handlers – set up once, use refs inside
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = true;
 
       if (e.code === 'Space') {
         e.preventDefault();
-        if (enemy && enemy.health > 0) {
-          const distX = playerPos.x - enemyPos.x;
-          const distY = playerPos.y - enemyPos.y;
-          const distance = Math.sqrt(distX * distX + distY * distY);
-          if (distance < 120) {
-            onAttack();
-          }
+        const enemy = enemyRef.current;
+        if (!enemy || enemy.health <= 0) return;
+
+        const playerPos = playerPosRef.current;
+        const enemyPos = enemyPosRef.current;
+
+        const distX = playerPos.x - enemyPos.x;
+        const distY = playerPos.y - enemyPos.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+
+        if (distance < 120) {
+          onAttackRef.current();
         }
       }
     };
@@ -161,32 +267,6 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [playerPos, enemyPos, enemy, onAttack]);
-
-  useEffect(() => {
-    const moveInterval = setInterval(() => {
-      setPlayerPos((prev) => {
-        let newX = prev.x;
-        let newY = prev.y;
-
-        if (keysPressed.current['ArrowUp'] || keysPressed.current['w'] || keysPressed.current['W']) {
-          newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
-        }
-        if (keysPressed.current['ArrowDown'] || keysPressed.current['s'] || keysPressed.current['S']) {
-          newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
-        }
-        if (keysPressed.current['ArrowLeft'] || keysPressed.current['a'] || keysPressed.current['A']) {
-          newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
-        }
-        if (keysPressed.current['ArrowRight'] || keysPressed.current['d'] || keysPressed.current['D']) {
-          newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
-        }
-
-        return { x: newX, y: newY };
-      });
-    }, 1000 / 60);
-
-    return () => clearInterval(moveInterval);
   }, []);
 
   return (
