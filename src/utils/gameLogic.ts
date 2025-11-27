@@ -26,7 +26,7 @@ const weaponPrefixes = {
 
 const armorPrefixes = {
   melee: ['Plate', 'Dragon', 'Titanium', 'Obsidian', 'Indestructible'],
-  ranged: ["Leather", 'Shadow', 'Swift', "Assassin's", 'Phantom'],
+  ranged: ['Leather', 'Shadow', 'Swift', "Assassin's", 'Phantom'],
   mage: ['Silk', 'Enchanted', 'Mystic', 'Arcane', 'Celestial'],
 };
 
@@ -159,14 +159,13 @@ function getRandomAffixes(itemType: string, rarity: string): Affix[] {
   return affixes;
 }
 
-// ----------------- LOOT GENERATION (used by GameContext) -----------------
+// ----------------- LOOT GENERATION -----------------
 
 export function generateLoot(
   enemyLevel: number,
   floor: number,
   enemyRarity: 'normal' | 'rare' | 'elite' | 'boss' = 'normal',
 ): Partial<Item> | null {
-  // base drop chance by enemy rarity
   let dropChance = 0.4;
   if (enemyRarity === 'rare') dropChance = 0.55;
   else if (enemyRarity === 'elite') dropChance = 0.75;
@@ -323,7 +322,7 @@ export function getRarityColor(rarity: string): string {
       return 'text-orange-500';
     case 'mythic':
       return 'text-purple-500';
-    case 'unique': // treat this as Radiant in UI
+    case 'unique': // Radiant
       return 'text-red-500';
     default:
       return 'text-gray-400';
@@ -346,5 +345,24 @@ export function getRarityBgColor(rarity: string): string {
       return 'bg-red-900';
     default:
       return 'bg-gray-700';
+  }
+}
+
+export function getRarityBorderColor(rarity: string): string {
+  switch (rarity) {
+    case 'common':
+      return 'border-gray-600';
+    case 'magic':
+      return 'border-blue-500';
+    case 'rare':
+      return 'border-yellow-500';
+    case 'legendary':
+      return 'border-orange-500';
+    case 'mythic':
+      return 'border-purple-500';
+    case 'unique': // Radiant
+      return 'border-red-500';
+    default:
+      return 'border-gray-600';
   }
 }
