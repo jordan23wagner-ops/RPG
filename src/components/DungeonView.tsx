@@ -10,10 +10,12 @@ interface DungeonViewProps {
 export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Positions & input stored in refs (no 60fps React re-renders)
   const playerPosRef = useRef({ x: 400, y: 450 });
   const enemyPosRef = useRef({ x: 600, y: 200 });
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
+  // Keep latest props in refs so effects don't depend on them
   const enemyRef = useRef<Enemy | null>(enemy);
   const floorRef = useRef(floor);
   const onAttackRef = useRef(onAttack);
@@ -23,6 +25,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const CANVAS_HEIGHT = 600;
   const BOUNDARY_PADDING = 50;
 
+  // Sync props into refs when they change
   useEffect(() => {
     enemyRef.current = enemy;
   }, [enemy]);
@@ -46,13 +49,16 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.shadowBlur = 15;
     ctx.shadowOffsetY = 8;
 
+    // Head
     ctx.beginPath();
     ctx.arc(x, y - 15, 20, 0, Math.PI * 2);
     ctx.fill();
 
+    // Body
     ctx.fillStyle = isPlayer ? '#6366f1' : '#ef4444';
     ctx.fillRect(x - 20, y + 5, 40, 35);
 
+    // Legs
     ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
     ctx.fillRect(x - 25, y + 5, 12, 30);
     ctx.fillRect(x + 13, y + 5, 12, 30);
@@ -93,6 +99,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.strokeRect(x, y, width, height);
   };
 
+  // ---------- Render loop ----------
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -108,9 +115,11 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       const enemy = enemyRef.current;
       const currentFloor = floorRef.current;
 
+      // Background
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // Stones
       ctx.fillStyle = '#16213e';
       for (let i = 0; i < 20; i++) {
         const x = (i * 80) % CANVAS_WIDTH;
@@ -118,13 +127,16 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         drawStone(ctx, x, y, 60, 80);
       }
 
+      // Torches
       drawTorch(ctx, 100, 100);
       drawTorch(ctx, CANVAS_WIDTH - 100, 100);
       drawTorch(ctx, 150, CANVAS_HEIGHT - 80);
       drawTorch(ctx, CANVAS_WIDTH - 150, CANVAS_HEIGHT - 80);
 
+      // Player
       drawCharacter(ctx, playerPos.x, playerPos.y, true);
 
+      // Enemy + health bar
       if (enemy && enemy.health > 0) {
         drawCharacter(ctx, enemyPos.x, enemyPos.y, false);
 
@@ -166,6 +178,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         );
       }
 
+      // HUD text
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#fbbf24';
       ctx.textAlign = 'left';
@@ -183,33 +196,86 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---------- Movement loop ----------
   useEffect(() => {
     let animationFrameId: number;
 
-  const movePlayer = () => {
-  const prev = playerPosRef.current;
-  let newX = prev.x;
-  let newY = prev.y;
+    const movePlayer = () => {
+      const prev = playerPosRef.current;
+      let newX = prev.x;
+      let newY = prev.y;
 
-  const keys = keysPressed.current;
+      const keys = keysPressed.current;
 
-  if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-    newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
-  }
-  if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-    newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
-  }
-  if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-    newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
-  }
-  if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-    newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
-  }
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+        newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
+      }
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+        newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
+      }
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+        newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
+      }
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
+      }
 
-  playerPosRef.current = { x: newX, y: newY };
+      playerPosRef.current = { x: newX, y: newY };
 
-  animationFrameId = requestAnimationFrame(movePlayer);
-};
+      animationFrameId = requestAnimationFrame(movePlayer);
+    };
+
+    animationFrameId = requestAnimationFrame(movePlayer);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  // ---------- Keyboard handlers ----------
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      keysPressed.current[e.key] = true;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        const enemy = enemyRef.current;
+        if (!enemy || enemy.health <= 0) return;
+
+        const playerPos = playerPosRef.current;
+        const enemyPos = enemyPosRef.current;
+
+        const distX = playerPos.x - enemyPos.x;
+        const distY = playerPos.y - enemyPos.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+
+        if (distance < 120) {
+          onAttackRef.current();
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysPressed.current[e.key] = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
+      className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-[1000px] h-[600px]"
+    />
+  );
+}
