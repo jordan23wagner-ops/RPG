@@ -46,7 +46,7 @@ export function Game() {
   const enemyDefeated = currentEnemy ? currentEnemy.health <= 0 : false;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4 overflow-x-hidden">
       <div className="flex items-center justify-between mb-6 max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
         <button
