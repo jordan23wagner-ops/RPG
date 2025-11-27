@@ -121,6 +121,35 @@ export function GameUI({
     i => !i.equipped && i.type !== 'potion',
   );
 
+  // ----- potion stacking (UI only) -----
+  type PotionGroup = {
+    key: string;
+    name: string;
+    rarity: string;
+    count: number;
+    sampleId: string; // any one id from the group to consume
+  };
+
+  const potionGroups: PotionGroup[] = (() => {
+    const map = new Map<string, PotionGroup>();
+    for (const p of potions) {
+      const key = `${p.name}|${p.rarity}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: p.name,
+          rarity: p.rarity || 'common',
+          count: 0,
+          sampleId: p.id,
+        });
+      }
+      const g = map.get(key)!;
+      g.count += 1;
+      if (!g.sampleId) g.sampleId = p.id;
+    }
+    return Array.from(map.values());
+  })();
+
   // ----- equipment mapping for grid -----
 
   const equippedBySlot: Partial<Record<EquipmentSlot, Item>> = {};
@@ -170,23 +199,18 @@ export function GameUI({
 
     return (
       <div
-        className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px] ${SLOT_LAYOUT[slotId]}`}
+        className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col text-[11px] ${SLOT_LAYOUT[slotId]}`}
       >
-        <div className="flex items-center justify-between gap-1 mb-1">
-          <span className="flex items-center gap-1 text-gray-300">
-            {equipmentSlotIcon(slotId)}
-            <span className="uppercase tracking-wide text-[9px] text-gray-400">
-              {label}
-            </span>
+        {/* Slot label row */}
+        <div className="flex items-center gap-1 text-gray-300 mb-1">
+          {equipmentSlotIcon(slotId)}
+          <span className="uppercase tracking-wide text-[9px] text-gray-400">
+            {label}
           </span>
-          <button
-            onClick={() => onEquip(item.id)}
-            className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] rounded"
-          >
-            Unequip
-          </button>
         </div>
-        <div>
+
+        {/* Item info */}
+        <div className="flex-1">
           <div
             className={`font-semibold leading-tight ${getRarityColor(
               item.rarity,
@@ -199,6 +223,16 @@ export function GameUI({
             {item.damage && item.armor && ' • '}
             {item.armor && `+${item.armor} ARM`}
           </div>
+        </div>
+
+        {/* Unequip button pinned to bottom */}
+        <div className="mt-1 flex justify-end">
+          <button
+            onClick={() => onEquip(item.id)}
+            className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] rounded"
+          >
+            Unequip
+          </button>
         </div>
       </div>
     );
@@ -320,22 +354,29 @@ export function GameUI({
         </div>
       </div>
 
-      {/* Potions */}
-      {potions.length > 0 && (
+      {/* Potions (stacked) */}
+      {potionGroups.length > 0 && (
         <div className="bg-gray-900 border-2 border-yellow-600 rounded p-3">
           <h3 className="font-bold text-yellow-500 mb-1 text-sm">Potions</h3>
           <div className="space-y-1">
-            {potions.map(potion => (
+            {potionGroups.map(group => (
               <div
-                key={potion.id}
+                key={group.key}
                 className="flex items-center justify-between bg-gray-800 rounded p-1.5"
               >
                 <div className="text-xs">
-                  <div className="text-green-400">Health Potion</div>
+                  <div className="text-green-400 flex items-center gap-1">
+                    <span>{group.name}</span>
+                    {group.count > 1 && (
+                      <span className="text-[11px] text-gray-300">
+                        x{group.count}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-gray-500 text-xs">+50 HP</div>
                 </div>
                 <button
-                  onClick={() => onUsePotion(potion.id)}
+                  onClick={() => onUsePotion(group.sampleId)}
                   className="px-1.5 py-0.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded flex-shrink-0"
                 >
                   Use
