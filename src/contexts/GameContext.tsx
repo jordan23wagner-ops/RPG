@@ -1,5 +1,4 @@
 // src/contexts/GameContext.tsx
-
 import {
   createContext,
   useContext,
@@ -37,15 +36,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [floor, setFloor] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadCharacter();
-  }, []);
+  // ---------- LOADERS ----------
 
   const loadItems = async (characterId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('items')
       .select('*')
       .eq('character_id', characterId);
+
+    if (error) {
+      console.error('Error loading items:', error);
+      return;
+    }
 
     if (data) {
       setItems(data as Item[]);
@@ -62,12 +64,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data: chars } = await supabase
+      const { data: chars, error } = await supabase
         .from('characters')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1);
+
+      if (error) {
+        console.error('Error loading characters:', error);
+        setLoading(false);
+        return;
+      }
 
       if (chars && chars.length > 0) {
         const char = chars[0] as Character;
@@ -81,6 +89,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadCharacter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- CHARACTER CREATION ----------
 
   const createCharacter = async (name: string) => {
     try {
@@ -116,6 +131,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setCharacter(char);
       generateNewEnemy(1);
 
+      // starter weapon (no id – let DB generate uuid)
       await supabase.from('items').insert([
         {
           character_id: char.id,
@@ -134,6 +150,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ---------- HELPERS ----------
+
   const generateNewEnemy = (playerLevel: number) => {
     const enemy = generateEnemy(floor, playerLevel);
     setCurrentEnemy(enemy);
@@ -149,21 +167,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
     setCharacter(newChar);
 
-    await supabase
+    const { error } = await supabase
       .from('characters')
       .update(updates)
       .eq('id', character.id);
+
+    if (error) {
+      console.error('Error updating character:', error);
+    }
   };
+
+  // ---------- COMBAT / LOOT ----------
 
   const attack = async () => {
     if (!character || !currentEnemy) return;
 
-    // --- Player attack ---
-    const equippedWeapon = items.find(
-      (i) => i.type === 'weapon' && i.equipped
-    );
-    const weaponDamage = equippedWeapon?.damage || 0;
+    // Weapon: treat anything with damage as a weapon for now
+    const equippedWeapon =
+      items.find((i) => i.equipped && i.damage && i.damage > 0) ??
+      items.find((i) => i.type === 'weapon' && i.equipped);
 
+    const weaponDamage = equippedWeapon?.damage || 0;
     const playerDamage = Math.floor(
       character.strength * 0.5 + weaponDamage + Math.random() * 10
     );
@@ -173,29 +197,28 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     setCurrentEnemy(enemyAfterHit);
 
-    // --- Enemy died ---
+    // Enemy dies
     if (newEnemyHealth <= 0) {
-      const expGain = currentEnemy.experience;
-      const goldGain = currentEnemy.gold;
+      const newExp = character.experience + currentEnemy.experience;
+      const newGold = character.gold + currentEnemy.gold;
+      const expForNextLevel = character.level * 100;
 
-      const newExp = character.experience + expGain;
-      const newGoldTotal = character.gold + goldGain;
-
-      const expNeeded = character.level * 100;
-      let finalExp = newExp;
+      let levelUp = false;
       let newLevel = character.level;
+      let finalExp = newExp;
 
-      if (newExp >= expNeeded) {
-        newLevel += 1;
-        finalExp = newExp - expNeeded;
+      if (newExp >= expForNextLevel) {
+        levelUp = true;
+        newLevel = character.level + 1;
+        finalExp = newExp - expForNextLevel;
       }
 
       const updates: Partial<Character> = {
         experience: finalExp,
-        gold: newGoldTotal,
+        gold: newGold,
       };
 
-      if (newLevel !== character.level) {
+      if (levelUp) {
         updates.level = newLevel;
         updates.max_health = character.max_health + 10;
         updates.health = character.max_health + 10;
@@ -208,59 +231,69 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      // --- Loot roll ---
+      // ---- LOOT ROLL (100% drop in rollLoot right now) ----
       const loot = rollLoot(enemyAfterHit, character);
+      console.log('rollLoot result:', loot);
+
       if (loot) {
-        await supabase.from('items').insert([loot]);
-        await loadItems(character.id);
-      }
+        // Strip client-side id before inserting (DB has uuid id)
+        const { id, ...insertPayload } = loot as any;
 
-      // spawn next enemy
-      setTimeout(() => generateNewEnemy(newLevel), 900);
-      return;
-    }
+        const { error } = await supabase.from('items').insert([
+          {
+            ...insertPayload,
+            character_id: character.id, // ensure correct ownership
+          },
+        ]);
 
-    // --- Enemy counterattack ---
-    setTimeout(() => {
-      // re-check state inside timeout
-      if (!character || !currentEnemy) return;
-
-      const enemyDamage = Math.floor(
-        currentEnemy.damage + Math.random() * 5
-      );
-
-      const equippedArmor = items
-        .filter((i) => i.equipped && i.armor)
-        .reduce((sum, i) => sum + (i.armor || 0), 0);
-
-      const actualDamage = Math.max(1, enemyDamage - equippedArmor);
-      const newHealth = Math.max(0, character.health - actualDamage);
-
-      if (newHealth <= 0) {
-        updateCharacter({
-          health: character.max_health,
-          gold: Math.floor(character.gold * 0.5),
-        });
-        generateNewEnemy(character.level);
+        if (error) {
+          console.error('Error inserting loot into Supabase:', error);
+        } else {
+          console.log('Loot successfully inserted into Supabase');
+          await loadItems(character.id);
+        }
       } else {
-        updateCharacter({ health: newHealth });
+        console.log('No loot returned from rollLoot');
       }
-    }, 550);
+
+      // Spawn new enemy
+      setTimeout(() => generateNewEnemy(newLevel), 1000);
+    } else {
+      // Enemy counter-attack
+      setTimeout(() => {
+        if (!character || !currentEnemy) return;
+
+        const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
+        const equippedArmor = items
+          .filter((i) => i.equipped && i.armor)
+          .reduce((sum, i) => sum + (i.armor || 0), 0);
+
+        const actualDamage = Math.max(1, enemyDamage - equippedArmor);
+        const newHealth = Math.max(0, character.health - actualDamage);
+
+        if (newHealth <= 0) {
+          updateCharacter({
+            health: character.max_health,
+            gold: Math.floor(character.gold * 0.5),
+          });
+          generateNewEnemy(character.level);
+        } else {
+          updateCharacter({ health: newHealth });
+        }
+      }, 500);
+    }
   };
+
+  // ---------- ITEMS / SHOP ----------
 
   const usePotion = async (itemId: string) => {
     if (!character) return;
 
-    const potion = items.find(
-      (i) => i.id === itemId && i.type === 'potion'
-    );
+    const potion = items.find((i) => i.id === itemId && i.type === 'potion');
     if (!potion) return;
 
     const healAmount = 50;
-    const newHealth = Math.min(
-      character.max_health,
-      character.health + healAmount
-    );
+    const newHealth = Math.min(character.max_health, character.health + healAmount);
 
     await updateCharacter({ health: newHealth });
     await supabase.from('items').delete().eq('id', itemId);
@@ -320,18 +353,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const newGold = character.gold - POTION_COST;
     await updateCharacter({ gold: newGold });
 
-    await supabase.from('items').insert([
-      {
-        character_id: character.id,
-        name: 'Health Potion',
-        type: 'potion',
-        rarity: 'common',
-        value: POTION_COST,
-        equipped: false,
-      },
-    ]);
-
-    await loadItems(character.id);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('items').insert([
+        {
+          character_id: character.id,
+          name: 'Health Potion',
+          type: 'potion',
+          rarity: 'common',
+          value: POTION_COST,
+          equipped: false,
+        },
+      ]);
+      await loadItems(character.id);
+    }
   };
 
   return (
@@ -358,13 +395,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ---- Hook export ----
-const useGameHook = () => {
+// ---------- Hook ----------
+
+export function useGame() {
   const context = useContext(GameContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useGame must be used within a GameProvider');
   }
   return context;
-};
-
-export { useGameHook as useGame };
+}
