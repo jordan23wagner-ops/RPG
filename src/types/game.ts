@@ -1,4 +1,6 @@
-import { v4 as uuidv4 } from 'uuid';
+// src/types/game.ts
+
+// ---------- Core Types ----------
 
 export interface Character {
   id: string;
@@ -77,7 +79,7 @@ export interface GameSession {
   ended_at?: string;
 }
 
-// ---------- Loot system ----------
+// ---------- Loot System Types ----------
 
 type LootRarity = Item['rarity'];
 
@@ -90,6 +92,11 @@ interface LootEntry {
   rarity: LootRarity;
   weight: number;
 }
+
+// simple ID generator so we don't need the "uuid" package
+const generateId = () => Math.random().toString(36).substring(2, 10);
+
+// ---------- Loot Table ----------
 
 const LOOT_TABLE: LootEntry[] = [
   {
@@ -125,7 +132,7 @@ const LOOT_TABLE: LootEntry[] = [
     weight: 20,
   },
   {
-    name: 'Knight’s Helm',
+    name: "Knight's Helm",
     type: 'helmet',
     baseArmor: 5,
     baseValue: 50,
@@ -142,35 +149,37 @@ const LOOT_TABLE: LootEntry[] = [
   },
 ];
 
+// ---------- Loot Helpers ----------
+
 function getDropChance(enemy: Enemy): number {
   switch (enemy.rarity) {
     case 'normal':
-      return 0.15; // 15%
+      return 0.15;
     case 'rare':
-      return 0.35; // 35%
+      return 0.35;
     case 'elite':
-      return 0.65; // 65%
+      return 0.65;
     case 'boss':
-      return 1.0; // always drop
+      return 1.0;
     default:
       return 0.1;
   }
 }
 
 function rollRarity(enemy: Enemy): LootRarity | null {
-  const roll = Math.random(); // 0–1
+  const roll = Math.random();
   const dropChance = getDropChance(enemy);
 
   if (roll > dropChance) {
-    console.log('No loot dropped. roll =', roll, 'chance =', dropChance);
+    console.log('No loot dropped. roll=', roll, 'chance=', dropChance);
     return null;
   }
 
-  const levelFactor = Math.min(enemy.level / 20, 1); // 0–1
+  const levelFactor = Math.min(enemy.level / 20, 1);
 
   const legendaryChance = 0.01 + 0.04 * levelFactor;
-  const rareChance = 0.05 + 0.1 * levelFactor;
-  const magicChance = 0.25 + 0.2 * levelFactor;
+  const rareChance = 0.05 + 0.10 * levelFactor;
+  const magicChance = 0.25 + 0.20 * levelFactor;
   const commonChance = 1 - (legendaryChance + rareChance + magicChance);
 
   const r = Math.random();
@@ -178,11 +187,11 @@ function rollRarity(enemy: Enemy): LootRarity | null {
   if (r < legendaryChance) return 'legendary';
   if (r < legendaryChance + rareChance) return 'rare';
   if (r < legendaryChance + rareChance + magicChance) return 'magic';
-  return 'common'; // fallback
+  return 'common';
 }
 
 function pickLootEntry(rarity: LootRarity): LootEntry | null {
-  const candidates = LOOT_TABLE.filter((entry) => entry.rarity === rarity);
+  const candidates = LOOT_TABLE.filter(entry => entry.rarity === rarity);
   if (candidates.length === 0) {
     console.warn('No loot entries for rarity', rarity);
     return null;
@@ -239,6 +248,8 @@ function generateAffixes(rarity: LootRarity): Affix[] {
   return affixes;
 }
 
+// ---------- Public Loot API ----------
+
 export function rollLoot(enemy: Enemy, character: Character): Item | null {
   const rarity = rollRarity(enemy);
   if (!rarity) return null;
@@ -250,7 +261,7 @@ export function rollLoot(enemy: Enemy, character: Character): Item | null {
   const affixes = generateAffixes(rarity);
 
   const item: Item = {
-    id: uuidv4(),
+    id: generateId(),
     character_id: character.id,
     name: blueprint.name,
     type: blueprint.type,
@@ -265,31 +276,4 @@ export function rollLoot(enemy: Enemy, character: Character): Item | null {
 
   console.log('Loot dropped:', item);
   return item;
-}
-
-/**
- * Convenience helper for when an enemy dies.
- * Returns the dropped Item (if any) so the caller can save it / show it.
- */
-export function handleEnemyDeath(
-  enemy: Enemy,
-  character: Character
-): Item | null {
-  const droppedItem = rollLoot(enemy, character);
-
-  if (!droppedItem) {
-    console.log('Enemy died, no loot drop.');
-    return null;
-  }
-
-  // Here you would:
-  // - Add to inventory
-  // - Save to DB
-  // - Send to client, etc.
-  //
-  // Example (pseudo-code, not implemented here):
-  // await supabase.from('items').insert(droppedItem);
-  // characterInventory.push(droppedItem);
-
-  return droppedItem;
 }
