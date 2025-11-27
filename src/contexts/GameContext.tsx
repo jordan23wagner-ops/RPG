@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { Character, Item, Enemy } from '../types/game';
-import { generateEnemy, generateLoot } from '../utils/gameLogic';
+import { Character, Item, Enemy, rollLoot } from '../types/game';
+import { generateEnemy } from '../utils/gameLogic';
 
 interface GameContextType {
   character: Character | null;
