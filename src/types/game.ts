@@ -167,22 +167,17 @@ function getDropChance(enemy: Enemy): number {
 }
 
 function rollRarity(enemy: Enemy): LootRarity | null {
-  const roll = Math.random();
-  const dropChance = getDropChance(enemy);
+  // TEMP: ignore drop chance and always drop *something*
+  const levelFactor = Math.min(enemy.level / 20, 1); // 0–1
 
-  if (roll > dropChance) {
-    console.log('No loot dropped. roll=', roll, 'chance=', dropChance);
-    return null;
-  }
-
-  const levelFactor = Math.min(enemy.level / 20, 1);
-
-  const legendaryChance = 0.01 + 0.04 * levelFactor;
-  const rareChance = 0.05 + 0.10 * levelFactor;
-  const magicChance = 0.25 + 0.20 * levelFactor;
-  const commonChance = 1 - (legendaryChance + rareChance + magicChance);
-
+  // Super simple rarity roll for testing
   const r = Math.random();
+
+  if (r < 0.05) return 'legendary';
+  if (r < 0.20) return 'rare';
+  if (r < 0.50) return 'magic';
+  return 'common';
+}
 
   if (r < legendaryChance) return 'legendary';
   if (r < legendaryChance + rareChance) return 'rare';
