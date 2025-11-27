@@ -3,20 +3,15 @@ import {
   Zap,
   TrendingUp,
   Coins,
-  Package,
   ArrowDown,
   Sparkles,
   ShoppingBag,
-  User2,
 } from 'lucide-react';
 import { Character, Item } from '../types/game';
 import {
   getRarityColor,
   getRarityBgColor,
   getRarityBorderColor,
-  getEquipmentSlot,
-  isTwoHanded,
-  EquipmentSlot,
 } from '../utils/gameLogic';
 
 interface GameUIProps {
@@ -30,74 +25,6 @@ interface GameUIProps {
   onOpenShop: () => void;
   onSellAll: () => void;
 }
-
-// UI-only slots (visual layout)
-type EquipmentUISlotId =
-  | 'helmet'
-  | 'amulet'
-  | 'ring1'
-  | 'ring2'
-  | 'mainHand'
-  | 'offHand'
-  | 'chest'
-  | 'gloves'
-  | 'belt'
-  | 'boots'
-  | 'trinket';
-
-const EQUIPMENT_UI_SLOTS: { id: EquipmentUISlotId; label: string }[] = [
-  { id: 'helmet', label: 'Helmet' },
-  { id: 'amulet', label: 'Amulet' },
-  { id: 'ring1', label: 'Ring 1' },
-  { id: 'ring2', label: 'Ring 2' },
-  { id: 'mainHand', label: 'Main Hand' },
-  { id: 'offHand', label: 'Off Hand' },
-  { id: 'chest', label: 'Armor' },
-  { id: 'gloves', label: 'Gloves' },
-  { id: 'belt', label: 'Belt' },
-  { id: 'boots', label: 'Boots' },
-  { id: 'trinket', label: 'Trinket' },
-];
-
-const equipmentSlotIcon = (slotId: EquipmentUISlotId) => {
-  switch (slotId) {
-    case 'mainHand':
-    case 'offHand':
-      return <Package className="w-4 h-4" />;
-    case 'helmet':
-    case 'chest':
-    case 'boots':
-    case 'gloves':
-    case 'belt':
-      return <Package className="w-4 h-4" />;
-    case 'ring1':
-    case 'ring2':
-    case 'amulet':
-    case 'trinket':
-    default:
-      return <Package className="w-4 h-4" />;
-  }
-};
-
-// Tailwind grid positioning for a 3×5 gear grid
-const SLOT_LAYOUT: Record<EquipmentUISlotId, string> = {
-  // row 1
-  helmet: 'row-start-1 col-start-2',
-  // row 2 (rings + amulet)
-  ring1: 'row-start-2 col-start-1',
-  amulet: 'row-start-2 col-start-2',
-  ring2: 'row-start-2 col-start-3',
-  // row 3 (hands + chest)
-  mainHand: 'row-start-3 col-start-1',
-  chest: 'row-start-3 col-start-2',
-  offHand: 'row-start-3 col-start-3',
-  // row 4 (gloves + belt)
-  gloves: 'row-start-4 col-start-1',
-  belt: 'row-start-4 col-start-2',
-  // row 5 (boots + trinket)
-  boots: 'row-start-5 col-start-2',
-  trinket: 'row-start-5 col-start-3',
-};
 
 export function GameUI({
   character,
@@ -116,7 +43,6 @@ export function GameUI({
   const expPercent = (character.experience / expToNext) * 100;
 
   const potions = items.filter(i => i.type === 'potion');
-  const equippedItems = items.filter(i => i.equipped);
   const unequippedItems = items.filter(
     i => !i.equipped && i.type !== 'potion',
   );
@@ -127,7 +53,7 @@ export function GameUI({
     name: string;
     rarity: string;
     count: number;
-    sampleId: string; // any one id from the group to consume
+    sampleId: string;
   };
 
   const potionGroups: PotionGroup[] = (() => {
@@ -149,94 +75,6 @@ export function GameUI({
     }
     return Array.from(map.values());
   })();
-
-  // ----- equipment mapping for grid -----
-
-  const equippedBySlot: Partial<Record<EquipmentSlot, Item>> = {};
-  for (const item of equippedItems) {
-    const slot = getEquipmentSlot(item);
-    if (slot) {
-      equippedBySlot[slot] = item;
-    }
-  }
-
-  const weaponItem = equippedBySlot.weapon;
-
-  const getItemForUISlot = (slotId: EquipmentUISlotId): Item | undefined => {
-    switch (slotId) {
-      case 'helmet':
-        return equippedBySlot.helmet;
-      case 'chest':
-        return equippedBySlot.chest;
-      case 'boots':
-        return equippedBySlot.boots;
-      case 'trinket':
-        return equippedBySlot.trinket;
-      case 'mainHand':
-        return weaponItem;
-      case 'offHand':
-        if (weaponItem && isTwoHanded(weaponItem)) return weaponItem;
-        return undefined;
-      // amulet / gloves / belt / rings: no items yet
-      default:
-        return undefined;
-    }
-  };
-
-  const renderEquipmentSlot = (slotId: EquipmentUISlotId, label: string) => {
-    const item = getItemForUISlot(slotId);
-
-    if (!item) {
-      return (
-        <div
-          className={`bg-gray-900/60 border border-gray-700 rounded-md p-2 flex flex-col items-center justify-center text-[10px] text-gray-400 gap-1 ${SLOT_LAYOUT[slotId]}`}
-        >
-          <div className="opacity-60">{equipmentSlotIcon(slotId)}</div>
-          <div className="uppercase tracking-wide">{label}</div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col text-[11px] ${SLOT_LAYOUT[slotId]}`}
-      >
-        {/* Slot label row */}
-        <div className="flex items-center gap-1 text-gray-300 mb-1">
-          {equipmentSlotIcon(slotId)}
-          <span className="uppercase tracking-wide text-[9px] text-gray-400">
-            {label}
-          </span>
-        </div>
-
-        {/* Item info */}
-        <div className="flex-1">
-          <div
-            className={`font-semibold leading-tight ${getRarityColor(
-              item.rarity,
-            )}`}
-          >
-            {item.name}
-          </div>
-          <div className="text-[10px] text-gray-300">
-            {item.damage && `+${item.damage} DMG`}
-            {item.damage && item.armor && ' • '}
-            {item.armor && `+${item.armor} ARM`}
-          </div>
-        </div>
-
-        {/* Unequip button pinned to bottom */}
-        <div className="mt-1 flex justify-end">
-          <button
-            onClick={() => onEquip(item.id)}
-            className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] rounded"
-          >
-            Unequip
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-4">
@@ -327,29 +165,6 @@ export function GameUI({
                 {character.gold}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Equipped gear grid */}
-      <div className="bg-gray-900 border-2 border-yellow-600 rounded p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Package className="w-4 h-4 text-yellow-500" />
-          <h3 className="font-bold text-yellow-500 text-sm">Equipped Gear</h3>
-        </div>
-
-        <div className="relative border border-gray-700 rounded-lg p-3 bg-gray-950/70">
-          {/* Character silhouette */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10">
-            <User2 className="w-20 h-20 text-gray-400" />
-          </div>
-
-          <div className="grid grid-cols-3 auto-rows-[90px] gap-2 relative z-10">
-            {EQUIPMENT_UI_SLOTS.map(slot => (
-              <div key={slot.id}>
-                {renderEquipmentSlot(slot.id, slot.label)}
-              </div>
-            ))}
           </div>
         </div>
       </div>
