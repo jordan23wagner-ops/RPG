@@ -98,3 +98,19 @@ export function Combat({ enemy, floor, onAttack, onNextFloor }: CombatProps) {
     </div>
   );
 }
+
+import { Enemy, Character, handleEnemyDeath } from './game'; // adjust path
+
+function attackEnemy(enemy: Enemy, character: Character) {
+  // example damage logic
+  const damage = character.strength;
+  enemy.health -= damage;
+
+  if (enemy.health <= 0) {
+    const droppedItem = handleEnemyDeath(enemy, character);
+
+    if (droppedItem) {
+      // add to inventory / DB / UI here
+    }
+  }
+}
