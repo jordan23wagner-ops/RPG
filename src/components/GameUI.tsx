@@ -7,12 +7,16 @@ import {
   ArrowDown,
   Sparkles,
   ShoppingBag,
+  User2,
 } from 'lucide-react';
 import { Character, Item } from '../types/game';
 import {
   getRarityColor,
   getRarityBgColor,
   getRarityBorderColor,
+  getEquipmentSlot,
+  isTwoHanded,
+  EquipmentSlot,
 } from '../utils/gameLogic';
 
 interface GameUIProps {
@@ -26,6 +30,74 @@ interface GameUIProps {
   onOpenShop: () => void;
   onSellAll: () => void;
 }
+
+// UI-only slots (visual layout)
+type EquipmentUISlotId =
+  | 'helmet'
+  | 'amulet'
+  | 'ring1'
+  | 'ring2'
+  | 'mainHand'
+  | 'offHand'
+  | 'chest'
+  | 'gloves'
+  | 'belt'
+  | 'boots'
+  | 'trinket';
+
+const EQUIPMENT_UI_SLOTS: { id: EquipmentUISlotId; label: string }[] = [
+  { id: 'helmet', label: 'Helmet' },
+  { id: 'amulet', label: 'Amulet' },
+  { id: 'ring1', label: 'Ring 1' },
+  { id: 'ring2', label: 'Ring 2' },
+  { id: 'mainHand', label: 'Main Hand' },
+  { id: 'offHand', label: 'Off Hand' },
+  { id: 'chest', label: 'Armor' },
+  { id: 'gloves', label: 'Gloves' },
+  { id: 'belt', label: 'Belt' },
+  { id: 'boots', label: 'Boots' },
+  { id: 'trinket', label: 'Trinket' },
+];
+
+const equipmentSlotIcon = (slotId: EquipmentUISlotId) => {
+  switch (slotId) {
+    case 'mainHand':
+    case 'offHand':
+      return <Package className="w-4 h-4" />; // could swap to Sword later
+    case 'helmet':
+    case 'chest':
+    case 'boots':
+    case 'gloves':
+    case 'belt':
+      return <Package className="w-4 h-4" />;
+    case 'ring1':
+    case 'ring2':
+    case 'amulet':
+    case 'trinket':
+    default:
+      return <Package className="w-4 h-4" />;
+  }
+};
+
+// Tailwind grid positioning for a 3×5 gear grid
+const SLOT_LAYOUT: Record<EquipmentUISlotId, string> = {
+  // row 1
+  helmet: 'row-start-1 col-start-2',
+  // row 2 (rings + amulet)
+  ring1: 'row-start-2 col-start-1',
+  amulet: 'row-start-2 col-start-2',
+  ring2: 'row-start-2 col-start-3',
+  // row 3 (hands + chest)
+  mainHand: 'row-start-3 col-start-1',
+  chest: 'row-start-3 col-start-2',
+  offHand: 'row-start-3 col-start-3',
+  // row 4 (gloves + belt)
+  gloves: 'row-start-4 col-start-1',
+  belt: 'row-start-4 col-start-2',
+  // row 5 (boots + trinket)
+  boots: 'row-start-5 col-start-2',
+  trinket: 'row-start-5 col-start-3',
+};
 
 export function GameUI({
   character,
@@ -48,6 +120,89 @@ export function GameUI({
   const unequippedItems = items.filter(
     i => !i.equipped && i.type !== 'potion',
   );
+
+  // ----- equipment mapping for grid -----
+
+  const equippedBySlot: Partial<Record<EquipmentSlot, Item>> = {};
+  for (const item of equippedItems) {
+    const slot = getEquipmentSlot(item);
+    if (slot) {
+      equippedBySlot[slot] = item;
+    }
+  }
+
+  const weaponItem = equippedBySlot.weapon;
+
+  const getItemForUISlot = (slotId: EquipmentUISlotId): Item | undefined => {
+    switch (slotId) {
+      case 'helmet':
+        return equippedBySlot.helmet;
+      case 'chest':
+        return equippedBySlot.chest;
+      case 'boots':
+        return equippedBySlot.boots;
+      case 'trinket':
+        return equippedBySlot.trinket;
+      case 'mainHand':
+        return weaponItem;
+      case 'offHand':
+        if (weaponItem && isTwoHanded(weaponItem)) return weaponItem;
+        return undefined;
+      // amulet / gloves / belt / rings: no items yet
+      default:
+        return undefined;
+    }
+  };
+
+  const renderEquipmentSlot = (slotId: EquipmentUISlotId, label: string) => {
+    const item = getItemForUISlot(slotId);
+
+    if (!item) {
+      return (
+        <div
+          className={`bg-gray-900/60 border border-gray-700 rounded-md p-2 flex flex-col items-center justify-center text-[10px] text-gray-400 gap-1 ${SLOT_LAYOUT[slotId]}`}
+        >
+          <div className="opacity-60">{equipmentSlotIcon(slotId)}</div>
+          <div className="uppercase tracking-wide">{label}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px] ${SLOT_LAYOUT[slotId]}`}
+      >
+        <div className="flex items-center justify-between gap-1">
+          <span className="flex items-center gap-1 text-gray-300">
+            {equipmentSlotIcon(slotId)}
+            <span className="uppercase tracking-wide text-[9px] text-gray-400">
+              {label}
+            </span>
+          </span>
+          <button
+            onClick={() => onEquip(item.id)}
+            className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] rounded"
+          >
+            Unequip
+          </button>
+        </div>
+        <div>
+          <div
+            className={`font-semibold leading-tight ${getRarityColor(
+              item.rarity,
+            )}`}
+          >
+            {item.name}
+          </div>
+          <div className="text-[10px] text-gray-300">
+            {item.damage && `+${item.damage} DMG`}
+            {item.damage && item.armor && ' • '}
+            {item.armor && `+${item.armor} ARM`}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -142,69 +297,27 @@ export function GameUI({
         </div>
       </div>
 
-      {/* Equipped items */}
+      {/* Equipped gear grid */}
       <div className="bg-gray-900 border-2 border-yellow-600 rounded p-3">
         <div className="flex items-center gap-2 mb-2">
           <Package className="w-4 h-4 text-yellow-500" />
-          <h3 className="font-bold text-yellow-500 text-sm">Equipped</h3>
+          <h3 className="font-bold text-yellow-500 text-sm">Equipped Gear</h3>
         </div>
-        {equippedItems.length === 0 ? (
-          <div className="text-xs text-gray-500">No equipped items</div>
-        ) : (
-          <div className="space-y-1">
-            {equippedItems.map(item => (
-              <div
-                key={item.id}
-                className={`${getRarityBgColor(
-                  item.rarity,
-                )} border ${getRarityBorderColor(
-                  item.rarity,
-                )} rounded px-2 py-1 text-xs`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div
-                      className={`font-semibold text-xs ${getRarityColor(
-                        item.rarity,
-                      )}`}
-                    >
-                      {item.name}
-                    </div>
-                    {item.damage && (
-                      <div className="text-red-400 text-xs">
-                        +{item.damage} DMG
-                      </div>
-                    )}
-                    {item.armor && (
-                      <div className="text-blue-400 text-xs">
-                        +{item.armor} ARM
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => onEquip(item.id)}
-                    className="px-1 py-0.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded flex-shrink-0 ml-1"
-                  >
-                    Unequip
-                  </button>
-                </div>
-                {item.affixes && item.affixes.length > 0 && (
-                  <div className="mt-1 space-y-0.5 border-t border-gray-600 pt-1">
-                    {item.affixes.map((affix, idx) => (
-                      <div
-                        key={idx}
-                        className="text-gray-300 text-xs flex items-center gap-1"
-                      >
-                        <Sparkles className="w-2 h-2" />
-                        {affix.name} +{affix.value}
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+        <div className="relative border border-gray-700 rounded-lg p-3 bg-gray-950/70">
+          {/* Character silhouette */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10">
+            <User2 className="w-20 h-20 text-gray-400" />
+          </div>
+
+          <div className="grid grid-cols-3 auto-rows-[70px] gap-2 relative z-10">
+            {EQUIPMENT_UI_SLOTS.map(slot => (
+              <div key={slot.id}>
+                {renderEquipmentSlot(slot.id, slot.label)}
               </div>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Potions */}
