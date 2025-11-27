@@ -71,3 +71,275 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
+  const createCharacter = async (name: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('characters')
+        .insert([
+          {
+            user_id: user.id,
+            name,
+            level: 1,
+            experience: 0,
+            health: 100,
+            max_health: 100,
+            mana: 50,
+            max_mana: 50,
+            strength: 10,
+            dexterity: 10,
+            intelligence: 10,
+            gold: 0,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const char = data as Character;
+
+      setCharacter(char);
+      generateNewEnemy(1);
+
+      await supabase.from('items').insert([
+        {
+          character_id: char.id,
+          name: 'Rusty Sword',
+          type: 'weapon',
+          rarity: 'common',
+          damage: 5,
+          value: 10,
+          equipped: true,
+        },
+      ]);
+
+      await loadItems(char.id);
+    } catch (error) {
+      console.error('Error creating character:', error);
+    }
+  };
+
+  const generateNewEnemy = (playerLevel: number) => {
+    const enemy = generateEnemy(floor, playerLevel);
+    setCurrentEnemy(enemy);
+  };
+
+  const updateCharacter = async (updates: Partial<Character>) => {
+    if (!character) return;
+
+    const newChar: Character = {
+      ...character,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    setCharacter(newChar);
+
+    await supabase
+      .from('characters')
+      .update(updates)
+      .eq('id', character.id);
+  };
+
+  const attack = async () => {
+    if (!character || !currentEnemy) return;
+
+    // --- player damage ---
+    const equippedWeapon = items.find(i => i.type === 'weapon' && i.equipped);
+    const weaponDamage = equippedWeapon?.damage || 0;
+
+    const playerDamage = Math.floor(
+      character.strength * 0.5 +
+      weaponDamage +
+      Math.random() * 10
+    );
+
+    const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
+    const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
+
+    setCurrentEnemy(enemyAfterHit);
+
+    // enemy died
+    if (newEnemyHealth <= 0) {
+      const expGain = currentEnemy.experience;
+      const goldGain = currentEnemy.gold;
+
+      const newExp = character.experience + expGain;
+      const newGoldTotal = character.gold + goldGain;
+
+      const expNeeded = character.level * 100;
+      let finalExp = newExp;
+      let newLevel = character.level;
+
+      if (newExp >= expNeeded) {
+        newLevel += 1;
+        finalExp = newExp - expNeeded;
+      }
+
+      const updates: Partial<Character> = {
+        experience: finalExp,
+        gold: newGoldTotal,
+      };
+
+      if (newLevel !== character.level) {
+        updates.level = newLevel;
+        updates.max_health = character.max_health + 10;
+        updates.health = character.max_health + 10;
+        updates.max_mana = character.max_mana + 5;
+        updates.mana = character.max_mana + 5;
+        updates.strength = character.strength + 2;
+        updates.dexterity = character.dexterity + 2;
+        updates.intelligence = character.intelligence + 2;
+      }
+
+      await updateCharacter(updates);
+
+      const loot = rollLoot(enemyAfterHit, character);
+      if (loot) {
+        await supabase.from('items').insert([loot]);
+        await loadItems(character.id);
+      }
+
+      setTimeout(() => generateNewEnemy(newLevel), 900);
+      return;
+    }
+
+    // enemy counterattack
+    setTimeout(() => {
+      if (!character || !currentEnemy) return;
+
+      const enemyDamage = Math.floor(
+        currentEnemy.damage + Math.random() * 5
+      );
+
+      const armor = items
+        .filter(i => i.equipped && i.armor)
+        .reduce((sum, i) => sum + (i.armor || 0), 0);
+
+      const actualDamage = Math.max(1, enemyDamage - armor);
+      const newHealth = Math.max(0, character.health - actualDamage);
+
+      if (newHealth <= 0) {
+        updateCharacter({
+          health: character.max_health,
+          gold: Math.floor(character.gold * 0.5),
+        });
+        generateNewEnemy(character.level);
+      } else {
+        updateCharacter({ health: newHealth });
+      }
+    }, 550);
+  };
+
+  const usePotion = async (itemId: string) => {
+    if (!character) return;
+
+    const potion = items.find(i => i.id === itemId && i.type === 'potion');
+    if (!potion) return;
+
+    const newHealth = Math.min(character.max_health, character.health + 50);
+    await updateCharacter({ health: newHealth });
+
+    await supabase.from('items').delete().eq('id', itemId);
+    await loadItems(character.id);
+  };
+
+  const equipItem = async (itemId: string) => {
+    if (!character) return;
+
+    const item = items.find(i => i.id === itemId);
+    if (!item || item.type === 'potion') return;
+
+    const currentlyEquipped = items.find(
+      i => i.type === item.type && i.equipped
+    );
+
+    if (currentlyEquipped) {
+      await supabase
+        .from('items')
+        .update({ equipped: false })
+        .eq('id', currentlyEquipped.id);
+    }
+
+    await supabase
+      .from('items')
+      .update({ equipped: !item.equipped })
+      .eq('id', itemId);
+
+    await loadItems(character.id);
+  };
+
+  const nextFloor = () => {
+    setFloor(prev => prev + 1);
+    if (character) {
+      generateNewEnemy(character.level);
+    }
+  };
+
+  const sellItem = async (itemId: string) => {
+    if (!character) return;
+
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    await updateCharacter({ gold: character.gold + item.value });
+    await supabase.from('items').delete().eq('id', itemId);
+    await loadItems(character.id);
+  };
+
+  const buyPotion = async () => {
+    if (!character) return;
+
+    const POTION_COST = 75;
+    if (character.gold < POTION_COST) return;
+
+    await updateCharacter({ gold: character.gold - POTION_COST });
+
+    await supabase.from('items').insert([
+      {
+        character_id: character.id,
+        name: 'Health Potion',
+        type: 'potion',
+        rarity: 'common',
+        value: POTION_COST,
+        equipped: false,
+      },
+    ]);
+
+    await loadItems(character.id);
+  };
+
+  return (
+    <GameContext.Provider
+      value={{
+        character,
+        items,
+        currentEnemy,
+        floor,
+        loading,
+        createCharacter,
+        loadCharacter,
+        attack,
+        usePotion,
+        equipItem,
+        nextFloor,
+        updateCharacter,
+        sellItem,
+        buyPotion,
+      }}
+    >
+      {children}
+    </GameContext.Provider>
+  );
+}
+
+export function useGame() {
+  const context = useContext(GameContext);
+  if (context === undefined) {
+    throw new Error('useGame must be used within a GameProvider');
+  }
+  return context;
+}
