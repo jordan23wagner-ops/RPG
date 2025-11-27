@@ -90,7 +90,12 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         drawCharacter(ctx, enemyPos.x, enemyPos.y, false);
 
         ctx.font = 'bold 18px Arial';
-        ctx.fillStyle = '#ef4444';
+        let rarityColor = '#ef4444';
+        if (enemy.rarity === 'rare') rarityColor = '#3b82f6';
+        else if (enemy.rarity === 'elite') rarityColor = '#f59e0b';
+        else if (enemy.rarity === 'boss') rarityColor = '#a855f7';
+
+        ctx.fillStyle = rarityColor;
         ctx.textAlign = 'center';
         ctx.fillText(enemy.name, enemyPos.x, enemyPos.y - 60);
 

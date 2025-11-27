@@ -65,18 +65,45 @@ const affixPools = {
 
 export function generateEnemy(floor: number, playerLevel: number): Enemy {
   const level = playerLevel + Math.floor(floor / 3);
-  const name = enemyNames[Math.floor(Math.random() * enemyNames.length)];
-  const maxHealth = 30 + level * 15 + Math.floor(Math.random() * 20);
+  const baseName = enemyNames[Math.floor(Math.random() * enemyNames.length)];
+
+  const rarityRoll = Math.random();
+  let rarity: 'normal' | 'rare' | 'elite' | 'boss';
+  let multiplier = 1;
+  let titlePrefix = '';
+
+  if (rarityRoll < 0.70) {
+    rarity = 'normal';
+    multiplier = 1;
+  } else if (rarityRoll < 0.90) {
+    rarity = 'rare';
+    multiplier = 1.5;
+    titlePrefix = 'Rare ';
+  } else if (rarityRoll < 0.98) {
+    rarity = 'elite';
+    multiplier = 2.5;
+    titlePrefix = 'Elite ';
+  } else {
+    rarity = 'boss';
+    multiplier = 4;
+    titlePrefix = 'Boss ';
+  }
+
+  const maxHealth = Math.floor((30 + level * 15 + Math.floor(Math.random() * 20)) * multiplier);
+  const damage = Math.floor((5 + level * 3) * multiplier);
+  const experience = Math.floor((20 + level * 10) * multiplier);
+  const gold = Math.floor((10 + level * 5 + Math.floor(Math.random() * 20)) * multiplier);
 
   return {
     id: Math.random().toString(36).substr(2, 9),
-    name: `${name} (Lvl ${level})`,
+    name: `${titlePrefix}${baseName} (Lvl ${level})`,
     health: maxHealth,
     max_health: maxHealth,
-    damage: 5 + level * 3,
-    experience: 20 + level * 10,
-    gold: 10 + level * 5 + Math.floor(Math.random() * 20),
-    level
+    damage,
+    experience,
+    gold,
+    level,
+    rarity
   };
 }
 
@@ -114,19 +141,46 @@ function getRandomAffixes(itemType: string, rarity: string): Affix[] {
   return affixes;
 }
 
-export function generateLoot(enemyLevel: number, floor: number): Partial<Item> | null {
-  const dropChance = Math.random();
-  if (dropChance > 0.4) return null;
+export function generateLoot(enemyLevel: number, floor: number, enemyRarity: 'normal' | 'rare' | 'elite' | 'boss' = 'normal'): Partial<Item> | null {
+  let dropChance = 0.4;
+  if (enemyRarity === 'rare') dropChance = 0.55;
+  else if (enemyRarity === 'elite') dropChance = 0.75;
+  else if (enemyRarity === 'boss') dropChance = 0.95;
+
+  if (Math.random() > dropChance) return null;
 
   const rarityRoll = Math.random();
   let rarity: 'common' | 'magic' | 'rare' | 'legendary' | 'mythic' | 'unique';
 
-  if (rarityRoll < 0.50) rarity = 'common';
-  else if (rarityRoll < 0.75) rarity = 'magic';
-  else if (rarityRoll < 0.90) rarity = 'rare';
-  else if (rarityRoll < 0.98) rarity = 'legendary';
-  else if (rarityRoll < 0.99) rarity = 'mythic';
-  else rarity = 'unique';
+  if (enemyRarity === 'normal') {
+    if (rarityRoll < 0.50) rarity = 'common';
+    else if (rarityRoll < 0.75) rarity = 'magic';
+    else if (rarityRoll < 0.90) rarity = 'rare';
+    else if (rarityRoll < 0.98) rarity = 'legendary';
+    else if (rarityRoll < 0.99) rarity = 'mythic';
+    else rarity = 'unique';
+  } else if (enemyRarity === 'rare') {
+    if (rarityRoll < 0.20) rarity = 'common';
+    else if (rarityRoll < 0.50) rarity = 'magic';
+    else if (rarityRoll < 0.80) rarity = 'rare';
+    else if (rarityRoll < 0.95) rarity = 'legendary';
+    else if (rarityRoll < 0.99) rarity = 'mythic';
+    else rarity = 'unique';
+  } else if (enemyRarity === 'elite') {
+    if (rarityRoll < 0.10) rarity = 'common';
+    else if (rarityRoll < 0.30) rarity = 'magic';
+    else if (rarityRoll < 0.65) rarity = 'rare';
+    else if (rarityRoll < 0.92) rarity = 'legendary';
+    else if (rarityRoll < 0.98) rarity = 'mythic';
+    else rarity = 'unique';
+  } else {
+    if (rarityRoll < 0.05) rarity = 'common';
+    else if (rarityRoll < 0.15) rarity = 'magic';
+    else if (rarityRoll < 0.50) rarity = 'rare';
+    else if (rarityRoll < 0.80) rarity = 'legendary';
+    else if (rarityRoll < 0.95) rarity = 'mythic';
+    else rarity = 'unique';
+  }
 
   const rarityMultiplier = {
     common: 1,

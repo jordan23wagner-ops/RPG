@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
 import { GameUI } from './GameUI';
+import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
 import { LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export function Game() {
+  const [shopOpen, setShopOpen] = useState(false);
+
   const {
     character,
     items,
@@ -16,7 +20,9 @@ export function Game() {
     attack,
     usePotion,
     equipItem,
-    nextFloor
+    nextFloor,
+    sellItem,
+    buyPotion
   } = useGame();
 
   const handleSignOut = async () => {
@@ -61,6 +67,7 @@ export function Game() {
             onUsePotion={usePotion}
             onNextFloor={nextFloor}
             enemyDefeated={enemyDefeated}
+            onOpenShop={() => setShopOpen(true)}
           />
         </div>
 
@@ -72,6 +79,16 @@ export function Game() {
           />
         </div>
       </div>
+
+      {shopOpen && (
+        <Shop
+          character={character}
+          items={items}
+          onClose={() => setShopOpen(false)}
+          onSellItem={sellItem}
+          onBuyPotion={buyPotion}
+        />
+      )}
     </div>
   );
 }

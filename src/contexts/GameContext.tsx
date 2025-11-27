@@ -16,6 +16,8 @@ interface GameContextType {
   equipItem: (itemId: string) => Promise<void>;
   nextFloor: () => void;
   updateCharacter: (updates: Partial<Character>) => Promise<void>;
+  sellItem: (itemId: string) => Promise<void>;
+  buyPotion: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -176,7 +178,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      const loot = generateLoot(currentEnemy.level, floor);
+      const loot = generateLoot(currentEnemy.level, floor, currentEnemy.rarity);
       if (loot && character) {
         await supabase.from('items').insert([{
           character_id: character.id,
@@ -250,6 +252,41 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const sellItem = async (itemId: string) => {
+    if (!character) return;
+
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const newGold = character.gold + item.value;
+    await updateCharacter({ gold: newGold });
+    await supabase.from('items').delete().eq('id', itemId);
+    await loadItems(character.id);
+  };
+
+  const buyPotion = async () => {
+    if (!character) return;
+
+    const POTION_COST = 75;
+    if (character.gold < POTION_COST) return;
+
+    const newGold = character.gold - POTION_COST;
+    await updateCharacter({ gold: newGold });
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('items').insert([{
+        character_id: character.id,
+        name: 'Health Potion',
+        type: 'potion',
+        rarity: 'common',
+        value: POTION_COST,
+        equipped: false
+      }]);
+      await loadItems(character.id);
+    }
+  };
+
   return (
     <GameContext.Provider value={{
       character,
@@ -263,7 +300,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       usePotion,
       equipItem,
       nextFloor,
-      updateCharacter
+      updateCharacter,
+      sellItem,
+      buyPotion
     }}>
       {children}
     </GameContext.Provider>

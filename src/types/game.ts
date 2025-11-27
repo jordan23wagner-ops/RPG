@@ -45,6 +45,7 @@ export interface Enemy {
   experience: number;
   gold: number;
   level: number;
+  rarity: 'normal' | 'rare' | 'elite' | 'boss';
 }
 
 export interface GameSession {

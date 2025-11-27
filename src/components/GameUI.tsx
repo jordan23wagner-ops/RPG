@@ -1,4 +1,4 @@
-import { Heart, Zap, TrendingUp, Coins, Package, ArrowDown, Sparkles } from 'lucide-react';
+import { Heart, Zap, TrendingUp, Coins, Package, ArrowDown, Sparkles, ShoppingBag } from 'lucide-react';
 import { Character, Item } from '../types/game';
 import { getRarityColor, getRarityBgColor } from '../utils/gameLogic';
 
@@ -10,6 +10,7 @@ interface GameUIProps {
   onUsePotion: (itemId: string) => void;
   onNextFloor: () => void;
   enemyDefeated: boolean;
+  onOpenShop: () => void;
 }
 
 export function GameUI({
@@ -19,7 +20,8 @@ export function GameUI({
   onEquip,
   onUsePotion,
   onNextFloor,
-  enemyDefeated
+  enemyDefeated,
+  onOpenShop
 }: GameUIProps) {
   const healthPercent = (character.health / character.max_health) * 100;
   const manaPercent = (character.mana / character.max_mana) * 100;
@@ -210,6 +212,14 @@ export function GameUI({
           </div>
         </div>
       )}
+
+      <button
+        onClick={onOpenShop}
+        className="w-full px-3 py-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold rounded-lg transition-all text-sm flex items-center justify-center gap-2"
+      >
+        <ShoppingBag className="w-4 h-4" />
+        Visit Merchant
+      </button>
 
       {enemyDefeated && (
         <button
