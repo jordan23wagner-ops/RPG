@@ -93,7 +93,7 @@ interface LootEntry {
   weight: number;
 }
 
-// simple ID generator so we don't need the "uuid" package
+// simple id generator since Bolt may not support uuid()
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
 // ---------- Loot Table ----------
@@ -149,56 +149,28 @@ const LOOT_TABLE: LootEntry[] = [
   },
 ];
 
-// ---------- Loot Helpers ----------
+// ---------- Loot Logic (100% drop rate version) ----------
 
-function getDropChance(enemy: Enemy): number {
-  switch (enemy.rarity) {
-    case 'normal':
-      return 0.15;
-    case 'rare':
-      return 0.35;
-    case 'elite':
-      return 0.65;
-    case 'boss':
-      return 1.0;
-    default:
-      return 0.1;
-  }
-}
-
-function rollRarity(enemy: Enemy): LootRarity | null {
-  // TEMP: ignore drop chance and always drop *something*
-  const levelFactor = Math.min(enemy.level / 20, 1); // 0–1
-
-  // Super simple rarity roll for testing
+// ALWAYS drop an item (for testing)
+function rollRarity(enemy: Enemy): LootRarity {
   const r = Math.random();
 
+  // 5% legendary, 15% rare, 30% magic, rest common
   if (r < 0.05) return 'legendary';
   if (r < 0.20) return 'rare';
   if (r < 0.50) return 'magic';
   return 'common';
 }
 
-  if (r < legendaryChance) return 'legendary';
-  if (r < legendaryChance + rareChance) return 'rare';
-  if (r < legendaryChance + rareChance + magicChance) return 'magic';
-  return 'common';
-}
-
 function pickLootEntry(rarity: LootRarity): LootEntry | null {
-  const candidates = LOOT_TABLE.filter(entry => entry.rarity === rarity);
-  if (candidates.length === 0) {
-    console.warn('No loot entries for rarity', rarity);
-    return null;
-  }
+  const candidates = LOOT_TABLE.filter((entry) => entry.rarity === rarity);
+  if (candidates.length === 0) return null;
 
   const totalWeight = candidates.reduce((sum, e) => sum + e.weight, 0);
   let roll = Math.random() * totalWeight;
 
   for (const entry of candidates) {
-    if (roll < entry.weight) {
-      return entry;
-    }
+    if (roll < entry.weight) return entry;
     roll -= entry.weight;
   }
 
@@ -206,7 +178,7 @@ function pickLootEntry(rarity: LootRarity): LootEntry | null {
 }
 
 function generateAffixes(rarity: LootRarity): Affix[] {
-  const possibleAffixes: Omit<Affix, 'value'>[] = [
+  const possible: Omit<Affix, 'value'>[] = [
     { name: 'of Strength', stat: 'strength' },
     { name: 'of Dexterity', stat: 'dexterity' },
     { name: 'of Intelligence', stat: 'intelligence' },
@@ -216,7 +188,7 @@ function generateAffixes(rarity: LootRarity): Affix[] {
     { name: 'of Protection', stat: 'armor' },
   ];
 
-  const rarityAffixCount: Record<LootRarity, number> = {
+  const affixCount: Record<LootRarity, number> = {
     common: 0,
     magic: 1,
     rare: 2,
@@ -225,50 +197,45 @@ function generateAffixes(rarity: LootRarity): Affix[] {
     unique: 2,
   };
 
-  const count = rarityAffixCount[rarity] ?? 0;
-  const affixes: Affix[] = [];
+  const count = affixCount[rarity];
+  const result: Affix[] = [];
 
   for (let i = 0; i < count; i++) {
-    const base =
-      possibleAffixes[Math.floor(Math.random() * possibleAffixes.length)];
-    const value = 1 + Math.floor(Math.random() * (5 + i * 3));
+    const base = possible[Math.floor(Math.random() * possible.length)];
+    const value = 1 + Math.floor(Math.random() * (6 + i * 3));
 
-    affixes.push({
+    result.push({
       name: base.name,
       stat: base.stat,
       value,
     });
   }
 
-  return affixes;
+  return result;
 }
 
-// ---------- Public Loot API ----------
+// ---------- Public Loot Function ----------
 
-export function rollLoot(enemy: Enemy, character: Character): Item | null {
+export function rollLoot(enemy: Enemy, character: Character): Item {
   const rarity = rollRarity(enemy);
-  if (!rarity) return null;
-
   const blueprint = pickLootEntry(rarity);
-  if (!blueprint) return null;
 
   const now = new Date().toISOString();
-  const affixes = generateAffixes(rarity);
 
   const item: Item = {
     id: generateId(),
     character_id: character.id,
-    name: blueprint.name,
-    type: blueprint.type,
+    name: blueprint?.name || 'Unknown Item',
+    type: blueprint?.type || 'weapon',
     rarity,
-    damage: blueprint.baseDamage,
-    armor: blueprint.baseArmor,
-    value: blueprint.baseValue,
+    damage: blueprint?.baseDamage,
+    armor: blueprint?.baseArmor,
+    value: blueprint?.baseValue ?? 1,
     equipped: false,
-    affixes,
+    affixes: generateAffixes(rarity),
     created_at: now,
   };
 
-  console.log('Loot dropped:', item);
+  console.log('FORCED DROP:', item);
   return item;
 }
