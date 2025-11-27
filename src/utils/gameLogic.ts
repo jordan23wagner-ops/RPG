@@ -122,7 +122,7 @@ export function generateEnemy(floor: number, playerLevel: number): Enemy {
   };
 }
 
-// ----------------- AFFIX HELPER -----------------
+// ----------------- AFFIX HELPER (kept for later) -----------------
 
 function getRandomAffixes(itemType: string, rarity: string): Affix[] {
   const affixPool = affixPools[itemType as keyof typeof affixPools] || [];
@@ -238,7 +238,8 @@ export function generateLoot(
     const damage = Math.floor(
       (5 + enemyLevel * 2 + Math.random() * 10) * rarityMultiplier,
     );
-    const affixes = getRandomAffixes(weaponType, rarity);
+
+    // const affixes = getRandomAffixes(weaponType, rarity); // keep for later
 
     return {
       name: `${prefix} ${weapon}`,
@@ -247,7 +248,7 @@ export function generateLoot(
       damage,
       value: Math.floor(damage * 5 * rarityMultiplier),
       equipped: false,
-      affixes,
+      // affixes, // not saved to DB yet
     };
   } else {
     const isPotion = Math.random() > 0.7;
@@ -287,7 +288,8 @@ export function generateLoot(
     const armor = Math.floor(
       (3 + enemyLevel * 1.5 + Math.random() * 5) * rarityMultiplier,
     );
-    const affixes = getRandomAffixes(armorType, rarity);
+
+    // const affixes = getRandomAffixes(armorType, rarity); // keep for later
 
     return {
       name: `${prefix} ${armorSlot.charAt(0).toUpperCase()}${armorSlot.slice(
@@ -298,7 +300,7 @@ export function generateLoot(
       armor,
       value: Math.floor(armor * 8 * rarityMultiplier),
       equipped: false,
-      affixes,
+      // affixes,
     };
   }
 }
