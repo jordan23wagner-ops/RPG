@@ -59,4 +59,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (chars && chars.
+      if (chars && chars.length > 0) {
+        const char = chars[0] as Character;
+        setCharacter(char);
+        await loadItems(char.id);
+        generateNewEnemy(char.level);
+      }
+    } catch (error) {
+      console.error('Error loading character:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
