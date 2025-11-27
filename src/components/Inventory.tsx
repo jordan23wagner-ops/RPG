@@ -6,12 +6,16 @@ interface InventoryProps {
   items: Item[];
   onEquip: (itemId: string) => void;
   onUsePotion: (itemId: string) => void;
+  onSellAll: () => void; // 👈 NEW
 }
 
-export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
+export function Inventory({ items, onEquip, onUsePotion, onSellAll }: InventoryProps) {
   const getItemIcon = (type: string) => {
     switch (type) {
       case 'weapon':
+      case 'melee_weapon':
+      case 'ranged_weapon':
+      case 'mage_weapon':
         return <Sword className="w-5 h-5" />;
       case 'potion':
         return <FlaskConical className="w-5 h-5" />;
@@ -23,11 +27,39 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
   const equippedItems = items.filter(i => i.equipped);
   const unequippedItems = items.filter(i => !i.equipped);
 
+  // Only sell unequipped, non-potion items (matches sellAllItems in context)
+  const sellableCount = unequippedItems.filter(i => i.type !== 'potion').length;
+
+  const handleSellAllClick = () => {
+    if (sellableCount === 0) return;
+    const confirmed = window.confirm(
+      `Sell all ${sellableCount} unequipped non-potion items?`
+    );
+    if (!confirmed) return;
+    onSellAll();
+  };
+
   return (
     <div className="bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Package className="w-5 h-5 text-yellow-500" />
-        <h3 className="text-xl font-bold text-yellow-500">Inventory</h3>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <Package className="w-5 h-5 text-yellow-500" />
+          <h3 className="text-xl font-bold text-yellow-500">Inventory</h3>
+        </div>
+
+        {/* Sell All button */}
+        <button
+          onClick={handleSellAllClick}
+          disabled={sellableCount === 0}
+          className={`px-3 py-1 text-xs rounded transition-colors border
+            ${
+              sellableCount === 0
+                ? 'bg-gray-700 text-gray-500 border-gray-700 cursor-not-allowed'
+                : 'bg-red-600 hover:bg-red-700 text-white border-red-500'
+            }`}
+        >
+          Sell All
+        </button>
       </div>
 
       {equippedItems.length > 0 && (
