@@ -189,9 +189,27 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   useEffect(() => {
     let animationFrameId: number;
 
-    const movePlayer = () => {
-      const prev = playerPosRef.current;
-      let newX = prev.x;
-      let newY = prev.y;
+  const movePlayer = () => {
+  const prev = playerPosRef.current;
+  let newX = prev.x;
+  let newY = prev.y;
 
-      const k
+  const keys = keysPressed.current;
+
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+    newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
+  }
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+    newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
+  }
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+    newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
+  }
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+    newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
+  }
+
+  playerPosRef.current = { x: newX, y: newY };
+
+  animationFrameId = requestAnimationFrame(movePlayer);
+};
