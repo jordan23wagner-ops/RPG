@@ -10,12 +10,12 @@ interface DungeonViewProps {
 export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Use refs instead of state so we don't re-render React 60fps
+  // Positions and input as refs so we don't re-render every frame
   const playerPosRef = useRef({ x: 400, y: 450 });
   const enemyPosRef = useRef({ x: 600, y: 200 });
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
-  // Keep latest enemy / floor / onAttack in refs so effects don't depend on them
+  // Keep latest props in refs so effects don't depend on them
   const enemyRef = useRef<Enemy | null>(enemy);
   const floorRef = useRef(floor);
   const onAttackRef = useRef(onAttack);
@@ -49,13 +49,16 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.shadowBlur = 15;
     ctx.shadowOffsetY = 8;
 
+    // Head
     ctx.beginPath();
     ctx.arc(x, y - 15, 20, 0, Math.PI * 2);
     ctx.fill();
 
+    // Body
     ctx.fillStyle = isPlayer ? '#6366f1' : '#ef4444';
     ctx.fillRect(x - 20, y + 5, 40, 35);
 
+    // Legs
     ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
     ctx.fillRect(x - 25, y + 5, 12, 30);
     ctx.fillRect(x + 13, y + 5, 12, 30);
@@ -96,7 +99,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     ctx.strokeRect(x, y, width, height);
   };
 
-  // Main render loop – set up once
+  // Main render loop (runs once, uses refs)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -133,7 +136,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       // Player
       drawCharacter(ctx, playerPos.x, playerPos.y, true);
 
-      // Enemy
+      // Enemy + health bar + hint
       if (enemy && enemy.health > 0) {
         drawCharacter(ctx, enemyPos.x, enemyPos.y, false);
 
@@ -175,7 +178,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         );
       }
 
-      // HUD
+      // HUD text
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#fbbf24';
       ctx.textAlign = 'left';
@@ -194,9 +197,9 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       cancelAnimationFrame(animationFrameId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once
+  }, []);
 
-  // Movement loop – also run once, operates on refs
+  // Movement loop (also once, via refs)
   useEffect(() => {
     let animationFrameId: number;
 
@@ -231,9 +234,9 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       cancelAnimationFrame(animationFrameId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once
+  }, []);
 
-  // Keyboard handlers – set up once, use refs inside
+  // Keyboard handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = true;
@@ -274,7 +277,10 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       ref={canvasRef}
       width={CANVAS_WIDTH}
       height={CANVAS_HEIGHT}
-      className="bg-gray-900 border-4 border-yellow-600 rounded-lg"
+      className="
+        bg-gray-900 border-4 border-yellow-600 rounded-lg
+        w-full max-w-[1000px] h-auto
+      "
     />
   );
 }
