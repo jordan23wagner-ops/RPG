@@ -190,7 +190,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
 
       setTimeout(() => generateNewEnemy(newLevel), 1000);
-    } else {
+      
       setTimeout(() => {
         const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
         const equippedArmor = items
