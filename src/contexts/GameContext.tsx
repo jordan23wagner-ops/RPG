@@ -6,8 +6,8 @@ import {
   ReactNode,
 } from 'react';
 import { supabase } from '../lib/supabase';
-import { Character, Item, Enemy, rollLoot } from '../types/game';
-import { generateEnemy } from '../utils/gameLogic';
+import { Character, Item, Enemy } from '../types/game';
+import { generateEnemy, generateLoot } from '../utils/gameLogic';
 
 interface GameContextType {
   character: Character | null;
@@ -139,7 +139,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         {
           character_id: char.id,
           name: 'Rusty Sword',
-          type: 'melee_weapon', // matches loot types
+          type: 'melee_weapon', // matches your loot types
           rarity: 'common',
           damage: 5,
           value: 10,
@@ -179,7 +179,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --------------- Combat / Loot ---------------
+  // --------------- Combat / Loot (100% drop) ---------------
 
   const attack = async () => {
     if (!character || !currentEnemy) return;
@@ -239,10 +239,33 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       await updateCharacter(updates);
 
-      // Roll loot using the shared loot system
-      const loot = rollLoot(enemyAfterHit, character);
+      // 🔹 Use your generateLoot function
+      let loot = generateLoot(
+        currentEnemy.level,
+        floor,
+        currentEnemy.rarity,
+      );
+
+      // 🔸 Guarantee *something* drops
+      if (!loot) {
+        loot = {
+          name: 'Tarnished Trinket',
+          type: 'melee_armor',
+          rarity: 'common',
+          armor: 1,
+          value: 5,
+          equipped: false,
+        };
+      }
+
       if (loot) {
-        const { error } = await supabase.from('items').insert([loot]);
+        const { error } = await supabase.from('items').insert([
+          {
+            character_id: character.id,
+            ...loot,
+          },
+        ]);
+
         if (error) {
           console.error('Error inserting loot:', error);
         } else {
@@ -251,7 +274,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
 
       // Spawn a new enemy after a short delay
-      setTimeout(() => generateNewEnemy(leveled ? newLevel : character.level), 800);
+      setTimeout(
+        () => generateNewEnemy(leveled ? newLevel : character.level),
+        800,
+      );
     } else {
       // Enemy counter-attack
       setTimeout(() => {
