@@ -248,7 +248,7 @@ export function generateLoot(
       damage,
       value: Math.floor(damage * 5 * rarityMultiplier),
       equipped: false,
-      // affixes, // not saved to DB yet
+      // affixes,
     };
   } else {
     const isPotion = Math.random() > 0.7;
@@ -362,4 +362,69 @@ export function getRarityBorderColor(rarity: string): string {
     default:
       return 'border-gray-600';
   }
+}
+
+// ----------------- EQUIPMENT SLOT HELPERS -----------------
+
+export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket';
+
+/**
+ * Derive which equipment slot an item belongs to, based on its type + name.
+ * No DB changes required; this is all client-side logic.
+ */
+export function getEquipmentSlot(item: Item): EquipmentSlot | null {
+  if (item.type === 'potion') return null;
+
+  // Any weapon type = hands slot (we'll render that as main/off-hand in UI)
+  if (
+    item.type === 'melee_weapon' ||
+    item.type === 'ranged_weapon' ||
+    item.type === 'mage_weapon'
+  ) {
+    return 'weapon';
+  }
+
+  // Armor: use the last word of the name ("Helmet", "Boots", "Armor", "Trinket")
+  if (
+    item.type === 'melee_armor' ||
+    item.type === 'ranged_armor' ||
+    item.type === 'mage_armor'
+  ) {
+    const lastWord = item.name.split(' ').slice(-1)[0].toLowerCase();
+
+    if (lastWord === 'helmet' || lastWord === 'helm') return 'helmet';
+    if (lastWord === 'boots') return 'boots';
+    if (lastWord === 'trinket') return 'trinket';
+
+    // default body slot
+    return 'chest';
+  }
+
+  return null;
+}
+
+/**
+ * 2H detection based purely on weapon name.
+ * Bows / crossbows / staves / warhammers, etc. count as two-handed.
+ */
+export function isTwoHanded(item: Item): boolean {
+  if (
+    item.type !== 'melee_weapon' &&
+    item.type !== 'ranged_weapon' &&
+    item.type !== 'mage_weapon'
+  ) {
+    return false;
+  }
+
+  const lastWord = item.name.split(' ').slice(-1)[0].toLowerCase();
+  const twoHandedNames = [
+    'bow',
+    'longbow',
+    'shortbow',
+    'crossbow',
+    'staff',
+    'warhammer',
+  ];
+
+  return twoHandedNames.includes(lastWord);
 }
