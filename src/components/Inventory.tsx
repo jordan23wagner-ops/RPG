@@ -1,3 +1,5 @@
+// src/components/Inventory.tsx
+import { ItemTooltip } from './ItemTooltip';
 import { Package, Sword, Shield, FlaskConical, User2 } from 'lucide-react';
 import { Item } from '../types/game';
 import {
@@ -146,9 +148,10 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
       );
     }
 
+    // Equipped slot WITH item + tooltip
     return (
       <div
-        className={`bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px] ${SLOT_LAYOUT[slotId]}`}
+        className={`relative group bg-gray-800 border border-yellow-500/70 rounded-md p-2 flex flex-col gap-1 text-[11px] ${SLOT_LAYOUT[slotId]}`}
       >
         <div className="flex items-center justify-between gap-1">
           <span className="flex items-center gap-1 text-gray-300">
@@ -181,6 +184,13 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
               {item.damage && item.armor && ' • '}
               {item.armor && `+${item.armor} Armor`}
             </div>
+          </div>
+        </div>
+
+        {/* Tooltip overlay for equipped item */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-0 z-20 hidden w-56 -translate-x-1/2 -translate-y-full pb-2 group-hover:block">
+            <ItemTooltip item={item} />
           </div>
         </div>
       </div>
@@ -226,7 +236,7 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
             {unequippedItems.map(item => (
               <div
                 key={item.id}
-                className="bg-gray-800 border border-gray-700 rounded p-2 flex items-center justify-between hover:border-gray-600 transition-colors"
+                className="relative group bg-gray-800 border border-gray-700 rounded p-2 flex items-center justify-between hover:border-gray-600 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <div className={getRarityColor(item.rarity || 'common')}>
@@ -251,6 +261,7 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
                     </div>
                   </div>
                 </div>
+
                 {item.type === 'potion' ? (
                   <button
                     onClick={() => onUsePotion(item.id)}
@@ -266,6 +277,13 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
                     Equip
                   </button>
                 )}
+
+                {/* Tooltip overlay for backpack item */}
+                <div className="pointer-events-none absolute inset-0">
+                  <div className="absolute left-1/2 top-0 z-20 hidden w-56 -translate-x-1/2 -translate-y-full pb-2 group-hover:block">
+                    <ItemTooltip item={item} />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
