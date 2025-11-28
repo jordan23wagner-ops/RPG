@@ -5,7 +5,7 @@ import { DungeonView } from './DungeonView';
 import { GameUI } from './GameUI';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
-import { LogOut } from 'lucide-react';
+import { LogOut, FlaskConical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { EquipmentPanel } from './EquipmentPanel';
 
@@ -44,8 +44,12 @@ export function Game() {
   if (!character) {
     return <CreateCharacter onCreate={createCharacter} />;
   }
-
+  
   const enemyDefeated = currentEnemy ? currentEnemy.health <= 0 : false;
+  // Quick access potion info for the bottom bar
+  const potionItems = items.filter(i => i.type === 'potion');
+  const potionCount = potionItems.length;
+  const firstPotion = potionItems[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4">
@@ -81,15 +85,42 @@ export function Game() {
         </div>
       </div>
 
-      {/* Wide gear + backpack panel under the dungeon */}
-<div className="max-w-7xl mx-auto mt-6">
-  <Inventory
-    items={items}
-    onEquip={equipItem}
-    onUsePotion={usePotion}
-  />
-</div>
+      {/* Potion quick bar under the dungeon */}
+      <div className="max-w-7xl mx-auto mt-4 flex justify-center">
+        <div className="w-full md:w-auto flex items-center justify-center gap-4 rounded-lg border border-red-900/40 bg-black/40 px-4 py-2">
+          <div className="flex items-center gap-2 text-sm text-gray-300 uppercase tracking-wide">
+            <FlaskConical className="w-4 h-4 text-green-400" />
+            <span>Quick Potions</span>
+          </div>
+          <button
+            type="button"
+            disabled={!firstPotion}
+            onClick={() => {
+              if (firstPotion) {
+                void usePotion(firstPotion.id);
+              }
+            }}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors
+              ${firstPotion
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              }`}
+          >
+            {firstPotion
+              ? `Use Potion${potionCount > 1 ? ` (${potionCount})` : ''}`
+              : 'No Potions'}
+          </button>
+        </div>
+      </div>
 
+      {/* Wide gear + backpack panel under the dungeon */}
+      <div className="max-w-7xl mx-auto mt-6">
+        <Inventory
+          items={items}
+          onEquip={equipItem}
+          onUsePotion={usePotion}
+        />
+      </div>
 
       {shopOpen && (
         <Shop

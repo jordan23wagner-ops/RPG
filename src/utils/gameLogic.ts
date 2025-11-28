@@ -161,7 +161,147 @@ function getRandomAffixes(itemType: string, rarity: string): Affix[] {
 
 // ----------------- LOOT GENERATION -----------------
 
+// Rarity tiers and base drop chances (in %)
+const BASE_RARITY_WEIGHTS = {
+  common: 55,
+  magic: 30,
+  rare: 10,
+  epic: 4,
+  legendary: 1,
+};
+
+type RarityKey = keyof typeof BASE_RARITY_WEIGHTS;
+
+function pickRarity(enemyRarity: RarityKey): RarityKey {
+  // Slightly buff drops for rarer enemies
+  const weights = { ...BASE_RARITY_WEIGHTS };
+
+  if (enemyRarity === 'magic') {
+    weights.magic += 5;
+    weights.rare += 3;
+  } else if (enemyRarity === 'rare') {
+    weights.rare += 6;
+    weights.epic += 3;
+  } else if (enemyRarity === 'epic') {
+    weights.epic += 5;
+    weights.legendary += 3;
+  } else if (enemyRarity === 'legendary') {
+    weights.rare += 5;
+    weights.epic += 7;
+    weights.legendary += 5;
+    weights.common -= 10;
+  }
+
+  const totalWeight = Object.values(weights).reduce((s, v) => s + v, 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const key of Object.keys(weights) as RarityKey[]) {
+    if (roll < weights[key]) return key;
+    roll -= weights[key];
+  }
+
+  return 'common';
+}
+
+const WEAPON_TYPES = ['melee_weapon', 'ranged_weapon', 'mage_weapon'] as const;
+const ARMOR_TYPES = ['melee_armor', 'trinket'] as const;
+
+function randomFrom<T>(arr: readonly T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function rollBaseStats(
+  itemType: string,
+  level: number,
+  floor: number,
+  rarity: RarityKey,
+) {
+  const levelFactor = level + floor * 0.5;
+  const rarityMultiplier =
+    rarity === 'common'
+      ? 1
+      : rarity === 'magic'
+        ? 1.25
+        : rarity === 'rare'
+          ? 1.6
+          : rarity === 'epic'
+            ? 2.1
+            : 2.8; // legendary
+
+  if (itemType.endsWith('_weapon')) {
+    const base = 3 + levelFactor * 2;
+    const spread = levelFactor * 1.5;
+    const damage = Math.round((base + Math.random() * spread) * rarityMultiplier);
+    return { damage, armor: undefined };
+  }
+
+  // armor / trinkets
+  const base = 2 + levelFactor * 1.2;
+  const spread = levelFactor;
+  const armor = Math.round((base + Math.random() * spread) * rarityMultiplier);
+  return { damage: undefined, armor };
+}
+
 export function generateLoot(
+  enemyLevel: number,
+  floor: number,
+  enemyRarity: RarityKey = 'common',
+) {
+  // 15% chance to drop nothing at all (normal enemies)
+  const baseNoDropChance = enemyRarity === 'legendary' ? 0.02 : 0.15;
+  if (Math.random() < baseNoDropChance) return null;
+
+  const rarity = pickRarity(enemyRarity);
+
+  // Decide whether this is a weapon or armor
+  const isWeapon = Math.random() < 0.6; // slightly weapon-biased
+  const type = isWeapon ? randomFrom(WEAPON_TYPES) : randomFrom(ARMOR_TYPES);
+
+  // Base stats
+  const { damage, armor } = rollBaseStats(type, enemyLevel, floor, rarity);
+
+  // Name generation
+  const prefixes =
+    type === 'melee_weapon'
+      ? ['Rusty', 'Jagged', 'Savage', 'Dread']
+      : type === 'ranged_weapon'
+        ? ['Cracked', 'Hunter\'s', 'Sharpshot', 'Storm']
+        : type === 'mage_weapon'
+          ? ['Apprentice', 'Mystic', 'Arcane', 'Eldritch']
+          : ['Worn', 'Sturdy', 'Guardian\'s', 'Ward'];
+
+  const bases =
+    type === 'melee_weapon'
+      ? ['Sword', 'Axe', 'Mace', 'Warhammer']
+      : type === 'ranged_weapon'
+        ? ['Bow', 'Crossbow', 'Longbow']
+        : type === 'mage_weapon'
+          ? ['Wand', 'Staff', 'Tome', 'Scepter']
+          : type === 'trinket'
+            ? ['Charm', 'Amulet', 'Talisman']
+            : ['Breastplate', 'Chainmail', 'Plate Armor'];
+
+  const suffixes = ['of Might', 'of the Fox', 'of Embers', 'of the Depths'];
+
+  let name = `${randomFrom(prefixes)} ${randomFrom(bases)}`;
+  if (rarity !== 'common' && Math.random() < 0.7) {
+    name += ` ${randomFrom(suffixes)}`;
+  }
+
+  // Gold value roughly scales with power and rarity
+  const baseValue = (damage || armor || 1) * (rarity === 'legendary' ? 6 : rarity === 'epic' ? 4 : rarity === 'rare' ? 3 : rarity === 'magic' ? 2 : 1.2);
+  const value = Math.round(baseValue);
+
+  return {
+    name,
+    type,
+    rarity,
+    damage,
+    armor,
+    value,
+    equipped: false,
+  };
+}
   enemyLevel: number,
   floor: number,
   enemyRarity: 'normal' | 'rare' | 'elite' | 'boss' = 'normal',

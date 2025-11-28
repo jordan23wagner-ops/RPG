@@ -14,7 +14,7 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
   const rarityBg = getRarityBgColor(item.rarity);
 
   return (
-    <div className="rounded-lg border border-gray-800 bg-black/95 px-3 py-2 text-xs shadow-2xl">
+    <div className="rounded-lg border border-gray-800 bg-black/95 px-3 py-2 text-xs shadow-2xl max-w-xs">
       {/* Top: name + rarity */}
       <div className={`mb-1 text-sm font-semibold ${rarityColor}`}>
         {item.name}
@@ -25,20 +25,26 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
 
       {/* Slot + type */}
       <div className="mb-2 text-[10px] text-gray-300/80">
-        {item.slot} {item.itemType ? `• ${item.itemType}` : null}
+        {item.slot && <span className="capitalize">{item.slot}</span>}
+        {item.slot && item.type && ' • '}
+        {item.type && <span className="capitalize">{item.type.replace(/_/g, ' ')}</span>}
       </div>
 
       {/* Base stats */}
-      {item.baseStats && (
+      {(item.damage || item.armor) && (
         <div className="mb-2 space-y-0.5">
-          {Object.entries(item.baseStats).map(([stat, value]) => (
-            <div key={stat} className="flex justify-between text-[11px] text-gray-100">
-              <span className="capitalize text-gray-300/90">
-                {stat.replace(/_/g, ' ')}
-              </span>
-              <span>{value}</span>
+          {item.damage && (
+            <div className="flex justify-between text-[11px] text-gray-100">
+              <span className="text-gray-300/90">Damage</span>
+              <span>+{item.damage}</span>
             </div>
-          ))}
+          )}
+          {item.armor && (
+            <div className="flex justify-between text-[11px] text-gray-100">
+              <span className="text-gray-300/90">Armor</span>
+              <span>+{item.armor}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -61,9 +67,10 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
       )}
 
       {/* Requirements / misc */}
-      <div className="mt-2 text-[10px] text-gray-500">
+      <div className="mt-2 text-[10px] text-gray-500 space-y-0.5">
         {item.levelRequirement && <div>Requires Level {item.levelRequirement}</div>}
         {item.classRestriction && <div>Class: {item.classRestriction}</div>}
+        {item.value != null && <div>Value: {item.value}g</div>}
       </div>
     </div>
   );
