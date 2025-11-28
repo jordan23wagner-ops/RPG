@@ -204,7 +204,7 @@ export function GameUI({
 
       {/* Backpack */}
       {unequippedItems.length > 0 && (
-        <div className="bg-gray-900 border-2 border-yellow-600 rounded p-3">
+        <div className="bg-gray-900 border-2 border-yellow-600 rounded p-3 hidden">
           <h3 className="font-bold text-yellow-500 mb-1 text-sm">Backpack</h3>
           <div className="space-y-1 max-h-32 overflow-y-auto mb-2">
             {unequippedItems.map(item => (
