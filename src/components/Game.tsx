@@ -1,3 +1,4 @@
+import { Inventory } from './Inventory';
 import { useState } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
@@ -80,10 +81,15 @@ export function Game() {
         </div>
       </div>
 
-      {/* NEW: wide gear panel under the dungeon */}
-      <div className="max-w-7xl mx-auto">
-        <EquipmentPanel items={items} onEquip={equipItem} />
-      </div>
+      {/* Wide gear + backpack panel under the dungeon */}
+<div className="max-w-7xl mx-auto mt-6">
+  <Inventory
+    items={items}
+    onEquip={equipItem}
+    onUsePotion={usePotion}
+  />
+</div>
+
 
       {shopOpen && (
         <Shop
