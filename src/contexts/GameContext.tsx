@@ -106,16 +106,32 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const createCharacter = async (name: string) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      // Try to get the user, but don’t require it
+let userId: string | null = null;
+
+try {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    userId = user.id;
+  } else {
+    console.warn('No authenticated user — creating guest character');
+  }
+} catch (e) {
+  console.warn('Failed to fetch user — creating guest character', e);
+}
+
+// IMPORTANT: no more "Not authenticated" error
+// if (!user) throw new Error('Not authenticated');  <-- REMOVE THIS
+
 
       const { data, error } = await supabase
         .from('characters')
         .insert([
           {
-            user_id: user.id,
+            user_id: userId,
             name,
             level: 1,
             experience: 0,
