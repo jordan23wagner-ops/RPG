@@ -99,7 +99,7 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
   };
 
   const equippedItems = items.filter(i => i.equipped);
-  const unequippedItems = items.filter(i => !i.equipped);
+  const unequippedItems = items.filter(i => !i.equipped && i.type !== 'potion');
 
   // Map equipped items by logical equipment slot
   const equippedBySlot: Partial<Record<EquipmentSlot, Item>> = {};
