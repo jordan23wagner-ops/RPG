@@ -199,50 +199,55 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
                 equippedBySlot[slot].push(item);
               });
 
-              const slotConfig = [
-                { key: 'helmet', label: 'Head', row: 0, col: 1 },
-                { key: 'weapon', label: 'Weapon', row: 1, col: 0 },
-                { key: 'armor', label: 'Body', row: 1, col: 1 },
-                { key: 'amulet', label: 'Off-Hand', row: 1, col: 2 },
-                { key: 'ring', label: 'Ring', row: 2, col: 0 },
-                { key: 'boots', label: 'Feet', row: 2, col: 1 },
-                { key: 'belt', label: 'Ring', row: 2, col: 2 },
-              ];
+              const slotConfig: Record<number, { key: string; label: string }> = {
+                2: { key: 'helmet', label: 'Head' },
+                4: { key: 'weapon', label: 'Weapon' },
+                5: { key: 'armor', label: 'Body' },
+                6: { key: 'amulet', label: 'Off-Hand' },
+                7: { key: 'ring', label: 'Ring' },
+                8: { key: 'boots', label: 'Feet' },
+                9: { key: 'belt', label: 'Ring' },
+              };
+
+              const renderSlot = (gridNum: number) => {
+                const slot = slotConfig[gridNum];
+                if (!slot) return <div key={`empty-${gridNum}`} className="aspect-square" />;
+
+                const item = (equippedBySlot[slot.key] || [])[0];
+                const rarityColors: Record<string, string> = {
+                  normal: 'border-gray-600 bg-gray-800',
+                  magic: 'border-blue-500 bg-blue-950',
+                  rare: 'border-purple-500 bg-purple-950',
+                  epic: 'border-yellow-600 bg-yellow-950',
+                  legendary: 'border-red-600 bg-red-950',
+                  set: 'border-green-600 bg-green-950',
+                  mythic: 'border-indigo-600 bg-indigo-950',
+                  radiant: 'border-cyan-500 bg-cyan-950',
+                };
+                const colorClass = item ? rarityColors[item.rarity] || 'border-gray-600 bg-gray-800' : 'border-dashed border-gray-600 bg-gray-950';
+
+                return (
+                  <div
+                    key={slot.key}
+                    className={`aspect-square border-2 rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${colorClass}`}
+                    title={item ? item.name : slot.label}
+                  >
+                    {item ? (
+                      <div className="text-center w-full">
+                        <div className="text-xs font-semibold text-gray-200 truncate">{item.name}</div>
+                        {item.damage && <div className="text-xs text-yellow-300 font-bold">+{item.damage}</div>}
+                        {item.armor && <div className="text-xs text-blue-300 font-bold">+{item.armor}</div>}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-600 text-center font-medium">{slot.label}</div>
+                    )}
+                  </div>
+                );
+              };
 
               return (
                 <div className="grid grid-cols-3 gap-2">
-                  {slotConfig.map(slot => {
-                    const item = (equippedBySlot[slot.key] || [])[0];
-                    const rarityColors: Record<string, string> = {
-                      normal: 'border-gray-600 bg-gray-800',
-                      magic: 'border-blue-500 bg-blue-950',
-                      rare: 'border-purple-500 bg-purple-950',
-                      epic: 'border-yellow-600 bg-yellow-950',
-                      legendary: 'border-red-600 bg-red-950',
-                      set: 'border-green-600 bg-green-950',
-                      mythic: 'border-indigo-600 bg-indigo-950',
-                      radiant: 'border-cyan-500 bg-cyan-950',
-                    };
-                    const colorClass = item ? rarityColors[item.rarity] || 'border-gray-600 bg-gray-800' : 'border-dashed border-gray-600 bg-gray-950';
-
-                    return (
-                      <div
-                        key={slot.key}
-                        className={`aspect-square border-2 rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${colorClass}`}
-                        title={item ? item.name : slot.label}
-                      >
-                        {item ? (
-                          <div className="text-center w-full">
-                            <div className="text-xs font-semibold text-gray-200 truncate">{item.name}</div>
-                            {item.damage && <div className="text-xs text-yellow-300 font-bold">+{item.damage}</div>}
-                            {item.armor && <div className="text-xs text-blue-300 font-bold">+{item.armor}</div>}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-gray-600 text-center font-medium">{slot.label}</div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {Array.from({ length: 9 }, (_, i) => i + 1).map(gridNum => renderSlot(gridNum))}
                 </div>
               );
             })()}
