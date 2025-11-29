@@ -75,7 +75,8 @@ const affixPools = {
 // ----------------- ENEMY GENERATION -----------------
 
 export function generateEnemy(floor: number, playerLevel: number): Enemy {
-  const level = playerLevel + Math.floor(floor / 3);
+  // Scale enemy level more aggressively based on floor
+  const level = playerLevel + Math.floor(floor * 0.5);
   const baseName = enemyNames[Math.floor(Math.random() * enemyNames.length)];
 
   const rarityRoll = Math.random();
@@ -99,10 +100,10 @@ export function generateEnemy(floor: number, playerLevel: number): Enemy {
     titlePrefix = 'Boss ';
   }
 
-  const maxHealth = Math.floor((30 + level * 15 + Math.random() * 20) * multiplier);
-  const damage = Math.floor((5 + level * 3) * multiplier);
-  const experience = Math.floor((20 + level * 10) * multiplier);
-  const gold = Math.floor((10 + level * 5 + Math.random() * 20) * multiplier);
+  const maxHealth = Math.floor((30 + level * 15 + floor * 5 + Math.random() * 20) * multiplier);
+  const damage = Math.floor((5 + level * 3 + floor * 1.5) * multiplier);
+  const experience = Math.floor((20 + level * 10 + floor * 5) * multiplier);
+  const gold = Math.floor((10 + level * 5 + floor * 5 + Math.random() * 20) * multiplier);
 
   return {
     id: Math.random().toString(36).substr(2, 9),

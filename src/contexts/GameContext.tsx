@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import { supabase } from '../lib/supabase';
@@ -39,6 +40,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [currentEnemy, setCurrentEnemy] = useState<Enemy | null>(null);
   const [floor, setFloor] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Potion cooldown tracking
+  const potionCooldownRef = useRef(Date.now());
+  const POTION_COOLDOWN_MS = 3000;
 
   // --------------- Init ---------------
 
@@ -329,6 +334,10 @@ try {
   const usePotion = async (itemId: string) => {
     if (!character) return;
 
+    // Enforce potion cooldown
+    const now = Date.now();
+    if (now < potionCooldownRef.current) return;
+
     const potion = items.find(i => i.id === itemId && i.type === 'potion');
     if (!potion) return;
 
@@ -346,6 +355,9 @@ try {
     } else {
       await loadItems(character.id);
     }
+
+    // Update next allowed potion time
+    potionCooldownRef.current = now + POTION_COOLDOWN_MS;
   };
 
   const equipItem = async (itemId: string) => {

@@ -15,6 +15,9 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const playerPosRef = useRef({ x: 400, y: 450 });
   const enemyPosRef = useRef({ x: 600, y: 220 });
   const keysPressed = useRef<{ [key: string]: boolean }>({});
+  // Attack cooldown: next allowed time (ms)
+  const nextAttackTimeRef = useRef(Date.now());
+  const ATTACK_COOLDOWN_MS = 400;
 
   // Keep latest props in refs so effects don't depend on them
   const enemyRef = useRef<Enemy | null>(enemy);
@@ -204,6 +207,21 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       ctx.font = '12px Arial';
       ctx.fillText('Use Arrow Keys to move', 20, 60);
 
+      // Draw attack cooldown indicator bar
+      const now = Date.now();
+      const remaining = Math.max(0, nextAttackTimeRef.current - now);
+      const percent = remaining / ATTACK_COOLDOWN_MS;
+      const barWidth = 120;
+      const barHeight = 5;
+      const barX = 20;
+      const barY = 65;
+      // background bar
+      ctx.fillStyle = '#444444';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      // fill bar representing ready portion
+      ctx.fillStyle = '#4f46e5';
+      ctx.fillRect(barX, barY, barWidth * (1 - percent), barHeight);
+
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -305,6 +323,10 @@ useEffect(() => {
       // ❗ Ignore key-repeat when holding Space
       if (e.repeat) return;
 
+      const now = Date.now();
+      // Only attack if cooldown has elapsed
+      if (now < nextAttackTimeRef.current) return;
+
       e.preventDefault();
 
       const enemy = enemyRef.current;
@@ -319,6 +341,7 @@ useEffect(() => {
 
       // Only attack if you're actually in melee range
       if (distance < 120) {
+        nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
         onAttackRef.current();
       }
 
