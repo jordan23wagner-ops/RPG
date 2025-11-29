@@ -154,67 +154,88 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     const c = characterRef.current;
     if (!c) return;
 
-    // HUD background panel
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(10, 10, 280, 110);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(10, 10, 280, 110);
+    // Draw compact bottom HUD bars to avoid covering top-left UI
+    const padding = 18;
+    const barHeight = 14;
+    const barWidth = 300;
+    const smallGap = 12;
 
-    // Character name and level
-    ctx.font = 'bold 14px Arial';
-    ctx.fillStyle = '#fbbf24';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${c.name} - Level ${c.level}`, 20, 30);
-
-    // HP bar
-    ctx.font = '11px Arial';
-    ctx.fillStyle = '#888888';
-    ctx.fillText('HP', 20, 50);
-    const hpPercent = (c.health / c.max_health) * 100;
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(50, 41, 230, 12);
-    ctx.fillStyle = hpPercent > 30 ? '#22c55e' : '#ef4444';
-    ctx.fillRect(50, 41, (hpPercent / 100) * 230, 12);
+    // HP: bottom-left
+    const hpX = padding;
+    const hpY = CANVAS_HEIGHT - padding - barHeight;
+    const hpPercent = Math.max(0, Math.min(1, c.health / c.max_health));
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(hpX - 6, hpY - 6, barWidth + 12, barHeight + 12);
     ctx.strokeStyle = '#fbbf24';
     ctx.lineWidth = 1;
-    ctx.strokeRect(50, 41, 230, 12);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(c.health)}/${c.max_health}`, 165, 50);
-
-    // Mana bar
-    ctx.fillStyle = '#888888';
-    ctx.textAlign = 'left';
-    ctx.fillText('Mana', 20, 72);
-    const manaPercent = (c.mana / c.max_mana) * 100;
+    ctx.strokeRect(hpX - 6, hpY - 6, barWidth + 12, barHeight + 12);
     ctx.fillStyle = '#1f2937';
-    ctx.fillRect(50, 63, 230, 12);
-    ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(50, 63, (manaPercent / 100) * 230, 12);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(50, 63, 230, 12);
+    ctx.fillRect(hpX, hpY, barWidth, barHeight);
+    ctx.fillStyle = hpPercent > 0.3 ? '#22c55e' : '#ef4444';
+    ctx.fillRect(hpX, hpY, hpPercent * barWidth, barHeight);
+    ctx.font = '12px Arial';
     ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(c.mana)}/${c.max_mana}`, 165, 72);
+    ctx.textAlign = 'left';
+    ctx.fillText(`HP ${Math.floor(c.health)}/${c.max_health}`, hpX + 6, hpY + barHeight - 2);
 
-    // EXP bar
+    // EXP: bottom-center
     const expToNext = c.level * 100;
-    const expPercent = (c.experience / expToNext) * 100;
-    ctx.fillStyle = '#888888';
-    ctx.textAlign = 'left';
-    ctx.fillText('EXP', 20, 94);
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(50, 85, 230, 12);
-    ctx.fillStyle = '#a855f7';
-    ctx.fillRect(50, 85, (expPercent / 100) * 230, 12);
+    const expPercent = Math.max(0, Math.min(1, c.experience / expToNext));
+    const expW = 360;
+    const expX = Math.round(CANVAS_WIDTH / 2 - expW / 2);
+    const expY = CANVAS_HEIGHT - padding - barHeight;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(expX - 6, expY - 6, expW + 12, barHeight + 12);
     ctx.strokeStyle = '#fbbf24';
     ctx.lineWidth = 1;
-    ctx.strokeRect(50, 85, 230, 12);
+    ctx.strokeRect(expX - 6, expY - 6, expW + 12, barHeight + 12);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(expX, expY, expW, barHeight);
+    ctx.fillStyle = '#a855f7';
+    ctx.fillRect(expX, expY, expPercent * expW, barHeight);
+    ctx.font = '12px Arial';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(c.experience)}/${expToNext}`, 165, 94);
+    ctx.fillText(`EXP ${Math.floor(c.experience)}/${expToNext}`, expX + expW / 2, expY + barHeight - 2);
+
+    // Mana: bottom-right
+    const manaW = 300;
+    const manaX = CANVAS_WIDTH - padding - manaW;
+    const manaY = CANVAS_HEIGHT - padding - barHeight;
+    const manaPercent = Math.max(0, Math.min(1, c.mana / c.max_mana));
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(manaX - 6, manaY - 6, manaW + 12, barHeight + 12);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(manaX - 6, manaY - 6, manaW + 12, barHeight + 12);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(manaX, manaY, manaW, barHeight);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(manaX, manaY, manaPercent * manaW, barHeight);
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.floor(c.mana)}/${c.max_mana} Mana`, manaX + manaW - 6, manaY + barHeight - 2);
+
+    // Gold: small element above mana bar on the right
+    const goldW = 140;
+    const goldH = 28;
+    const goldX = CANVAS_WIDTH - padding - goldW;
+    const goldY = manaY - smallGap - goldH;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(goldX, goldY, goldW, goldH);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(goldX, goldY, goldW, goldH);
+    // gold icon
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(goldX + 18, goldY + goldH / 2, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#111827';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Gold: ${c.gold}`, goldX + 36, goldY + goldH / 2 + 4);
 
     // Zone Heat display (reads latest from zoneHeatRef)
     const finalHeat = zoneHeatRef.current;
