@@ -289,7 +289,7 @@ const affixPools = {
 
 // ----------------- ENEMY GENERATION -----------------
 
-export function generateEnemy(floor: number, playerLevel: number): Enemy {
+export function generateEnemy(floor: number, playerLevel: number, zoneHeat: number = 0): Enemy {
   // Scale enemy level more aggressively based on floor
   const level = playerLevel + Math.floor(floor * 0.5);
   const baseName = enemyNames[Math.floor(Math.random() * enemyNames.length)];
@@ -299,13 +299,21 @@ export function generateEnemy(floor: number, playerLevel: number): Enemy {
   let multiplier = 1;
   let titlePrefix = '';
 
-  if (rarityRoll < 0.7) {
+  // zoneHeat expected 0..100 — convert to 0..1
+  const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
+
+  // Slightly shift rarity thresholds upward as heat increases (more rares/elites/bosses)
+  const normalThreshold = 0.7 - heatBoost * 0.05; // normal chance decreases with heat
+  const rareThreshold = 0.9 - heatBoost * 0.03;
+  const eliteThreshold = 0.98 - heatBoost * 0.01;
+
+  if (rarityRoll < normalThreshold) {
     rarity = 'normal';
-  } else if (rarityRoll < 0.9) {
+  } else if (rarityRoll < rareThreshold) {
     rarity = 'rare';
     multiplier = 1.5;
     titlePrefix = 'Rare ';
-  } else if (rarityRoll < 0.98) {
+  } else if (rarityRoll < eliteThreshold) {
     rarity = 'elite';
     multiplier = 2.5;
     titlePrefix = 'Elite ';
@@ -314,6 +322,10 @@ export function generateEnemy(floor: number, playerLevel: number): Enemy {
     multiplier = 4;
     titlePrefix = 'Boss ';
   }
+
+  // Difficulty scales with heat: at 100 heat enemies can be up to +100% stronger
+  const difficultyScale = 1 + heatBoost;
+  multiplier = multiplier * difficultyScale;
 
   const maxHealth = Math.floor((30 + level * 15 + floor * 5 + Math.random() * 20) * multiplier);
   const damage = Math.floor((5 + level * 3 + floor * 1.5) * multiplier);
@@ -345,7 +357,7 @@ const BASE_RARITY_WEIGHTS = {
 
 type RarityKey = keyof typeof BASE_RARITY_WEIGHTS;
 
-function pickRarity(enemyRarity: RarityKey): RarityKey {
+function pickRarity(enemyRarity: RarityKey, zoneHeat: number = 0): RarityKey {
   const weights = { ...BASE_RARITY_WEIGHTS };
 
   if (enemyRarity === 'magic') {
@@ -362,6 +374,16 @@ function pickRarity(enemyRarity: RarityKey): RarityKey {
     weights.epic += 7;
     weights.legendary += 5;
     weights.common -= 10;
+  }
+
+  // Apply zone heat boost to favor higher rarities. zoneHeat 0..100
+  const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
+  if (heatBoost > 0) {
+    // Moderate boosts for mid rarities, stronger boost for epic/legendary
+    weights.magic = Math.round(weights.magic * (1 + heatBoost * 0.15));
+    weights.rare = Math.round(weights.rare * (1 + heatBoost * 0.45));
+    weights.epic = Math.round(weights.epic * (1 + heatBoost * 0.9));
+    weights.legendary = Math.round(weights.legendary * (1 + heatBoost * 1.8));
   }
 
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
@@ -416,19 +438,23 @@ export function generateLoot(
   enemyLevel: number,
   floor: number,
   enemyRarity: RarityKey = 'common',
+  zoneHeat: number = 0,
 ): Partial<Item> | null {
-  const noDrop = enemyRarity === 'legendary' ? 0.02 : 0.15;
+  // Reduce chance of no-drop as heat increases (more loot at higher heat)
+  const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
+  let noDrop = enemyRarity === 'legendary' ? 0.02 : 0.15;
+  noDrop = Math.max(0.01, noDrop * (1 - heatBoost * 0.5));
   if (Math.random() < noDrop) return null;
 
   // Chance to drop a set item independent of normal rarity. Set items are
   // extremely rare but provide powerful bonuses when multiple pieces are
   // equipped. If a set item drops, normal loot generation is skipped.
-  const SET_DROP_CHANCE = 0.015; // 1.5% chance
+  const SET_DROP_CHANCE = 0.015 + heatBoost * 0.02; // increases with heat
   if (Math.random() < SET_DROP_CHANCE) {
     return generateSetItem(enemyLevel, floor);
   }
 
-  const rarity = pickRarity(enemyRarity);
+  const rarity = pickRarity(enemyRarity, zoneHeat);
   const isWeapon = Math.random() < 0.6;
 
   const type = isWeapon ? randomFrom(WEAPON_TYPES) : randomFrom(ARMOR_TYPES);

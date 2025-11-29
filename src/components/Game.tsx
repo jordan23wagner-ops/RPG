@@ -2,6 +2,7 @@ import { Inventory } from './Inventory';
 import { useState, useCallback } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
+import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
 import { LogOut, FlaskConical } from 'lucide-react';
@@ -53,6 +54,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
     floor,
     loading,
     damageNumbers,
+    zoneHeat,
     createCharacter,
     attack,
     usePotion,
@@ -95,7 +97,12 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
         />
       )}
       <div className="flex items-center justify-between mb-6 max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
+          <div className="text-sm text-gray-300">
+            <Tooltip text={"Zone Heat mechanics:\n• Kills add Heat: Normal +3, Rare +8, Elite +15, Boss +30.\n• Heat decays 1 every 15s.\n• Heat scales enemy difficulty (up to +100% at 100 heat) and increases loot quality: higher chances for rare/epic/legendary and slightly higher set-drop chance. High risk, high reward."} />
+          </div>
+        </div>
         <button
           onClick={handleSignOut}
           className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
@@ -107,8 +114,8 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
 
       {/* Main row: dungeon full width */}
       <div className="flex justify-center">
-        <div className="flex-1 flex justify-center max-w-7xl">
-          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} />
+        <div className="flex-1 flex justify-center max-w-7xl relative">
+          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
         </div>
       </div>
 

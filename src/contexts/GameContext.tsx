@@ -30,6 +30,9 @@ interface GameContextType {
   floor: number;
   loading: boolean;
   damageNumbers: DamageNumber[];
+  zoneHeat: number;
+  increaseZoneHeat: (amount?: number) => void;
+  resetZoneHeat: () => void;
   createCharacter: (name: string) => Promise<void>;
   loadCharacter: () => Promise<void>;
   attack: () => Promise<void>;
@@ -52,6 +55,19 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [floor, setFloor] = useState(1);
   const [loading, setLoading] = useState(true);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
+  const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
+  const increaseZoneHeat = (amount: number = 5) => {
+    setZoneHeat(prev => Math.min(100, (prev || 0) + amount));
+  };
+  const resetZoneHeat = () => setZoneHeat(0);
+
+  // Gradual decay: heat reduces over time to encourage active play to keep it high
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setZoneHeat(prev => Math.max(0, (prev || 0) - 1));
+    }, 15000); // reduce 1 heat every 15s
+    return () => clearInterval(interval);
+  }, []);
 
   // Potion cooldown tracking
   const potionCooldownRef = useRef(Date.now());
@@ -191,7 +207,7 @@ try {
   };
 
   const generateNewEnemy = (playerLevel: number) => {
-    const enemy = generateEnemy(floor, playerLevel);
+    const enemy = generateEnemy(floor, playerLevel, zoneHeat);
     setCurrentEnemy(enemy);
   };
 
@@ -297,6 +313,7 @@ try {
         currentEnemy.level,
         floor,
         currentEnemy.rarity,
+        zoneHeat,
       );
 
       if (!loot) {
@@ -327,6 +344,16 @@ try {
           await loadItems(character.id);
         }
       }
+
+      // Increase zone heat based on enemy rarity
+      const heatGainMap: Record<string, number> = {
+        normal: 3,
+        rare: 8,
+        elite: 15,
+        boss: 30,
+      };
+      const gainedHeat = heatGainMap[currentEnemy.rarity] || 3;
+      setZoneHeat(prev => Math.min(100, prev + gainedHeat));
 
       // Spawn a new enemy after a short delay
       setTimeout(
@@ -544,6 +571,9 @@ try {
         floor,
         loading,
         damageNumbers,
+          zoneHeat,
+          increaseZoneHeat,
+          resetZoneHeat,
         createCharacter,
         loadCharacter,
         attack,
