@@ -1,6 +1,6 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
-import { Enemy } from '../types/game';
+import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 
 interface DungeonViewProps {
@@ -8,9 +8,10 @@ interface DungeonViewProps {
   floor: number;
   onAttack: () => void;
   damageNumbers: DamageNumber[];
+  character?: Character | null;
 }
 
-export function DungeonView({ enemy, floor, onAttack, damageNumbers }: DungeonViewProps) {
+export function DungeonView({ enemy, floor, onAttack, damageNumbers, character }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // ========== Constants ==========
@@ -42,6 +43,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers }: DungeonVi
   const floorRef = useRef(floor);
   const onAttackRef = useRef(onAttack);
   const damageNumbersRef = useRef(damageNumbers);
+  const characterRef = useRef(character);
 
   // --- keep refs in sync with props ---
 
@@ -60,6 +62,10 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers }: DungeonVi
   useEffect(() => {
     damageNumbersRef.current = damageNumbers;
   }, [damageNumbers]);
+
+  useEffect(() => {
+    characterRef.current = character || null;
+  }, [character]);
 
   // ✅ Reset enemy position only when a NEW enemy spawns
   // (id changes) – not on every health update
@@ -133,6 +139,73 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers }: DungeonVi
     ctx.strokeStyle = '#2a2a2a';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, width, height);
+  };
+
+  const drawCharacterHUD = (ctx: CanvasRenderingContext2D) => {
+    const c = characterRef.current;
+    if (!c) return;
+
+    // HUD background panel
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(10, 10, 280, 110);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(10, 10, 280, 110);
+
+    // Character name and level
+    ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = '#fbbf24';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${c.name} - Level ${c.level}`, 20, 30);
+
+    // HP bar
+    ctx.font = '11px Arial';
+    ctx.fillStyle = '#888888';
+    ctx.fillText('HP', 20, 50);
+    const hpPercent = (c.health / c.max_health) * 100;
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(50, 41, 230, 12);
+    ctx.fillStyle = hpPercent > 30 ? '#22c55e' : '#ef4444';
+    ctx.fillRect(50, 41, (hpPercent / 100) * 230, 12);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(50, 41, 230, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(c.health)}/${c.max_health}`, 165, 50);
+
+    // Mana bar
+    ctx.fillStyle = '#888888';
+    ctx.textAlign = 'left';
+    ctx.fillText('Mana', 20, 72);
+    const manaPercent = (c.mana / c.max_mana) * 100;
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(50, 63, 230, 12);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(50, 63, (manaPercent / 100) * 230, 12);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(50, 63, 230, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(c.mana)}/${c.max_mana}`, 165, 72);
+
+    // EXP bar
+    const expToNext = c.level * 100;
+    const expPercent = (c.experience / expToNext) * 100;
+    ctx.fillStyle = '#888888';
+    ctx.textAlign = 'left';
+    ctx.fillText('EXP', 20, 94);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(50, 85, 230, 12);
+    ctx.fillStyle = '#a855f7';
+    ctx.fillRect(50, 85, (expPercent / 100) * 230, 12);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(50, 85, 230, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(c.experience)}/${expToNext}`, 165, 94);
   };
 
   // ---------- Render loop ----------
@@ -224,6 +297,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers }: DungeonVi
       ctx.fillStyle = 'rgba(200,200,200,0.8)';
       ctx.font = '12px Arial';
       ctx.fillText('Use Arrow Keys to move', 20, 60);
+
+      // Draw character HUD (HP, Mana, EXP)
+      drawCharacterHUD(ctx);
 
       // Draw damage numbers
       const currentTime = Date.now();

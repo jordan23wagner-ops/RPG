@@ -2,12 +2,10 @@ import { Inventory } from './Inventory';
 import { useState, useCallback } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
-import { GameUI } from './GameUI';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
 import { LogOut, FlaskConical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { EquipmentPanel } from './EquipmentPanel';
 import { NotificationBar } from './NotificationBar';
 
 export function Game() {
@@ -59,7 +57,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
     attack,
     usePotion,
     equipItem,
-    nextFloor,
     sellItem,
     buyPotion,
     sellAllItems,
@@ -84,7 +81,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
 
   const enemyDefeated = currentEnemy ? currentEnemy.health <= 0 : false;
   // Quick access potion info for the bottom bar
-  const potionItems = items.filter(i => i.type === 'potion');
+  const potionItems = items.filter((i: any) => i.type === 'potion');
   const potionCount = potionItems.length;
   const firstPotion = potionItems[0];
 
@@ -108,24 +105,10 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
         </button>
       </div>
 
-      {/* Main row: left HUD + dungeon */}
-      <div className="flex gap-6 max-w-7xl mx-auto">
-        <div className="w-80 flex-shrink-0">
-          <GameUI
-            character={character}
-            items={items}
-            floor={floor}
-            onEquip={equipItem}
-            onUsePotion={usePotion}
-            onNextFloor={nextFloor}
-            enemyDefeated={enemyDefeated}
-            onOpenShop={() => setShopOpen(true)}
-            onSellAll={sellAllItems}
-          />
-        </div>
-
-        <div className="flex-1 flex justify-center">
-          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} />
+      {/* Main row: dungeon full width */}
+      <div className="flex justify-center">
+        <div className="flex-1 flex justify-center max-w-7xl">
+          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} />
         </div>
       </div>
 
