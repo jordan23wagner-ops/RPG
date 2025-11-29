@@ -350,6 +350,29 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       // Draw character HUD (HP, Mana, EXP)
       drawCharacterHUD(ctx);
 
+      // Zone Heat display above EXP bar (reads latest from zoneHeatRef)
+      const finalHeat = zoneHeatRef.current;
+      if (typeof finalHeat === 'number') {
+        const padding = 18;
+        const barHeight = 14;
+        const heatPercent = Math.max(0, Math.min(100, finalHeat));
+        const heatX = Math.round(CANVAS_WIDTH / 2 - 180 / 2);
+        const heatY = CANVAS_HEIGHT - padding - barHeight * 3 - 30; // above EXP
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(heatX - 6, heatY - 6, 180 + 12, barHeight + 12);
+        ctx.strokeStyle = '#ff6b6b';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(heatX - 6, heatY - 6, 180 + 12, barHeight + 12);
+        ctx.fillStyle = '#1f2937';
+        ctx.fillRect(heatX, heatY, 180, barHeight);
+        ctx.fillStyle = '#ff6b6b';
+        ctx.fillRect(heatX, heatY, (heatPercent / 100) * 180, barHeight);
+        ctx.font = '11px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Zone Heat: ${Math.round(heatPercent)}%`, heatX + 90, heatY + barHeight - 2);
+      }
+
       // Draw damage numbers
       const currentTime = Date.now();
       damageNumbersRef.current.forEach((dmg: DamageNumber) => {

@@ -5,7 +5,7 @@ import { DungeonView } from './DungeonView';
 import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
-import { LogOut, FlaskConical } from 'lucide-react';
+import { LogOut, FlaskConical, Package, Sword } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
 
@@ -112,48 +112,85 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
         </button>
       </div>
 
-      {/* Main row: dungeon full width */}
-      <div className="flex justify-center">
-        <div className="flex-1 flex justify-center max-w-7xl relative">
+      {/* Main row: backpack (left) - dungeon (center) - gear (right) */}
+      <div className="flex justify-center gap-4 mt-4 max-w-7xl mx-auto">
+        {/* Left: Backpack */}
+        <div className="flex-shrink-0 w-80 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Package className="w-5 h-5 text-yellow-500" />
+            <h3 className="text-lg font-bold text-yellow-500">Backpack</h3>
+          </div>
+          <div className="h-96 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-950/50 space-y-2">
+            {items.filter((i: any) => !i.equipped && i.type !== 'potion').length === 0 ? (
+              <div className="text-center py-8 text-gray-500 text-sm">No items</div>
+            ) : (
+              items
+                .filter((i: any) => !i.equipped && i.type !== 'potion')
+                .reverse()
+                .map(item => (
+                  <div
+                    key={item.id}
+                    className="relative group bg-gray-800 border border-gray-700 rounded p-2 flex items-center justify-between hover:border-gray-600 transition-colors text-sm"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div>
+                        <div className="font-semibold text-gray-200 truncate">{item.name}</div>
+                        <div className="text-xs text-gray-400">{item.rarity}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => equipItem(item.id)}
+                      className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded flex-shrink-0"
+                    >
+                      Equip
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
+          <div className="mt-4 flex items-center gap-2 p-3 rounded-lg border border-red-900/40 bg-black/40">
+            <FlaskConical className="w-4 h-4 text-green-400" />
+            <span className="text-xs text-gray-300 uppercase">Potions</span>
+            <button
+              type="button"
+              disabled={!firstPotion}
+              onClick={() => { if (firstPotion) void usePotion(firstPotion.id); }}
+              className={`ml-auto px-3 py-1 rounded text-xs font-medium ${firstPotion ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+            >
+              {firstPotion ? `Use (${potionCount})` : 'None'}
+            </button>
+          </div>
+        </div>
+
+        {/* Center: Dungeon Canvas */}
+        <div className="flex-shrink-0">
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
         </div>
-      </div>
 
-      {/* Potion quick bar under the dungeon */}
-      <div className="max-w-7xl mx-auto mt-4 flex justify-center">
-        <div className="w-full md:w-auto flex items-center justify-center gap-4 rounded-lg border border-red-900/40 bg-black/40 px-4 py-2">
-          <div className="flex items-center gap-2 text-sm text-gray-300 uppercase tracking-wide">
-            <FlaskConical className="w-4 h-4 text-green-400" />
-            <span>Quick Potions</span>
+        {/* Right: Equipped Gear */}
+        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Sword className="w-5 h-5 text-yellow-500" />
+            <h3 className="text-lg font-bold text-yellow-500">Gear</h3>
           </div>
-          <button
-            type="button"
-            disabled={!firstPotion}
-            onClick={() => {
-              if (firstPotion) {
-                void usePotion(firstPotion.id);
-              }
-            }}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors
-              ${firstPotion
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              }`}
-          >
-            {firstPotion
-              ? `Use Potion${potionCount > 1 ? ` (${potionCount})` : ''}`
-              : 'No Potions'}
-          </button>
+          <div className="space-y-2 h-96 overflow-y-auto">
+            {items
+              .filter((i: any) => i.equipped)
+              .map(item => (
+                <div key={item.id} className="bg-gray-800 border border-yellow-500/70 rounded p-2 text-sm">
+                  <div className="font-semibold text-gray-200 truncate">{item.name}</div>
+                  <div className="text-xs text-gray-400">{item.rarity}</div>
+                  {(item.damage || item.armor) && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {item.damage && `+${item.damage} Dmg`}
+                      {item.damage && item.armor && ' • '}
+                      {item.armor && `+${item.armor} Arm`}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
         </div>
-      </div>
-
-      {/* Wide gear + backpack panel under the dungeon */}
-      <div className="max-w-7xl mx-auto mt-6">
-        <Inventory
-          items={items}
-          onEquip={equipItem}
-          onUsePotion={usePotion}
-        />
       </div>
 
       {shopOpen && (
