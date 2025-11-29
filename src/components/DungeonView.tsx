@@ -294,57 +294,59 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     };
   }, []);
 
-  // ---------- Keyboard handlers ----------
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Track movement keys
-      keysPressed.current[e.key] = true;
+// ---------- Keyboard handlers ----------
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Track movement keys
+    keysPressed.current[e.key] = true;
 
-      // Handle attacks separately
-      if (e.code === 'Space') {
-        // Ignore key-repeat when the key is held down
-        if (e.repeat) return;
+    // Handle attacks separately
+    if (e.code === 'Space') {
+      // ❗ Ignore key-repeat when holding Space
+      if (e.repeat) return;
 
-        e.preventDefault();
-        const enemy = enemyRef.current;
-        if (!enemy || enemy.health <= 0) return;
+      e.preventDefault();
 
-        const playerPos = playerPosRef.current;
-        const enemyPos = enemyPosRef.current;
+      const enemy = enemyRef.current;
+      if (!enemy || enemy.health <= 0) return;
 
-        const distX = playerPos.x - enemyPos.x;
-        const distY = playerPos.y - enemyPos.y;
-        const distance = Math.sqrt(distX * distX + distY * distY);
+      const playerPos = playerPosRef.current;
+      const enemyPos = enemyPosRef.current;
 
-        // Only attack if you're actually in melee range
-        if (distance < 120) {
-          onAttackRef.current();
-        }
+      const distX = playerPos.x - enemyPos.x;
+      const distY = playerPos.y - enemyPos.y;
+      const distance = Math.sqrt(distX * distX + distY * distY);
 
-        // Don’t do anything else for Space
-        return;
+      // Only attack if you're actually in melee range
+      if (distance < 120) {
+        onAttackRef.current();
       }
-    };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressed.current[e.key] = false;
-    };
+      // Don’t do anything else for Space
+      return;
+    }
+  };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+  const handleKeyUp = (e: KeyboardEvent) => {
+    keysPressed.current[e.key] = false;
+  };
 
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      width={CANVAS_WIDTH}
-      height={CANVAS_HEIGHT}
-      className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-[1000px] h-[600px]"
-    />
-  );
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
+  };
+}, []);
+
+// ---------- Component render ----------
+return (
+  <canvas
+    ref={canvasRef}
+    width={CANVAS_WIDTH}
+    height={CANVAS_HEIGHT}
+    className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-[1000px] h-[600px]"
+  />
+);
 }
