@@ -237,24 +237,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     ctx.textAlign = 'left';
     ctx.fillText(`Gold: ${c.gold}`, goldX + 36, goldY + goldH / 2 + 4);
 
-    // Zone Heat display (reads latest from zoneHeatRef)
-    const finalHeat = zoneHeatRef.current;
-    if (typeof finalHeat === 'number') {
-      const heatPercent = Math.max(0, Math.min(100, finalHeat));
-      ctx.fillStyle = '#111827';
-      ctx.fillRect(310, 10, 180, 24);
-      ctx.strokeStyle = '#ff6b6b';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(310, 10, 180, 24);
-      ctx.fillStyle = '#2b2b2b';
-      ctx.fillRect(316, 16, 168, 12);
-      ctx.fillStyle = '#ff6b6b';
-      ctx.fillRect(316, 16, (heatPercent / 100) * 168, 12);
-      ctx.font = '12px Arial';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.fillText(`Zone Heat: ${Math.round(heatPercent)}%`, 400, 28);
-    }
+
   };
 
   // ---------- Render loop ----------

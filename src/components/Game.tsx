@@ -174,13 +174,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
         </div>
 
-        {/* Right: Equipped Gear */}
-        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+        {/* Right: Equipped Gear Grid */}
+        <div className="flex-shrink-0 w-80 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-4">
             <Sword className="w-5 h-5 text-yellow-500" />
-            <h3 className="text-lg font-bold text-yellow-500">Gear</h3>
+            <h3 className="text-lg font-bold text-yellow-500">Equipment</h3>
           </div>
-          <div className="space-y-2 h-96 overflow-y-auto">
+          <div className="bg-gray-950 border border-gray-700 rounded p-3">
             {(() => {
               const equippedBySlot: Record<string, any> = {};
               items.filter((i: any) => i.equipped).forEach(item => {
@@ -199,37 +199,53 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
                 equippedBySlot[slot].push(item);
               });
 
-              const slots = [
-                { key: 'helmet', label: 'Head' },
-                { key: 'armor', label: 'Body' },
-                { key: 'gloves', label: 'Hands' },
-                { key: 'belt', label: 'Belt' },
-                { key: 'boots', label: 'Feet' },
-                { key: 'weapon', label: 'Weapon' },
-                { key: 'ring', label: 'Ring' },
-                { key: 'amulet', label: 'Amulet' },
+              const slotConfig = [
+                { key: 'helmet', label: 'Head', row: 0, col: 1 },
+                { key: 'armor', label: 'Body', row: 1, col: 1 },
+                { key: 'gloves', label: 'Hands', row: 2, col: 0 },
+                { key: 'belt', label: 'Belt', row: 2, col: 1 },
+                { key: 'boots', label: 'Feet', row: 2, col: 2 },
+                { key: 'weapon', label: 'Weapon', row: 0, col: 0 },
+                { key: 'ring', label: 'Ring', row: 0, col: 2 },
+                { key: 'amulet', label: 'Amulet', row: 1, col: 0 },
               ];
 
-              return slots.map(slot => {
-                const items_in_slot = equippedBySlot[slot.key] || [];
-                return items_in_slot.map((item: any, idx: number) => (
-                  <div key={item.id} className="bg-gray-800 border border-yellow-500/70 rounded p-2 text-sm">
-                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                      {slot.label}
-                      {slot.key === 'weapon' && items_in_slot.length > 1 ? ` (${idx === 0 ? 'Main' : 'Off'})` : ''}
-                    </div>
-                    <div className="font-semibold text-gray-200 truncate">{item.name}</div>
-                    <div className="text-xs text-gray-400">{item.rarity}</div>
-                    {(item.damage || item.armor) && (
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {item.damage && `+${item.damage} Dmg`}
-                        {item.damage && item.armor && ' • '}
-                        {item.armor && `+${item.armor} Arm`}
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  {slotConfig.map(slot => {
+                    const item = (equippedBySlot[slot.key] || [])[0];
+                    const rarityColors: Record<string, string> = {
+                      normal: 'border-gray-600 bg-gray-800',
+                      magic: 'border-blue-500 bg-blue-950',
+                      rare: 'border-purple-500 bg-purple-950',
+                      epic: 'border-yellow-600 bg-yellow-950',
+                      legendary: 'border-red-600 bg-red-950',
+                      set: 'border-green-600 bg-green-950',
+                      mythic: 'border-indigo-600 bg-indigo-950',
+                      radiant: 'border-cyan-500 bg-cyan-950',
+                    };
+                    const colorClass = item ? rarityColors[item.rarity] || 'border-gray-600 bg-gray-800' : 'border-dashed border-gray-600 bg-gray-950';
+
+                    return (
+                      <div
+                        key={slot.key}
+                        className={`aspect-square border-2 rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${colorClass}`}
+                        title={item ? item.name : slot.label}
+                      >
+                        {item ? (
+                          <div className="text-center w-full">
+                            <div className="text-xs font-semibold text-gray-200 truncate">{item.name}</div>
+                            {item.damage && <div className="text-xs text-yellow-300 font-bold">+{item.damage}</div>}
+                            {item.armor && <div className="text-xs text-blue-300 font-bold">+{item.armor}</div>}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-600 text-center font-medium">{slot.label}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ));
-              });
+                    );
+                  })}
+                </div>
+              );
             })()}
           </div>
         </div>
