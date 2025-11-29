@@ -375,7 +375,7 @@ function pickRarity(enemyRarity: RarityKey): RarityKey {
 }
 
 const WEAPON_TYPES = ['melee_weapon', 'ranged_weapon', 'mage_weapon'] as const;
-const ARMOR_TYPES = ['melee_armor', 'trinket'] as const;
+const ARMOR_TYPES = ['melee_armor', 'amulet'] as const;
 
 function randomFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -450,7 +450,7 @@ export function generateLoot(
       ? ['Bow', 'Crossbow', 'Longbow']
       : type === 'mage_weapon'
       ? ['Wand', 'Staff', 'Tome', 'Scepter']
-      : type === 'trinket'
+      : type === 'amulet'
       ? ['Charm', 'Amulet', 'Talisman']
       : ['Breastplate', 'Chainmail', 'Plate Armor'];
 
@@ -535,10 +535,25 @@ export function getRarityBorderColor(rarity: string): string {
 
 // ----------------- EQUIPMENT SLOT HELPERS -----------------
 
-export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket';
+export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket' | 'amulet' | 'ring1' | 'ring2';
 
 export function getEquipmentSlot(item: Item): EquipmentSlot | null {
   if (item.type === 'potion') return null;
+
+  // Handle amulets
+  if (item.type === 'amulet') {
+    return 'amulet';
+  }
+
+  // Handle rings
+  if (item.type === 'ring') {
+    // Try to determine which ring slot based on name
+    const nameLower = item.name.toLowerCase();
+    if (nameLower.includes('ring') && nameLower.includes('1')) return 'ring1';
+    if (nameLower.includes('ring') && nameLower.includes('2')) return 'ring2';
+    // Default to first ring slot
+    return 'ring1';
+  }
 
   if (
     item.type === 'melee_weapon' ||

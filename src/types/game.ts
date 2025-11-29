@@ -48,7 +48,9 @@ export interface Item {
     | 'mage_weapon'
     | 'melee_armor'
     | 'ranged_armor'
-    | 'mage_armor';
+    | 'mage_armor'
+    | 'amulet'
+    | 'ring';
   // NOTE: Rarity now includes additional tiers beyond the classic common→legendary
   // progression. We support 'epic' between rare and legendary as well as
   // 'set' items, which have special bonuses when multiple pieces are equipped.

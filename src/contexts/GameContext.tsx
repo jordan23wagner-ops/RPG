@@ -376,7 +376,7 @@ try {
     const item = items.find(i => i.id === itemId);
     if (!item || item.type === 'potion') return;
 
-    const slot = getEquipmentSlot(item);
+    let slot = getEquipmentSlot(item);
 
     try {
       if (item.equipped) {
@@ -386,6 +386,17 @@ try {
           .update({ equipped: false })
           .eq('id', itemId);
       } else {
+        // Special handling for rings: allow two rings by checking if ring1 is taken
+        if (item.type === 'ring' && slot === 'ring1') {
+          const ring1Equipped = items.some(
+            i => i.equipped && getEquipmentSlot(i) === 'ring1'
+          );
+          if (ring1Equipped) {
+            // Try ring2 instead
+            slot = 'ring2';
+          }
+        }
+
         // Find any equipped items that conflict with this slot
         let conflictingIds: string[] = [];
 

@@ -86,18 +86,27 @@ export function EquipmentPanel({ items, onEquip }: EquipmentPanelProps) {
     switch (slotId) {
       case 'helmet':
         return equippedBySlot.helmet;
-      case 'chest':
-        return equippedBySlot.chest;
-      case 'boots':
-        return equippedBySlot.boots;
-      case 'trinket':
-        return equippedBySlot.trinket;
+      case 'amulet':
+        return equippedBySlot.amulet;
+      case 'ring1':
+        return equippedBySlot.ring1;
+      case 'ring2':
+        return equippedBySlot.ring2;
       case 'mainHand':
         return weaponItem;
       case 'offHand':
         if (weaponItem && isTwoHanded(weaponItem)) return weaponItem;
         return undefined;
-      // amulet / gloves / belt / rings: not implemented yet
+      case 'chest':
+        return equippedBySlot.chest;
+      case 'gloves':
+        return equippedBySlot.gloves;
+      case 'belt':
+        return equippedBySlot.belt;
+      case 'boots':
+        return equippedBySlot.boots;
+      case 'trinket':
+        return equippedBySlot.trinket;
       default:
         return undefined;
     }
