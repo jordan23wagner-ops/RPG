@@ -1,3 +1,4 @@
+// src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
 import { Enemy } from '../types/game';
 
@@ -12,7 +13,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
 
   // Positions & input stored in refs (no 60fps React re-renders)
   const playerPosRef = useRef({ x: 400, y: 450 });
-  const enemyPosRef = useRef({ x: 600, y: 200 });
+  const enemyPosRef = useRef({ x: 600, y: 220 });
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
   // Keep latest props in refs so effects don't depend on them
@@ -21,19 +22,14 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const onAttackRef = useRef(onAttack);
 
   const MOVE_SPEED = 5;
-  const ENEMY_SPEED = 2.2;
   const CANVAS_WIDTH = 1000;
   const CANVAS_HEIGHT = 600;
   const BOUNDARY_PADDING = 50;
-  const ENEMY_MIN_DISTANCE = 80; // how close the enemy tries to get
 
-  // Sync props into refs when they change
+  // --- keep refs in sync with props ---
+
   useEffect(() => {
-    enemyRef.current = enemy;
-    // Optional: reset enemy position when a new enemy spawns
-    if (enemy) {
-      enemyPosRef.current = { x: 600, y: 200 };
-    }
+    enemyRef.current = enemy || null;
   }, [enemy]);
 
   useEffect(() => {
@@ -43,6 +39,19 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   useEffect(() => {
     onAttackRef.current = onAttack;
   }, [onAttack]);
+
+  // ✅ Reset enemy position only when a NEW enemy spawns
+  // (id changes) – not on every health update
+  useEffect(() => {
+    if (!enemy) return;
+
+    enemyPosRef.current = {
+      x: 600,
+      y: 220,
+    };
+  }, [enemy?.id, floor]);
+
+  // ---------- drawing helpers ----------
 
   const drawCharacter = (
     ctx: CanvasRenderingContext2D,
@@ -106,6 +115,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   };
 
   // ---------- Render loop ----------
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -175,7 +185,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         const distance = Math.sqrt(distX * distX + distY * distY);
 
         ctx.font = '12px Arial';
-        ctx.fillStyle = distance < 120 ? '#fbbf24' : '#999999';
+        ctx.fillStyle = distance < 100 ? '#fbbf24' : '#999999';
         ctx.textAlign = 'center';
         ctx.fillText(
           `[SPACE to attack] (Distance: ${Math.round(distance)}px)`,
@@ -192,7 +202,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
 
       ctx.fillStyle = 'rgba(200,200,200,0.8)';
       ctx.font = '12px Arial';
-      ctx.fillText('Use Arrow Keys / WASD to move', 20, 60);
+      ctx.fillText('Use Arrow Keys to move', 20, 60);
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -205,6 +215,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   }, []);
 
   // ---------- Player movement loop ----------
+
   useEffect(() => {
     let animationFrameId: number;
 
@@ -240,14 +251,15 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
     };
   }, []);
 
-  // ---------- Enemy movement loop (chase AI) ----------
-  useEffect(() => {
-    let animationFrameId: number;
+  // ---------- Enemy chase loop ----------
 
-    const moveEnemy = () => {
+  useEffect(() => {
+    let frameId: number;
+
+    const updateEnemy = () => {
       const enemy = enemyRef.current;
       if (!enemy || enemy.health <= 0) {
-        animationFrameId = requestAnimationFrame(moveEnemy);
+        frameId = requestAnimationFrame(updateEnemy);
         return;
       }
 
@@ -256,33 +268,34 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
 
       const dx = playerPos.x - enemyPos.x;
       const dy = playerPos.y - enemyPos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // Only move if we're farther than the min distance
-      if (dist > ENEMY_MIN_DISTANCE) {
-        const nx = dx / dist;
-        const ny = dy / dist;
-        let newX = enemyPos.x + nx * ENEMY_SPEED;
-        let newY = enemyPos.y + ny * ENEMY_SPEED;
+      const MAX_CHASE_DISTANCE = 450;
+      const ENEMY_SPEED = 2.2;
 
-        // Clamp to canvas bounds
-        newX = Math.max(BOUNDARY_PADDING, Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, newX));
-        newY = Math.max(BOUNDARY_PADDING, Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, newY));
+      // Move toward player if within chase range and not already overlapping
+      if (distance > 10 && distance < MAX_CHASE_DISTANCE) {
+        const nx = dx / distance;
+        const ny = dy / distance;
 
-        enemyPosRef.current = { x: newX, y: newY };
+        enemyPosRef.current = {
+          x: enemyPos.x + nx * ENEMY_SPEED,
+          y: enemyPos.y + ny * ENEMY_SPEED,
+        };
       }
 
-      animationFrameId = requestAnimationFrame(moveEnemy);
+      frameId = requestAnimationFrame(updateEnemy);
     };
 
-    animationFrameId = requestAnimationFrame(moveEnemy);
+    frameId = requestAnimationFrame(updateEnemy);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(frameId);
     };
   }, []);
 
   // ---------- Keyboard handlers ----------
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = true;
