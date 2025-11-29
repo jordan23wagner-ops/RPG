@@ -201,13 +201,12 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
 
               const slotConfig = [
                 { key: 'helmet', label: 'Head', row: 0, col: 1 },
+                { key: 'weapon', label: 'Weapon', row: 1, col: 0 },
                 { key: 'armor', label: 'Body', row: 1, col: 1 },
-                { key: 'gloves', label: 'Hands', row: 2, col: 0 },
-                { key: 'belt', label: 'Belt', row: 2, col: 1 },
-                { key: 'boots', label: 'Feet', row: 2, col: 2 },
-                { key: 'weapon', label: 'Weapon', row: 0, col: 0 },
-                { key: 'ring', label: 'Ring', row: 0, col: 2 },
-                { key: 'amulet', label: 'Amulet', row: 1, col: 0 },
+                { key: 'amulet', label: 'Off-Hand', row: 1, col: 2 },
+                { key: 'ring', label: 'Ring', row: 2, col: 0 },
+                { key: 'boots', label: 'Feet', row: 2, col: 1 },
+                { key: 'belt', label: 'Ring', row: 2, col: 2 },
               ];
 
               return (
