@@ -351,8 +351,11 @@ const BASE_RARITY_WEIGHTS = {
   common: 55,
   magic: 30,
   rare: 10,
-  epic: 4,
+  epic: 3,
   legendary: 1,
+  mythic: 0.5,
+  set: 0.3,
+  radiant: 0.2,
 };
 
 type RarityKey = keyof typeof BASE_RARITY_WEIGHTS;
@@ -373,17 +376,21 @@ function pickRarity(enemyRarity: RarityKey, zoneHeat: number = 0): RarityKey {
     weights.rare += 5;
     weights.epic += 7;
     weights.legendary += 5;
+    weights.mythic += 2;
     weights.common -= 10;
   }
 
   // Apply zone heat boost to favor higher rarities. zoneHeat 0..100
   const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
   if (heatBoost > 0) {
-    // Moderate boosts for mid rarities, stronger boost for epic/legendary
+    // Moderate boosts for mid rarities, stronger boost for higher tiers
     weights.magic = Math.round(weights.magic * (1 + heatBoost * 0.15));
     weights.rare = Math.round(weights.rare * (1 + heatBoost * 0.45));
     weights.epic = Math.round(weights.epic * (1 + heatBoost * 0.9));
     weights.legendary = Math.round(weights.legendary * (1 + heatBoost * 1.8));
+    weights.mythic = Math.round(weights.mythic * (1 + heatBoost * 2.5));
+    weights.set = Math.round(weights.set * (1 + heatBoost * 2.0));
+    weights.radiant = Math.round(weights.radiant * (1 + heatBoost * 3.0));
   }
 
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
@@ -419,6 +426,14 @@ function rollBaseStats(
       ? 1.6
       : rarity === 'epic'
       ? 2.1
+      : rarity === 'legendary'
+      ? 2.8
+      : rarity === 'mythic'
+      ? 3.5
+      : rarity === 'set'
+      ? 3.2
+      : rarity === 'radiant'
+      ? 4.0
       : 2.8;
 
   if (itemType.endsWith('_weapon')) {
@@ -505,7 +520,13 @@ export function generateLoot(
 
   const rawValue = (damage || armor || 1);
   const multiplier =
-    rarity === 'legendary'
+    rarity === 'radiant'
+      ? 8
+      : rarity === 'mythic'
+      ? 7
+      : rarity === 'set'
+      ? 7.5
+      : rarity === 'legendary'
       ? 6
       : rarity === 'epic'
       ? 4

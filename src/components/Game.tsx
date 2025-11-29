@@ -194,7 +194,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           <div className="mt-4 p-3 rounded-lg border border-purple-900/40 bg-black/40">
             <div className="text-xs text-gray-300 uppercase font-semibold mb-2">Skip Rarities</div>
             <div className="grid grid-cols-2 gap-1">
-              {['magic', 'rare', 'epic', 'legendary', 'set', 'mythic'].map(rarity => (
+              {['magic', 'rare', 'epic', 'legendary', 'mythic', 'set', 'radiant'].map(rarity => (
                 <button
                   key={rarity}
                   onClick={() => toggleRarityFilter(rarity)}
