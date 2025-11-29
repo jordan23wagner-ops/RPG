@@ -664,7 +664,13 @@ export function getRarityBorderColor(rarity: string): string {
 export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket' | 'amulet' | 'ring1' | 'ring2' | 'gloves' | 'belt';
 
 export function getEquipmentSlot(item: Item): EquipmentSlot | null {
+
   if (item.type === 'potion') return null;
+
+  // Handle trinkets
+  if (item.type === 'trinket') {
+    return 'trinket';
+  }
 
   // Handle amulets
   if (item.type === 'amulet') {

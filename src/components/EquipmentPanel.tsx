@@ -27,6 +27,7 @@ type EquipmentUISlotId =
   | 'trinket';
 
 const EQUIPMENT_UI_SLOTS: { id: EquipmentUISlotId; label: string }[] = [
+  { id: 'trinket', label: 'Trinket' },
   { id: 'helmet', label: 'Helmet' },
   { id: 'amulet', label: 'Amulet' },
   { id: 'ring1', label: 'Ring 1' },
@@ -37,7 +38,6 @@ const EQUIPMENT_UI_SLOTS: { id: EquipmentUISlotId; label: string }[] = [
   { id: 'gloves', label: 'Gloves' },
   { id: 'belt', label: 'Belt' },
   { id: 'boots', label: 'Boots' },
-  { id: 'trinket', label: 'Trinket' },
 ];
 
 const equipmentSlotIcon = (slotId: EquipmentUISlotId) => {
@@ -51,17 +51,17 @@ const equipmentSlotIcon = (slotId: EquipmentUISlotId) => {
 };
 
 const SLOT_LAYOUT: Record<EquipmentUISlotId, string> = {
-  helmet: 'row-start-1 col-start-1',
-  amulet: 'row-start-1 col-start-2',
-  ring1: 'row-start-1 col-start-3',
-  ring2: 'row-start-1 col-start-4',
-  mainHand: 'row-start-2 col-start-1',
-  chest: 'row-start-2 col-start-2 col-span-2',
-  offHand: 'row-start-2 col-start-4',
-  gloves: 'row-start-3 col-start-1',
-  belt: 'row-start-3 col-start-2',
-  boots: 'row-start-3 col-start-3',
-  trinket: 'row-start-3 col-start-4',
+  trinket: 'row-start-1 col-start-1',
+  helmet: 'row-start-1 col-start-2',
+  amulet: 'row-start-1 col-start-3',
+  ring1: 'row-start-1 col-start-4',
+  ring2: 'row-start-2 col-start-1',
+  mainHand: 'row-start-2 col-start-2',
+  chest: 'row-start-2 col-start-3 col-span-2',
+  offHand: 'row-start-3 col-start-1',
+  gloves: 'row-start-3 col-start-2',
+  belt: 'row-start-3 col-start-3',
+  boots: 'row-start-3 col-start-4',
 };
 
 export function EquipmentPanel({ items, onEquip }: EquipmentPanelProps) {
@@ -121,6 +121,9 @@ export function EquipmentPanel({ items, onEquip }: EquipmentPanelProps) {
       );
     }
 
+    // Format type for display (e.g., 'melee_weapon' -> 'Melee Weapon')
+    const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
     return (
       <div
         className={`bg-gray-800 border border-yellow-500/70 rounded-md p-3 flex flex-col text-[12px] ${SLOT_LAYOUT[slotId]}`}
@@ -133,8 +136,9 @@ export function EquipmentPanel({ items, onEquip }: EquipmentPanelProps) {
         </div>
 
         <div className="flex-1">
-          <div className={`font-semibold ${getRarityColor(item.rarity)}`}>
-            {item.name}
+          <div className={`font-semibold ${getRarityColor(item.rarity)} flex items-center gap-2`}>
+            <span>{item.name}</span>
+            <span className="text-gray-400 text-xs lowercase">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
           </div>
           <div className="text-[11px] text-gray-300">
             {item.damage && `+${item.damage} DMG`}

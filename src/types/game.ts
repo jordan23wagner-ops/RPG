@@ -52,7 +52,8 @@ export interface Item {
     | 'amulet'
     | 'ring'
     | 'gloves'
-    | 'belt';
+    | 'belt'
+    | 'trinket';
   // NOTE: Rarity now includes additional tiers beyond the classic common→legendary
   // progression. We support 'epic' between rare and legendary as well as
   // 'set' items, which have special bonuses when multiple pieces are equipped.
