@@ -30,6 +30,221 @@ const armorPrefixes = {
   mage: ['Silk', 'Enchanted', 'Mystic', 'Arcane', 'Celestial'],
 };
 
+// ----------------- SET ITEMS -----------------
+
+/**
+ * A definition of a set bonus. Each bonus is activated when the character
+ * equips at least the specified number of pieces from the given set. The
+ * `effect` field is a human readable description and the `stats` field
+ * contains numeric modifiers that will be aggregated during combat.
+ */
+interface SetBonus {
+  piecesRequired: number;
+  effect: string;
+  stats: {
+    damage?: number;
+    armor?: number;
+    strength?: number;
+    dexterity?: number;
+    intelligence?: number;
+    mana?: number;
+  };
+}
+
+/**
+ * A set definition enumerates all of the items within the set along with
+ * baseline stats for each item and the bonus thresholds. New sets can be
+ * added here without modifying the rest of the loot generator.
+ */
+interface SetDefinition {
+  items: Array<{ name: string; type: Item['type']; baseDamage?: number; baseArmor?: number }>;
+  bonuses: SetBonus[];
+}
+
+const SET_DEFINITIONS: Record<string, SetDefinition> = {
+  // Berserker's Fury – strength/armor focused set for melee builds
+  "Berserker's Fury": {
+    items: [
+      { name: "Berserker's Helm", type: 'helmet', baseArmor: 5 },
+      { name: "Berserker's Plate", type: 'melee_armor', baseArmor: 9 },
+      { name: "Berserker's Greaves", type: 'boots', baseArmor: 4 },
+      { name: "Berserker's Axe", type: 'melee_weapon', baseDamage: 12 },
+    ],
+    bonuses: [
+      {
+        piecesRequired: 2,
+        effect: '+5 Strength',
+        stats: { strength: 5 },
+      },
+      {
+        piecesRequired: 3,
+        effect: '+10% Damage',
+        stats: { damage: 5 },
+      },
+      {
+        piecesRequired: 4,
+        effect: '+5 Armor',
+        stats: { armor: 5 },
+      },
+    ],
+  },
+  // Ranger's Focus – dexterity based set for ranged builds
+  "Ranger's Focus": {
+    items: [
+      { name: "Ranger's Hood", type: 'helmet', baseArmor: 4 },
+      { name: "Ranger's Jacket", type: 'ranged_armor', baseArmor: 8 },
+      { name: "Ranger's Boots", type: 'boots', baseArmor: 4 },
+      { name: "Ranger's Bow", type: 'ranged_weapon', baseDamage: 10 },
+    ],
+    bonuses: [
+      {
+        piecesRequired: 2,
+        effect: '+5 Dexterity',
+        stats: { dexterity: 5 },
+      },
+      {
+        piecesRequired: 3,
+        effect: '+10% Damage',
+        stats: { damage: 4 },
+      },
+      {
+        piecesRequired: 4,
+        effect: '+5 Armor',
+        stats: { armor: 4 },
+      },
+    ],
+  },
+  // Archmage's Regalia – intelligence/mana focused set
+  "Archmage's Regalia": {
+    items: [
+      { name: "Archmage's Circlet", type: 'helmet', baseArmor: 3 },
+      { name: "Archmage's Robes", type: 'mage_armor', baseArmor: 7 },
+      { name: "Archmage's Slippers", type: 'boots', baseArmor: 3 },
+      { name: "Archmage's Staff", type: 'mage_weapon', baseDamage: 11 },
+    ],
+    bonuses: [
+      {
+        piecesRequired: 2,
+        effect: '+5 Intelligence',
+        stats: { intelligence: 5 },
+      },
+      {
+        piecesRequired: 3,
+        effect: '+20 Mana',
+        stats: { mana: 20 },
+      },
+      {
+        piecesRequired: 4,
+        effect: '+10% Damage',
+        stats: { damage: 5 },
+      },
+    ],
+  },
+};
+
+/**
+ * Generate a random set item from any of the defined sets. The item will
+ * include its set name and a copy of the bonuses defined in the set
+ * definition. Damage/armor values are scaled based on floor and enemy
+ * level similarly to ordinary items.
+ */
+export function generateSetItem(enemyLevel: number, floor: number): Partial<Item> {
+  // Pick a random set
+  const setNames = Object.keys(SET_DEFINITIONS);
+  const setName = setNames[Math.floor(Math.random() * setNames.length)];
+  const setDef = SET_DEFINITIONS[setName];
+
+  // Choose a random item within the set
+  const piece = setDef.items[Math.floor(Math.random() * setDef.items.length)];
+
+  // Scale base stats in a similar way to normal items
+  const factor = enemyLevel + floor * 0.5;
+  let damage: number | undefined;
+  let armor: number | undefined;
+  if (piece.baseDamage !== undefined) {
+    const base = piece.baseDamage + factor * 1.5;
+    const spread = factor;
+    damage = Math.round(base + Math.random() * spread);
+  } else if (piece.baseArmor !== undefined) {
+    const base = piece.baseArmor + factor;
+    const spread = factor * 0.8;
+    armor = Math.round(base + Math.random() * spread);
+  }
+
+  // Copy bonuses to avoid accidental mutation
+  const setBonuses: SetBonus[] = setDef.bonuses.map(b => ({
+    piecesRequired: b.piecesRequired,
+    effect: b.effect,
+    stats: { ...b.stats },
+  }));
+
+  return {
+    name: piece.name,
+    type: piece.type,
+    rarity: 'set',
+    damage,
+    armor,
+    value: Math.round((damage || armor || 1) * 5),
+    equipped: false,
+    setName,
+    setBonuses,
+  };
+}
+
+/**
+ * Compute aggregated set bonuses given a collection of equipped items. This
+ * function returns a summary of all stat modifiers granted by active set
+ * bonuses. It is up to the caller to apply these modifiers to combat
+ * calculations.
+ */
+export function computeSetBonuses(equippedItems: Item[]): {
+  damage: number;
+  armor: number;
+  strength: number;
+  dexterity: number;
+  intelligence: number;
+  mana: number;
+} {
+  // Group items by set
+  const counts: Record<string, number> = {};
+  const bonuses: Record<string, SetBonus[]> = {};
+
+  for (const item of equippedItems) {
+    if (item.rarity === 'set' && item.setName && item.setBonuses) {
+      counts[item.setName] = (counts[item.setName] || 0) + 1;
+      bonuses[item.setName] = item.setBonuses;
+    }
+  }
+
+  const total = {
+    damage: 0,
+    armor: 0,
+    strength: 0,
+    dexterity: 0,
+    intelligence: 0,
+    mana: 0,
+  };
+
+  for (const setName of Object.keys(counts)) {
+    const pieceCount = counts[setName];
+    const setBonuses = bonuses[setName];
+    if (!setBonuses) continue;
+    for (const bonus of setBonuses) {
+      if (pieceCount >= bonus.piecesRequired) {
+        const stats = bonus.stats;
+        if (stats.damage) total.damage += stats.damage;
+        if (stats.armor) total.armor += stats.armor;
+        if (stats.strength) total.strength += stats.strength;
+        if (stats.dexterity) total.dexterity += stats.dexterity;
+        if (stats.intelligence) total.intelligence += stats.intelligence;
+        if (stats.mana) total.mana += stats.mana;
+      }
+    }
+  }
+
+  return total;
+}
+
 const affixPools = {
   melee_weapon: [
     { name: 'of Strength', stat: 'strength' as const, value: 5 },
@@ -205,6 +420,14 @@ export function generateLoot(
   const noDrop = enemyRarity === 'legendary' ? 0.02 : 0.15;
   if (Math.random() < noDrop) return null;
 
+  // Chance to drop a set item independent of normal rarity. Set items are
+  // extremely rare but provide powerful bonuses when multiple pieces are
+  // equipped. If a set item drops, normal loot generation is skipped.
+  const SET_DROP_CHANCE = 0.015; // 1.5% chance
+  if (Math.random() < SET_DROP_CHANCE) {
+    return generateSetItem(enemyLevel, floor);
+  }
+
   const rarity = pickRarity(enemyRarity);
   const isWeapon = Math.random() < 0.6;
 
@@ -271,7 +494,10 @@ export function getRarityColor(rarity: string): string {
     case 'magic': return 'text-blue-400';
     case 'rare': return 'text-yellow-400';
     case 'legendary': return 'text-orange-500';
+    case 'epic': return 'text-fuchsia-500';
     case 'mythic': return 'text-purple-500';
+    case 'radiant': return 'text-yellow-300';
+    case 'set': return 'text-green-400';
     case 'unique': return 'text-red-500';
     default: return 'text-gray-400';
   }
@@ -283,7 +509,10 @@ export function getRarityBgColor(rarity: string): string {
     case 'magic': return 'bg-blue-900';
     case 'rare': return 'bg-yellow-900';
     case 'legendary': return 'bg-orange-900';
+    case 'epic': return 'bg-fuchsia-900';
     case 'mythic': return 'bg-purple-900';
+    case 'radiant': return 'bg-yellow-800';
+    case 'set': return 'bg-green-900';
     case 'unique': return 'bg-red-900';
     default: return 'bg-gray-700';
   }
@@ -295,7 +524,10 @@ export function getRarityBorderColor(rarity: string): string {
     case 'magic': return 'border-blue-500';
     case 'rare': return 'border-yellow-500';
     case 'legendary': return 'border-orange-500';
+    case 'epic': return 'border-fuchsia-500';
     case 'mythic': return 'border-purple-500';
+    case 'radiant': return 'border-yellow-400';
+    case 'set': return 'border-green-500';
     case 'unique': return 'border-red-500';
     default: return 'border-gray-600';
   }

@@ -49,14 +49,52 @@ export interface Item {
     | 'melee_armor'
     | 'ranged_armor'
     | 'mage_armor';
-  // NOTE: we now have Radiant and Mythic; "unique" is gone
-  rarity: 'common' | 'magic' | 'rare' | 'legendary' | 'mythic' | 'radiant';
+  // NOTE: Rarity now includes additional tiers beyond the classic common→legendary
+  // progression. We support 'epic' between rare and legendary as well as
+  // 'set' items, which have special bonuses when multiple pieces are equipped.
+  // Mythic and Radiant remain for backwards compatibility with older loot
+  // logic but are not used by the new generator.
+  rarity:
+    | 'common'
+    | 'magic'
+    | 'rare'
+    | 'epic'
+    | 'legendary'
+    | 'mythic'
+    | 'radiant'
+    | 'set';
   damage?: number;
   armor?: number;
   value: number;
   equipped: boolean;
   affixes?: Affix[];
   created_at: string;
+
+  /**
+   * Optional name of the set this item belongs to. Set items confer
+   * additional bonuses when multiple pieces from the same set are equipped.
+   */
+  setName?: string;
+
+  /**
+   * List of set bonuses for this item. Each entry specifies the number
+   * of pieces required to activate the associated bonus along with
+   * a human‑readable description and a collection of numeric stat
+   * modifiers. These modifiers are aggregated across all equipped set
+   * pieces and applied during combat.
+   */
+  setBonuses?: {
+    piecesRequired: number;
+    effect: string;
+    stats: {
+      damage?: number;
+      armor?: number;
+      strength?: number;
+      dexterity?: number;
+      intelligence?: number;
+      mana?: number;
+    };
+  }[];
 }
 
 export interface Enemy {

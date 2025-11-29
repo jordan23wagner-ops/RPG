@@ -66,6 +66,22 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
         </div>
       )}
 
+      {/* Set bonuses */}
+      {item.setName && item.setBonuses && (
+        <div className="mt-2 border-t border-gray-800 pt-1.5 text-[11px]">
+          <div className="text-green-400 font-semibold mb-0.5">{item.setName} Set</div>
+          {item.setBonuses.map((bonus, idx) => (
+            <div
+              key={idx}
+              className="text-green-300 flex justify-between text-[11px]"
+            >
+              <span>{bonus.piecesRequired}-Set</span>
+              <span>{bonus.effect}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Requirements / misc */}
       <div className="mt-2 text-[10px] text-gray-500 space-y-0.5">
         {item.levelRequirement && <div>Requires Level {item.levelRequirement}</div>}

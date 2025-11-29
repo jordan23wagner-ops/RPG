@@ -12,6 +12,7 @@ import {
   generateEnemy,
   generateLoot,
   getEquipmentSlot,
+  computeSetBonuses,
 } from '../utils/gameLogic';
 
 interface GameContextType {
@@ -219,8 +220,13 @@ try {
     );
 
     const weaponDamage = equippedWeapon?.damage || 0;
+    // Compute set bonuses from all equipped items. These bonuses can add
+    // flat damage, armor or core stats such as strength/dexterity/intelligence.
+    const setBonuses = computeSetBonuses(items.filter(i => i.equipped));
+    const effectiveStrength = character.strength + setBonuses.strength;
+    const baseDamage = effectiveStrength * 0.5 + weaponDamage;
     const playerDamage = Math.floor(
-      character.strength * 0.5 + weaponDamage + Math.random() * 10,
+      baseDamage + setBonuses.damage + Math.random() * 10,
     );
 
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
@@ -305,14 +311,18 @@ try {
       setTimeout(() => {
         if (!character || !currentEnemy) return;
 
+        // Recompute set bonuses for defense. Armor bonuses from sets reduce
+        // damage taken. Damage bonuses from sets do not apply here.
         const enemyDamage = Math.floor(
           currentEnemy.damage + Math.random() * 5,
         );
         const totalArmor = items
           .filter(i => i.equipped && i.armor)
           .reduce((sum, i) => sum + (i.armor || 0), 0);
+        const setBonusDef = computeSetBonuses(items.filter(i => i.equipped));
+        const effectiveArmor = totalArmor + setBonusDef.armor;
 
-        const actualDamage = Math.max(1, enemyDamage - totalArmor);
+        const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
         const newHealth = Math.max(0, character.health - actualDamage);
 
         if (newHealth <= 0) {
