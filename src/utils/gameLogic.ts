@@ -536,11 +536,11 @@ export function getRarityColor(rarity: string): string {
     case 'magic': return 'text-blue-400';
     case 'rare': return 'text-yellow-400';
     case 'legendary': return 'text-orange-500';
-    case 'epic': return 'text-fuchsia-500';
-    case 'mythic': return 'text-purple-500';
-    case 'radiant': return 'text-yellow-300';
+    case 'epic': return 'text-purple-500';
+    case 'mythic': return 'text-red-500';
+    case 'radiant': return 'text-pink-400';
     case 'set': return 'text-green-400';
-    case 'unique': return 'text-red-500';
+    case 'unique': return 'bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400 bg-clip-text text-transparent';
     default: return 'text-gray-400';
   }
 }
@@ -551,11 +551,11 @@ export function getRarityBgColor(rarity: string): string {
     case 'magic': return 'bg-blue-900';
     case 'rare': return 'bg-yellow-900';
     case 'legendary': return 'bg-orange-900';
-    case 'epic': return 'bg-fuchsia-900';
-    case 'mythic': return 'bg-purple-900';
-    case 'radiant': return 'bg-yellow-800';
+    case 'epic': return 'bg-purple-900';
+    case 'mythic': return 'bg-red-900';
+    case 'radiant': return 'bg-pink-900';
     case 'set': return 'bg-green-900';
-    case 'unique': return 'bg-red-900';
+    case 'unique': return 'bg-gradient-to-r from-red-900 via-yellow-900 to-blue-900';
     default: return 'bg-gray-700';
   }
 }
@@ -566,11 +566,11 @@ export function getRarityBorderColor(rarity: string): string {
     case 'magic': return 'border-blue-500';
     case 'rare': return 'border-yellow-500';
     case 'legendary': return 'border-orange-500';
-    case 'epic': return 'border-fuchsia-500';
-    case 'mythic': return 'border-purple-500';
-    case 'radiant': return 'border-yellow-400';
+    case 'epic': return 'border-purple-500';
+    case 'mythic': return 'border-red-500';
+    case 'radiant': return 'border-pink-400';
     case 'set': return 'border-green-500';
-    case 'unique': return 'border-red-500';
+    case 'unique': return 'border-transparent';
     default: return 'border-gray-600';
   }
 }
