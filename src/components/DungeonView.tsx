@@ -232,7 +232,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     ctx.beginPath();
     ctx.arc(goldX + 18, goldY + goldH / 2, 8, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#111827';
+    ctx.fillStyle = '#ffffff';
     ctx.font = '12px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`Gold: ${c.gold}`, goldX + 36, goldY + goldH / 2 + 4);
@@ -374,20 +374,28 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.shadowColor = 'transparent';
       });
 
-      // Draw attack cooldown indicator bar
+      // Draw attack cooldown indicator bar (positioned between zone heat and exp bar)
       const now = Date.now();
       const remaining = Math.max(0, nextAttackTimeRef.current - now);
       const percent = remaining / ATTACK_COOLDOWN_MS;
-      const barWidth = 120;
-      const barHeight = 5;
-      const barX = 20;
-      const barY = 65;
-      // background bar
-      ctx.fillStyle = '#444444';
-      ctx.fillRect(barX, barY, barWidth, barHeight);
-      // fill bar representing ready portion
-      ctx.fillStyle = '#4f46e5';
-      ctx.fillRect(barX, barY, barWidth * (1 - percent), barHeight);
+      const padding = 18;
+      const barHeight = 14;
+      const cooldownW = 300;
+      const cooldownX = Math.round(CANVAS_WIDTH / 2 - cooldownW / 2);
+      const cooldownY = CANVAS_HEIGHT - padding - barHeight * 2 - 35; // between zone heat and exp
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(cooldownX - 6, cooldownY - 6, cooldownW + 12, barHeight + 12);
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cooldownX - 6, cooldownY - 6, cooldownW + 12, barHeight + 12);
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(cooldownX, cooldownY, cooldownW, barHeight);
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(cooldownX, cooldownY, cooldownW * (1 - percent), barHeight);
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Action Ready`, cooldownX + cooldownW / 2, cooldownY + barHeight - 2);
 
       animationFrameId = requestAnimationFrame(render);
     };

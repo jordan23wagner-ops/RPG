@@ -31,8 +31,10 @@ interface GameContextType {
   loading: boolean;
   damageNumbers: DamageNumber[];
   zoneHeat: number;
+  rarityFilter: Set<string>;
   increaseZoneHeat: (amount?: number) => void;
   resetZoneHeat: () => void;
+  toggleRarityFilter: (rarity: string) => void;
   createCharacter: (name: string) => Promise<void>;
   loadCharacter: () => Promise<void>;
   attack: () => Promise<void>;
@@ -56,6 +58,20 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [loading, setLoading] = useState(true);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
+  const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
+  
+  const toggleRarityFilter = (rarity: string) => {
+    setRarityFilter(prev => {
+      const newFilter = new Set(prev);
+      if (newFilter.has(rarity)) {
+        newFilter.delete(rarity);
+      } else {
+        newFilter.add(rarity);
+      }
+      return newFilter;
+    });
+  };
+  
   const increaseZoneHeat = (amount: number = 5) => {
     setZoneHeat(prev => Math.min(100, (prev || 0) + amount));
   };
@@ -571,9 +587,11 @@ try {
         floor,
         loading,
         damageNumbers,
-          zoneHeat,
-          increaseZoneHeat,
-          resetZoneHeat,
+        zoneHeat,
+        rarityFilter,
+        increaseZoneHeat,
+        resetZoneHeat,
+        toggleRarityFilter,
         createCharacter,
         loadCharacter,
         attack,

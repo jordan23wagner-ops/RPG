@@ -5,7 +5,7 @@ import { DungeonView } from './DungeonView';
 import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
-import { LogOut, FlaskConical, Package, Sword } from 'lucide-react';
+import { LogOut, FlaskConical, Package, Sword, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
 
@@ -55,6 +55,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
     loading,
     damageNumbers,
     zoneHeat,
+    rarityFilter,
     createCharacter,
     attack,
     usePotion,
@@ -62,6 +63,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
     sellItem,
     buyPotion,
     sellAllItems,
+    toggleRarityFilter,
   } = useGame();
 
   const handleSignOut = async () => {
@@ -103,13 +105,22 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
             <Tooltip text={"Zone Heat mechanics:\n• Kills add Heat: Normal +3, Rare +8, Elite +15, Boss +30.\n• Heat decays 1 every 15s.\n• Heat scales enemy difficulty (up to +100% at 100 heat) and increases loot quality: higher chances for rare/epic/legendary and slightly higher set-drop chance. High risk, high reward."} />
           </div>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShopOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-800 hover:bg-orange-700 text-white rounded-lg transition-colors font-semibold"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Merchant
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
       </div>
 
       {/* Main row: backpack (left) - dungeon (center) - gear (right) */}
@@ -166,6 +177,26 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
             >
               {firstPotion ? `Use (${potionCount})` : 'None'}
             </button>
+          </div>
+
+          {/* Rarity Filter */}
+          <div className="mt-4 p-3 rounded-lg border border-purple-900/40 bg-black/40">
+            <div className="text-xs text-gray-300 uppercase font-semibold mb-2">Skip Rarities</div>
+            <div className="grid grid-cols-2 gap-1">
+              {['magic', 'rare', 'epic', 'legendary', 'set', 'mythic'].map(rarity => (
+                <button
+                  key={rarity}
+                  onClick={() => toggleRarityFilter(rarity)}
+                  className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
+                    rarityFilter.has(rarity)
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {rarity.charAt(0).toUpperCase() + rarity.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
