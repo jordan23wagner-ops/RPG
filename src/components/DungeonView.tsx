@@ -298,9 +298,14 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Track movement keys
       keysPressed.current[e.key] = true;
 
+      // Handle attacks separately
       if (e.code === 'Space') {
+        // Ignore key-repeat when the key is held down
+        if (e.repeat) return;
+
         e.preventDefault();
         const enemy = enemyRef.current;
         if (!enemy || enemy.health <= 0) return;
@@ -312,15 +317,27 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         const distY = playerPos.y - enemyPos.y;
         const distance = Math.sqrt(distX * distX + distY * distY);
 
+        // Only attack if you're actually in melee range
         if (distance < 120) {
           onAttackRef.current();
         }
+
+        return; // don’t do anything else for Space
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = false;
     };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
