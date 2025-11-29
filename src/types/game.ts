@@ -75,6 +75,21 @@ export interface Item {
   created_at: string;
 
   /**
+   * Level requirement to equip this item. Scales with rarity and floor.
+   */
+  requiredLevel?: number;
+
+  /**
+   * Stat requirements to equip this item. Varies by item type and rarity.
+   * At least one requirement may be present depending on the item.
+   */
+  requiredStats?: {
+    strength?: number;
+    dexterity?: number;
+    intelligence?: number;
+  };
+
+  /**
    * Optional name of the set this item belongs to. Set items confer
    * additional bonuses when multiple pieces from the same set are equipped.
    */

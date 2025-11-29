@@ -178,6 +178,8 @@ export function generateSetItem(enemyLevel: number, floor: number): Partial<Item
     stats: { ...b.stats },
   }));
 
+  const { requiredLevel, requiredStats } = calculateItemRequirements(piece.type, 'set', enemyLevel, floor);
+
   return {
     name: piece.name,
     type: piece.type,
@@ -188,6 +190,8 @@ export function generateSetItem(enemyLevel: number, floor: number): Partial<Item
     equipped: false,
     setName,
     setBonuses,
+    requiredLevel,
+    requiredStats,
   };
 }
 
@@ -449,6 +453,61 @@ function rollBaseStats(
   return { damage: undefined, armor };
 }
 
+/**
+ * Calculate level and stat requirements for an item based on type, rarity, and floor.
+ * Requirements scale with rarity tier and floor level.
+ */
+function calculateItemRequirements(
+  itemType: string,
+  rarity: RarityKey,
+  level: number,
+  floor: number,
+): { requiredLevel?: number; requiredStats?: { strength?: number; dexterity?: number; intelligence?: number } } {
+  const rarityMultiplier: Record<RarityKey, number> = {
+    common: 0.5,
+    magic: 0.75,
+    rare: 1.0,
+    epic: 1.3,
+    legendary: 1.6,
+    mythic: 1.9,
+    set: 1.8,
+    radiant: 2.1,
+  };
+
+  const baseLevel = Math.max(1, Math.floor(level * 0.8 + floor * 0.3));
+  const requiredLevel = Math.ceil(baseLevel * rarityMultiplier[rarity]);
+
+  const requiredStats: { strength?: number; dexterity?: number; intelligence?: number } = {};
+
+  // Assign stat requirements based on item type
+  if (itemType === 'melee_weapon' || itemType === 'melee_armor') {
+    const baseStr = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
+    requiredStats.strength = Math.ceil(baseStr * rarityMultiplier[rarity]);
+  } else if (itemType === 'ranged_weapon' || itemType === 'ranged_armor') {
+    const baseDex = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
+    requiredStats.dexterity = Math.ceil(baseDex * rarityMultiplier[rarity]);
+  } else if (itemType === 'mage_weapon' || itemType === 'mage_armor') {
+    const baseInt = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
+    requiredStats.intelligence = Math.ceil(baseInt * rarityMultiplier[rarity]);
+  } else if (itemType === 'amulet' || itemType === 'ring') {
+    // Trinkets require balanced stats
+    const baseStat = Math.max(1, Math.floor(level * 0.3 + floor * 0.15));
+    requiredStats.strength = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
+    requiredStats.dexterity = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
+    requiredStats.intelligence = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
+  } else if (itemType === 'gloves' || itemType === 'belt' || itemType === 'boots') {
+    // Accessories require moderate stats across the board
+    const baseStat = Math.max(1, Math.floor(level * 0.25 + floor * 0.15));
+    requiredStats.strength = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.6);
+    requiredStats.dexterity = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.6);
+  }
+
+  return {
+    requiredLevel,
+    requiredStats: Object.keys(requiredStats).length > 0 ? requiredStats : undefined,
+  };
+}
+
 export function generateLoot(
   enemyLevel: number,
   floor: number,
@@ -538,6 +597,8 @@ export function generateLoot(
 
   const value = Math.round(rawValue * multiplier);
 
+  const { requiredLevel, requiredStats } = calculateItemRequirements(type, rarity, enemyLevel, floor);
+
   return {
     name,
     type,
@@ -546,6 +607,8 @@ export function generateLoot(
     armor,
     value,
     equipped: false,
+    requiredLevel,
+    requiredStats,
   };
 }
 

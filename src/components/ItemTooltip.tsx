@@ -84,9 +84,17 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
 
       {/* Requirements / misc */}
       <div className="mt-2 text-[10px] text-gray-500 space-y-0.5">
-        {item.levelRequirement && <div>Requires Level {item.levelRequirement}</div>}
-        {item.classRestriction && <div>Class: {item.classRestriction}</div>}
-        {item.value != null && <div>Value: {item.value}g</div>}
+        {item.requiredLevel && <div className="text-gray-400">Requires Level {item.requiredLevel}</div>}
+        
+        {item.requiredStats && (
+          <div className="mt-1 space-y-0.5 border-t border-gray-700 pt-1">
+            {item.requiredStats.strength && <div>Requires {item.requiredStats.strength} Strength</div>}
+            {item.requiredStats.dexterity && <div>Requires {item.requiredStats.dexterity} Dexterity</div>}
+            {item.requiredStats.intelligence && <div>Requires {item.requiredStats.intelligence} Intelligence</div>}
+          </div>
+        )}
+        
+        {item.value != null && <div className="border-t border-gray-700 pt-1">Value: {item.value}g</div>}
       </div>
     </div>
   );
