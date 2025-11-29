@@ -129,6 +129,7 @@ export function Game() {
           onClose={() => setShopOpen(false)}
           onSellItem={sellItem}
           onBuyPotion={buyPotion}
+          onSellAll={sellAllItems}
         />
       )}
     </div>

@@ -8,11 +8,12 @@ interface ShopProps {
   onClose: () => void;
   onSellItem: (itemId: string) => void;
   onBuyPotion: () => void;
+  onSellAll: () => void;
 }
 
 const POTION_COST = 75;
 
-export function Shop({ character, items, onClose, onSellItem, onBuyPotion }: ShopProps) {
+export function Shop({ character, items, onClose, onSellItem, onBuyPotion, onSellAll }: ShopProps) {
   const sellableItems = items.filter(i => !i.equipped);
   const totalSellValue = sellableItems.reduce((sum, item) => sum + item.value, 0);
 
@@ -74,29 +75,37 @@ export function Shop({ character, items, onClose, onSellItem, onBuyPotion }: Sho
             {sellableItems.length === 0 ? (
               <div className="text-gray-400 text-center py-8">No items to sell</div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {sellableItems.map(item => (
-                  <div
-                    key={item.id}
-                    className={`${getRarityBgColor(item.rarity)} border rounded px-3 py-2 flex items-center justify-between`}
-                  >
-                    <div>
-                      <div className={`font-semibold text-sm ${getRarityColor(item.rarity)}`}>
-                        {item.name}
-                      </div>
-                      <div className="text-yellow-500 text-xs font-semibold">
-                        {item.value} Gold
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onSellItem(item.id)}
-                      className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded transition-colors"
+              <>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {sellableItems.map(item => (
+                    <div
+                      key={item.id}
+                      className={`${getRarityBgColor(item.rarity)} border rounded px-3 py-2 flex items-center justify-between`}
                     >
-                      Sell
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <div>
+                        <div className={`font-semibold text-sm ${getRarityColor(item.rarity)}`}>
+                          {item.name}
+                        </div>
+                        <div className="text-yellow-500 text-xs font-semibold">
+                          {item.value} Gold
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onSellItem(item.id)}
+                        className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded transition-colors"
+                      >
+                        Sell
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={onSellAll}
+                  className="w-full mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded transition-colors"
+                >
+                  Sell All Items
+                </button>
+              </>
             )}
             {sellableItems.length > 0 && (
               <div className="mt-3 bg-gray-800 rounded p-3 text-sm border border-gray-700">

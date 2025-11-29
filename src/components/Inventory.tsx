@@ -241,7 +241,7 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
             No items in backpack
           </div>
         ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto">
+          <div className="space-y-2 max-h-96 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-950/50">
             {unequippedItems.map(item => (
               <div
                 key={item.id}
