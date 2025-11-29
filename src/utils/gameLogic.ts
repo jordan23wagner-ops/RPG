@@ -190,8 +190,8 @@ export function generateSetItem(enemyLevel: number, floor: number): Partial<Item
     equipped: false,
     setName,
     setBonuses,
-    requiredLevel,
-    requiredStats,
+    required_level: requiredLevel,
+    required_stats: requiredStats,
   };
 }
 
@@ -607,8 +607,8 @@ export function generateLoot(
     armor,
     value,
     equipped: false,
-    requiredLevel,
-    requiredStats,
+    required_level: requiredLevel,
+    required_stats: requiredStats,
   };
 }
 

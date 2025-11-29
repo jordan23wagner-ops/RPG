@@ -76,14 +76,22 @@ export interface Item {
 
   /**
    * Level requirement to equip this item. Scales with rarity and floor.
+   * (camelCase for app logic, snake_case for DB compatibility)
    */
   requiredLevel?: number;
+  required_level?: number;
 
   /**
    * Stat requirements to equip this item. Varies by item type and rarity.
    * At least one requirement may be present depending on the item.
+   * (camelCase for app logic, snake_case for DB compatibility)
    */
   requiredStats?: {
+    strength?: number;
+    dexterity?: number;
+    intelligence?: number;
+  };
+  required_stats?: {
     strength?: number;
     dexterity?: number;
     intelligence?: number;
