@@ -295,8 +295,6 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   }, []);
 
   // ---------- Keyboard handlers ----------
-
-  // ---------- Keyboard handlers ----------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Track movement keys
@@ -318,41 +316,19 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
         const distY = playerPos.y - enemyPos.y;
         const distance = Math.sqrt(distX * distX + distY * distY);
 
+        // Only attack if you're actually in melee range
         if (distance < 120) {
           onAttackRef.current();
         }
+
+        // Don’t do anything else for Space
+        return;
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = false;
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-        return; // don’t do anything else for Space
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressed.current[e.key] = false;
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
