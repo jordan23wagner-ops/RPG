@@ -5,6 +5,13 @@ interface CreateCharacterProps {
   onCreate: (name: string) => void;
 }
 
+const HERO_NAMES = [
+  'Arion', 'Kael', 'Soren', 'Thorgrim', 'Vex', 'Lysander', 'Ronan', 'Cipher',
+  'Aldric', 'Blaze', 'Crow', 'Drax', 'Ember', 'Fenrir', 'Grim', 'Hunter',
+  'Icarus', 'Jax', 'Kraven', 'Lancer', 'Magnus', 'Nyx', 'Onyx', 'Phoenix',
+  'Raven', 'Slayer', 'Torven', 'Ulric', 'Venom', 'Wraith', 'Xander', 'Zephyr'
+];
+
 export function CreateCharacter({ onCreate }: CreateCharacterProps) {
   const [name, setName] = useState('');
 
@@ -13,6 +20,11 @@ export function CreateCharacter({ onCreate }: CreateCharacterProps) {
     if (name.trim()) {
       onCreate(name.trim());
     }
+  };
+
+  const handleQuickStart = () => {
+    const randomName = HERO_NAMES[Math.floor(Math.random() * HERO_NAMES.length)];
+    onCreate(randomName);
   };
 
   return (
@@ -53,6 +65,14 @@ export function CreateCharacter({ onCreate }: CreateCharacterProps) {
             className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold py-4 rounded-lg transition-all shadow-lg hover:shadow-red-500/50"
           >
             Begin Your Journey
+          </button>
+
+          <button
+            type="button"
+            onClick={handleQuickStart}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 rounded-lg transition-all shadow-lg hover:shadow-blue-500/50"
+          >
+            Quick Start →
           </button>
         </form>
 
