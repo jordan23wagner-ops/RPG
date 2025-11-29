@@ -136,6 +136,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
                       <div>
                         <div className="font-semibold text-gray-200 truncate">{item.name}</div>
                         <div className="text-xs text-gray-400">{item.rarity}</div>
+                        {(item.damage || item.armor) && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {item.damage && `+${item.damage} Dmg`}
+                            {item.damage && item.armor && ' • '}
+                            {item.armor && `+${item.armor} Arm`}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button
@@ -174,21 +181,56 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
             <h3 className="text-lg font-bold text-yellow-500">Gear</h3>
           </div>
           <div className="space-y-2 h-96 overflow-y-auto">
-            {items
-              .filter((i: any) => i.equipped)
-              .map(item => (
-                <div key={item.id} className="bg-gray-800 border border-yellow-500/70 rounded p-2 text-sm">
-                  <div className="font-semibold text-gray-200 truncate">{item.name}</div>
-                  <div className="text-xs text-gray-400">{item.rarity}</div>
-                  {(item.damage || item.armor) && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      {item.damage && `+${item.damage} Dmg`}
-                      {item.damage && item.armor && ' • '}
-                      {item.armor && `+${item.armor} Arm`}
+            {(() => {
+              const equippedBySlot: Record<string, any> = {};
+              items.filter((i: any) => i.equipped).forEach(item => {
+                const slot = (() => {
+                  if (item.type === 'weapon' || item.type === 'melee_weapon' || item.type === 'ranged_weapon' || item.type === 'mage_weapon') return 'weapon';
+                  if (item.type === 'helmet') return 'helmet';
+                  if (item.type === 'melee_armor' || item.type === 'ranged_armor' || item.type === 'mage_armor') return 'armor';
+                  if (item.type === 'gloves') return 'gloves';
+                  if (item.type === 'boots') return 'boots';
+                  if (item.type === 'belt') return 'belt';
+                  if (item.type === 'ring') return 'ring';
+                  if (item.type === 'amulet') return 'amulet';
+                  return 'other';
+                })();
+                if (!equippedBySlot[slot]) equippedBySlot[slot] = [];
+                equippedBySlot[slot].push(item);
+              });
+
+              const slots = [
+                { key: 'helmet', label: 'Head' },
+                { key: 'armor', label: 'Body' },
+                { key: 'gloves', label: 'Hands' },
+                { key: 'belt', label: 'Belt' },
+                { key: 'boots', label: 'Feet' },
+                { key: 'weapon', label: 'Weapon' },
+                { key: 'ring', label: 'Ring' },
+                { key: 'amulet', label: 'Amulet' },
+              ];
+
+              return slots.map(slot => {
+                const items_in_slot = equippedBySlot[slot.key] || [];
+                return items_in_slot.map((item: any, idx: number) => (
+                  <div key={item.id} className="bg-gray-800 border border-yellow-500/70 rounded p-2 text-sm">
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                      {slot.label}
+                      {slot.key === 'weapon' && items_in_slot.length > 1 ? ` (${idx === 0 ? 'Main' : 'Off'})` : ''}
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="font-semibold text-gray-200 truncate">{item.name}</div>
+                    <div className="text-xs text-gray-400">{item.rarity}</div>
+                    {(item.damage || item.armor) && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {item.damage && `+${item.damage} Dmg`}
+                        {item.damage && item.armor && ' • '}
+                        {item.armor && `+${item.armor} Arm`}
+                      </div>
+                    )}
+                  </div>
+                ));
+              });
+            })()}
           </div>
         </div>
       </div>
