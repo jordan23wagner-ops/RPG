@@ -332,6 +332,11 @@ try {
         zoneHeat,
       );
 
+      // Check if loot rarity is filtered (should be skipped)
+      if (loot && rarityFilter.has(loot.rarity)) {
+        loot = null;
+      }
+
       if (!loot) {
         loot = {
           name: 'Tarnished Trinket',
