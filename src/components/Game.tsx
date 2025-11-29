@@ -8,6 +8,7 @@ import { CreateCharacter } from './CreateCharacter';
 import { LogOut, FlaskConical, Package, Sword, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
+import { getRarityColor, getRarityBgColor, getRarityBorderColor } from '../utils/gameLogic';
 
 export function Game() {
   const [notification, setNotification] = useState<{
@@ -151,14 +152,14 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 .map(item => (
                   <div
                     key={item.id}
-                    className="relative group bg-gray-800 border border-gray-700 rounded p-2 flex items-center justify-between hover:border-gray-600 transition-colors text-sm"
+                    className={`relative group border rounded p-2 flex items-center justify-between hover:border-opacity-100 transition-colors text-sm ${getRarityBgColor(item.rarity)} border-2 ${getRarityBorderColor(item.rarity)}`}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div>
-                        <div className="font-semibold text-gray-200 truncate">{item.name}</div>
-                        <div className="text-xs text-gray-400">{item.rarity}</div>
+                        <div className={`font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
+                        <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70`}>{item.rarity}</div>
                         {(item.damage || item.armor) && (
-                          <div className="text-xs text-gray-400 mt-0.5">
+                          <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70 mt-0.5`}>
                             {item.damage && `+${item.damage} Dmg`}
                             {item.damage && item.armor && ' • '}
                             {item.armor && `+${item.armor} Arm`}
@@ -255,29 +256,20 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 if (!slot) return <div key={`empty-${gridNum}`} className="aspect-square" />;
 
                 const item = (equippedBySlot[slot.key] || [])[0];
-                const rarityColors: Record<string, string> = {
-                  normal: 'border-gray-600 bg-gray-800',
-                  magic: 'border-blue-500 bg-blue-950',
-                  rare: 'border-purple-500 bg-purple-950',
-                  epic: 'border-yellow-600 bg-yellow-950',
-                  legendary: 'border-red-600 bg-red-950',
-                  set: 'border-green-600 bg-green-950',
-                  mythic: 'border-indigo-600 bg-indigo-950',
-                  radiant: 'border-cyan-500 bg-cyan-950',
-                };
-                const colorClass = item ? rarityColors[item.rarity] || 'border-gray-600 bg-gray-800' : 'border-dashed border-gray-600 bg-gray-950';
+                const borderClass = item ? `border-2 ${getRarityBorderColor(item.rarity)}` : 'border-2 border-dashed border-gray-600';
+                const bgClass = item ? getRarityBgColor(item.rarity) : 'bg-gray-950';
 
                 return (
                   <div
                     key={slot.key}
-                    className={`aspect-square border-2 rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${colorClass}`}
+                    className={`aspect-square rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${borderClass} ${bgClass}`}
                     title={item ? item.name : slot.label}
                   >
                     {item ? (
                       <div className="text-center w-full">
-                        <div className="text-xs font-semibold text-gray-200 truncate">{item.name}</div>
-                        {item.damage && <div className="text-xs text-yellow-300 font-bold">+{item.damage}</div>}
-                        {item.armor && <div className="text-xs text-blue-300 font-bold">+{item.armor}</div>}
+                        <div className={`text-xs font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
+                        {item.damage && <div className="text-xs font-bold mt-0.5" style={{color: '#fbbf24'}}>+{item.damage}</div>}
+                        {item.armor && <div className="text-xs font-bold" style={{color: '#60a5fa'}}>+{item.armor}</div>}
                       </div>
                     ) : (
                       <div className="text-xs text-gray-600 text-center font-medium">{slot.label}</div>
