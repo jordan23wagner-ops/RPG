@@ -213,6 +213,8 @@ try {
           damage: 5,
           value: 10,
           equipped: true,
+          required_level: 1,
+          required_stats: { strength: 1 },
         },
       ]);
 
@@ -358,7 +360,15 @@ try {
         const { error } = await supabase.from('items').insert([
           {
             character_id: character.id,
-            ...loot,
+            name: loot.name,
+            type: loot.type,
+            rarity: loot.rarity,
+            damage: loot.damage,
+            armor: loot.armor,
+            value: loot.value,
+            equipped: loot.equipped,
+            required_level: loot.requiredLevel,
+            required_stats: loot.requiredStats,
           },
         ]);
         if (error) {
@@ -576,6 +586,7 @@ try {
         rarity: 'common',
         value: POTION_COST,
         equipped: false,
+        required_level: 1,
       },
     ]);
 
