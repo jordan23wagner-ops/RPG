@@ -31,11 +31,12 @@ interface GameContextType {
   sellItem: (itemId: string) => Promise<void>;
   sellAllItems: () => Promise<void>;
   buyPotion: () => Promise<void>;
+  notifyDrop?: (rarity: string, itemName: string) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-export function GameProvider({ children }: { children: ReactNode }) {
+export function GameProvider({ children, notifyDrop }: { children: ReactNode; notifyDrop?: (rarity: string, itemName: string) => void }) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [currentEnemy, setCurrentEnemy] = useState<Enemy | null>(null);
@@ -287,13 +288,16 @@ try {
       }
 
       if (loot) {
+        // Notify if legendary or higher
+        if (notifyDrop && (loot.rarity === 'legendary' || loot.rarity === 'mythic' || loot.rarity === 'radiant' || loot.rarity === 'set')) {
+          notifyDrop(loot.rarity, loot.name || 'Unknown Item');
+        }
         const { error } = await supabase.from('items').insert([
           {
             character_id: character.id,
             ...loot,
           },
         ]);
-
         if (error) {
           console.error('Error inserting loot:', error);
         } else {
@@ -526,6 +530,7 @@ try {
         sellItem,
         sellAllItems,
         buyPotion,
+        notifyDrop,
       }}
     >
       {children}

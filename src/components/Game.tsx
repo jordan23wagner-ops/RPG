@@ -1,6 +1,6 @@
 import { Inventory } from './Inventory';
-import { useState } from 'react';
-import { useGame } from '../contexts/GameContext';
+import { useState, useCallback } from 'react';
+import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
 import { GameUI } from './GameUI';
 import { Shop } from './Shop';
@@ -8,10 +8,46 @@ import { CreateCharacter } from './CreateCharacter';
 import { LogOut, FlaskConical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { EquipmentPanel } from './EquipmentPanel';
+import { NotificationBar } from './NotificationBar';
 
 export function Game() {
+  const [notification, setNotification] = useState<{
+    message: string;
+    color: string;
+  } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
 
+  // Helper to show notification with rarity-specific styling
+  const showNotification = useCallback((rarity: string, itemName: string) => {
+    let color = 'bg-yellow-500';
+    let label = 'Legendary';
+    if (rarity === 'mythic') {
+      color = 'bg-purple-700';
+      label = 'Mythic';
+    } else if (rarity === 'radiant') {
+      color = 'bg-blue-500';
+      label = 'Radiant';
+    } else if (rarity === 'set') {
+      color = 'bg-green-600';
+      label = 'Set';
+    }
+    setNotification({ message: `You found a ${label} item: ${itemName}!`, color });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
+
+  return (
+    <GameProvider notifyDrop={showNotification}>
+      <GameContent notification={notification} setNotification={setNotification} shopOpen={shopOpen} setShopOpen={setShopOpen} />
+    </GameProvider>
+  );
+}
+
+function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
+  notification: { message: string; color: string } | null;
+  setNotification: (n: any) => void;
+  shopOpen: boolean;
+  setShopOpen: (open: boolean) => void;
+}) {
   const {
     character,
     items,
@@ -44,7 +80,7 @@ export function Game() {
   if (!character) {
     return <CreateCharacter onCreate={createCharacter} />;
   }
-  
+
   const enemyDefeated = currentEnemy ? currentEnemy.health <= 0 : false;
   // Quick access potion info for the bottom bar
   const potionItems = items.filter(i => i.type === 'potion');
@@ -53,6 +89,13 @@ export function Game() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4">
+      {notification && (
+        <NotificationBar
+          message={notification.message}
+          color={notification.color}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="flex items-center justify-between mb-6 max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
         <button
