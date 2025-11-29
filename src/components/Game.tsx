@@ -1,5 +1,5 @@
 import { Inventory } from './Inventory';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
 import Tooltip from './Tooltip';
@@ -15,6 +15,15 @@ export function Game() {
     color: string;
   } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
+  const [autoStart, setAutoStart] = useState(false);
+
+  // Check for auto-start flag on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('quickstart')) {
+      setAutoStart(true);
+    }
+  }, []);
 
   // Helper to show notification with rarity-specific styling
   const showNotification = useCallback((rarity: string, itemName: string) => {
@@ -36,16 +45,17 @@ export function Game() {
 
   return (
     <GameProvider notifyDrop={showNotification}>
-      <GameContent notification={notification} setNotification={setNotification} shopOpen={shopOpen} setShopOpen={setShopOpen} />
+      <GameContent notification={notification} setNotification={setNotification} shopOpen={shopOpen} setShopOpen={setShopOpen} autoStart={autoStart} />
     </GameProvider>
   );
 }
 
-function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
+function GameContent({ notification, setNotification, shopOpen, setShopOpen, autoStart }: {
   notification: { message: string; color: string } | null;
   setNotification: (n: any) => void;
   shopOpen: boolean;
   setShopOpen: (open: boolean) => void;
+  autoStart: boolean;
 }) {
   const {
     character,
@@ -80,7 +90,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
   }
 
   if (!character) {
-    return <CreateCharacter onCreate={createCharacter} />;
+    return <CreateCharacter onCreate={createCharacter} autoStart={autoStart} />;
   }
 
   const enemyDefeated = currentEnemy ? currentEnemy.health <= 0 : false;

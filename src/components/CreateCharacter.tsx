@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Swords } from 'lucide-react';
 
 interface CreateCharacterProps {
   onCreate: (name: string) => void;
+  autoStart?: boolean;
 }
 
 const HERO_NAMES = [
@@ -12,8 +13,16 @@ const HERO_NAMES = [
   'Raven', 'Slayer', 'Torven', 'Ulric', 'Venom', 'Wraith', 'Xander', 'Zephyr'
 ];
 
-export function CreateCharacter({ onCreate }: CreateCharacterProps) {
+export function CreateCharacter({ onCreate, autoStart = false }: CreateCharacterProps) {
   const [name, setName] = useState('');
+
+  // Auto-start if requested
+  useEffect(() => {
+    if (autoStart) {
+      const randomName = HERO_NAMES[Math.floor(Math.random() * HERO_NAMES.length)];
+      onCreate(randomName);
+    }
+  }, [autoStart, onCreate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
