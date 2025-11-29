@@ -375,7 +375,7 @@ function pickRarity(enemyRarity: RarityKey): RarityKey {
 }
 
 const WEAPON_TYPES = ['melee_weapon', 'ranged_weapon', 'mage_weapon'] as const;
-const ARMOR_TYPES = ['melee_armor', 'amulet'] as const;
+const ARMOR_TYPES = ['melee_armor', 'amulet', 'ring', 'gloves', 'belt', 'boots'] as const;
 
 function randomFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -441,6 +441,14 @@ export function generateLoot(
       ? ['Cracked', 'Hunter\'s', 'Sharpshot', 'Storm']
       : type === 'mage_weapon'
       ? ['Apprentice', 'Mystic', 'Arcane', 'Eldritch']
+      : type === 'ring'
+      ? ['Mystic', 'Arcane', 'Enchanted', 'Ethereal']
+      : type === 'gloves'
+      ? ['Leather', 'Iron', 'Reinforced', 'Blessed']
+      : type === 'belt'
+      ? ['Sturdy', 'Reinforced', 'Guardian\'s', 'Warden\'s']
+      : type === 'boots'
+      ? ['Worn', 'Sturdy', 'Swift', 'Guardian\'s']
       : ['Worn', 'Sturdy', 'Guardian\'s', 'Ward'];
 
   const bases =
@@ -452,6 +460,14 @@ export function generateLoot(
       ? ['Wand', 'Staff', 'Tome', 'Scepter']
       : type === 'amulet'
       ? ['Charm', 'Amulet', 'Talisman']
+      : type === 'ring'
+      ? ['Ring', 'Band', 'Signet', 'Loop']
+      : type === 'gloves'
+      ? ['Gloves', 'Gauntlets', 'Mitts', 'Bracers']
+      : type === 'belt'
+      ? ['Belt', 'Girdle', 'Sash', 'Cinch']
+      : type === 'boots'
+      ? ['Boots', 'Footgear', 'Treads', 'Sabatons']
       : ['Breastplate', 'Chainmail', 'Plate Armor'];
 
   const suffixes = ['of Might', 'of the Fox', 'of Embers', 'of the Depths'];
@@ -535,7 +551,7 @@ export function getRarityBorderColor(rarity: string): string {
 
 // ----------------- EQUIPMENT SLOT HELPERS -----------------
 
-export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket' | 'amulet' | 'ring1' | 'ring2';
+export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket' | 'amulet' | 'ring1' | 'ring2' | 'gloves' | 'belt';
 
 export function getEquipmentSlot(item: Item): EquipmentSlot | null {
   if (item.type === 'potion') return null;
@@ -555,6 +571,21 @@ export function getEquipmentSlot(item: Item): EquipmentSlot | null {
     return 'ring1';
   }
 
+  // Handle gloves
+  if (item.type === 'gloves') {
+    return 'gloves';
+  }
+
+  // Handle belt
+  if (item.type === 'belt') {
+    return 'belt';
+  }
+
+  // Handle boots
+  if (item.type === 'boots') {
+    return 'boots';
+  }
+
   if (
     item.type === 'melee_weapon' ||
     item.type === 'ranged_weapon' ||
@@ -570,7 +601,6 @@ export function getEquipmentSlot(item: Item): EquipmentSlot | null {
   ) {
     const last = item.name.split(' ').slice(-1)[0].toLowerCase();
     if (last === 'helmet' || last === 'helm') return 'helmet';
-    if (last === 'boots') return 'boots';
     if (last === 'trinket') return 'trinket';
     return 'chest';
   }
