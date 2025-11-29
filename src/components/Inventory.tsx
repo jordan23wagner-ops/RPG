@@ -181,13 +181,19 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
             {getItemIcon(item.type)}
           </div>
           <div>
-            <div
-              className={`font-semibold leading-tight ${getRarityColor(
-                item.rarity || 'common',
-              )}`}
-            >
-              {item.name}
-            </div>
+            {(() => {
+              const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              return (
+                <div
+                  className={`font-semibold leading-tight ${getRarityColor(
+                    item.rarity || 'common',
+                  )} flex items-center gap-2`}
+                >
+                  <span>{item.name}</span>
+                  <span className="text-gray-400 text-[10px] lowercase">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
+                </div>
+              );
+            })()}
             <div className="text-[10px] text-gray-400">
               {item.damage && `+${item.damage} Damage`}
               {item.damage && item.armor && ' • '}
@@ -257,7 +263,15 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
                         item.rarity || 'common',
                       )}`}
                     >
-                      {item.name}
+                      {(() => {
+                        const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        return (
+                          <span className="flex items-center gap-2">
+                            <span>{item.name}</span>
+                            <span className="text-gray-400 text-[10px] lowercase font-normal">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="text-xs text-gray-400">
                       {item.damage && `+${item.damage} Damage`}

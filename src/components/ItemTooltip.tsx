@@ -3,6 +3,7 @@ import { Item } from '../types/game';
 import {
   getRarityColor,
   getRarityBgColor,
+  getEquipmentSlot,
 } from '../utils/gameLogic';
 
 interface ItemTooltipProps {
@@ -12,22 +13,19 @@ interface ItemTooltipProps {
 export function ItemTooltip({ item }: ItemTooltipProps) {
   const rarityColor = getRarityColor(item.rarity);
   const rarityBg = getRarityBgColor(item.rarity);
+  const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const slot = getEquipmentSlot(item);
 
   return (
     <div className="rounded-lg border border-gray-800 bg-black/95 px-3 py-2 text-xs shadow-2xl max-w-xs">
-      {/* Top: name + rarity */}
-      <div className={`mb-1 text-sm font-semibold ${rarityColor}`}>
-        {item.name}
+      <div className={`mb-2 text-sm font-semibold ${rarityColor} flex items-center gap-2`}>
+        <span>{item.name}</span>
+        <span className={`text-[10px] font-normal tracking-wide px-1.5 py-0.5 rounded ${rarityBg} lowercase text-gray-200`}>
+          {item.rarity} <span className="capitalize">{typeDisplay}</span>
+        </span>
       </div>
-      <div className={`mb-2 text-[10px] uppercase tracking-wide inline-block px-1.5 py-0.5 rounded ${rarityBg}`}>
-        {item.rarity}
-      </div>
-
-      {/* Slot + type */}
       <div className="mb-2 text-[10px] text-gray-300/80">
-        {item.slot && <span className="capitalize">{item.slot}</span>}
-        {item.slot && item.type && ' • '}
-        {item.type && <span className="capitalize">{item.type.replace(/_/g, ' ')}</span>}
+        {slot && <span className="capitalize">{slot}</span>}
       </div>
 
       {/* Base stats */}
