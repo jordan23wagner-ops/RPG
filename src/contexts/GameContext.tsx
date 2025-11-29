@@ -15,12 +15,21 @@ import {
   computeSetBonuses,
 } from '../utils/gameLogic';
 
+export interface DamageNumber {
+  id: string;
+  damage: number;
+  x: number;
+  y: number;
+  createdAt: number;
+}
+
 interface GameContextType {
   character: Character | null;
   items: Item[];
   currentEnemy: Enemy | null;
   floor: number;
   loading: boolean;
+  damageNumbers: DamageNumber[];
   createCharacter: (name: string) => Promise<void>;
   loadCharacter: () => Promise<void>;
   attack: () => Promise<void>;
@@ -42,6 +51,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [currentEnemy, setCurrentEnemy] = useState<Enemy | null>(null);
   const [floor, setFloor] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
 
   // Potion cooldown tracking
   const potionCooldownRef = useRef(Date.now());
@@ -185,6 +195,16 @@ try {
     setCurrentEnemy(enemy);
   };
 
+  const addDamageNumber = (damage: number, x: number, y: number) => {
+    const id = `damage-${Date.now()}-${Math.random()}`;
+    const newDamage: DamageNumber = { id, damage, x, y, createdAt: Date.now() };
+    setDamageNumbers(prev => [...prev, newDamage]);
+    // Auto-remove after 1.5 seconds
+    setTimeout(() => {
+      setDamageNumbers(prev => prev.filter(d => d.id !== id));
+    }, 1500);
+  };
+
   const updateCharacter = async (updates: Partial<Character>) => {
     if (!character) return;
 
@@ -233,6 +253,9 @@ try {
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
     const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
     setCurrentEnemy(enemyAfterHit);
+
+    // Add damage number at enemy position
+    addDamageNumber(playerDamage, 600, 220);
 
     // Enemy died
     if (newEnemyHealth <= 0) {
@@ -520,6 +543,7 @@ try {
         currentEnemy,
         floor,
         loading,
+        damageNumbers,
         createCharacter,
         loadCharacter,
         attack,

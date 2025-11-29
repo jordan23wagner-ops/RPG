@@ -1,14 +1,16 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
 import { Enemy } from '../types/game';
+import { DamageNumber } from '../contexts/GameContext';
 
 interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
   onAttack: () => void;
+  damageNumbers: DamageNumber[];
 }
 
-export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
+export function DungeonView({ enemy, floor, onAttack, damageNumbers }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // ========== Constants ==========
@@ -39,6 +41,7 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   const enemyRef = useRef<Enemy | null>(enemy);
   const floorRef = useRef(floor);
   const onAttackRef = useRef(onAttack);
+  const damageNumbersRef = useRef(damageNumbers);
 
   // --- keep refs in sync with props ---
 
@@ -53,6 +56,10 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
   useEffect(() => {
     onAttackRef.current = onAttack;
   }, [onAttack]);
+
+  useEffect(() => {
+    damageNumbersRef.current = damageNumbers;
+  }, [damageNumbers]);
 
   // ✅ Reset enemy position only when a NEW enemy spawns
   // (id changes) – not on every health update
@@ -217,6 +224,24 @@ export function DungeonView({ enemy, floor, onAttack }: DungeonViewProps) {
       ctx.fillStyle = 'rgba(200,200,200,0.8)';
       ctx.font = '12px Arial';
       ctx.fillText('Use Arrow Keys to move', 20, 60);
+
+      // Draw damage numbers
+      const currentTime = Date.now();
+      damageNumbersRef.current.forEach((dmg: DamageNumber) => {
+        const age = currentTime - dmg.createdAt;
+        const progress = age / 1500; // 1500ms total duration
+        const opacity = Math.max(0, 1 - progress);
+        const yOffset = progress * 50; // Move up over time
+
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = `rgba(255, 100, 100, ${opacity})`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = `rgba(0, 0, 0, ${opacity * 0.8})`;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 3;
+        ctx.fillText(`-${dmg.damage}`, dmg.x, dmg.y - yOffset);
+        ctx.shadowColor = 'transparent';
+      });
 
       // Draw attack cooldown indicator bar
       const now = Date.now();

@@ -54,6 +54,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
     currentEnemy,
     floor,
     loading,
+    damageNumbers,
     createCharacter,
     attack,
     usePotion,
@@ -124,7 +125,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen }: {
         </div>
 
         <div className="flex-1 flex justify-center">
-          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} />
+          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} />
         </div>
       </div>
 
