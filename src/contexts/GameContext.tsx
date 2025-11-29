@@ -334,6 +334,7 @@ try {
 
       // Check if loot rarity is filtered (should be skipped)
       if (loot && rarityFilter.has(loot.rarity)) {
+        console.log(`[Loot] ${loot.rarity} "${loot.name}" filtered out (in skip list)`);
         loot = null;
       }
 
@@ -349,8 +350,9 @@ try {
       }
 
       if (loot) {
-        // Notify if legendary or higher
-        if (notifyDrop && (loot.rarity === 'legendary' || loot.rarity === 'mythic' || loot.rarity === 'radiant' || loot.rarity === 'set')) {
+        // Notify if epic or higher
+        if (notifyDrop && (loot.rarity === 'epic' || loot.rarity === 'legendary' || loot.rarity === 'mythic' || loot.rarity === 'radiant' || loot.rarity === 'set')) {
+          console.log(`[Drop] ${loot.rarity}: ${loot.name}`);
           notifyDrop(loot.rarity, loot.name || 'Unknown Item');
         }
         const { error } = await supabase.from('items').insert([
@@ -360,8 +362,9 @@ try {
           },
         ]);
         if (error) {
-          console.error('Error inserting loot:', error);
+          console.error('[DB Error] Failed to insert item:', error.message, { loot, character_id: character.id });
         } else {
+          console.log(`[Inventory] Item added: ${loot.name} (${loot.rarity})`);
           await loadItems(character.id);
         }
       }

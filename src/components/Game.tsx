@@ -29,16 +29,22 @@ export function Game() {
   // Helper to show notification with rarity-specific styling
   const showNotification = useCallback((rarity: string, itemName: string) => {
     let color = 'bg-yellow-500';
-    let label = 'Legendary';
-    if (rarity === 'mythic') {
-      color = 'bg-purple-700';
+    let label = 'Epic';
+    if (rarity === 'legendary') {
+      color = 'bg-yellow-500';
+      label = 'Legendary';
+    } else if (rarity === 'mythic') {
+      color = 'bg-red-600';
       label = 'Mythic';
     } else if (rarity === 'radiant') {
-      color = 'bg-blue-500';
+      color = 'bg-pink-500';
       label = 'Radiant';
     } else if (rarity === 'set') {
       color = 'bg-green-600';
       label = 'Set';
+    } else if (rarity === 'epic') {
+      color = 'bg-purple-600';
+      label = 'Epic';
     }
     setNotification({ message: `You found a ${label} item: ${itemName}!`, color });
     setTimeout(() => setNotification(null), 4000);
