@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../types/supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const env = (import.meta as any).env || {};
+const supabaseUrl = env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 // Basic safety checks to avoid accidental misconfig or key exposure
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -18,7 +20,7 @@ if (!isValidUrl) {
 // (Supabase client does not log keys by default; this is defensive.)
 
 // Singleton client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Optional getter that can be used where lazy init is preferred
 export function getSupabaseClient() {
