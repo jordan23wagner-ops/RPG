@@ -180,7 +180,7 @@ export function generateSetItem(enemyLevel: number, floor: number): Partial<Item
 
   const { requiredLevel, requiredStats } = calculateItemRequirements(piece.type, 'set', enemyLevel, floor);
 
-  const affixes = typeof generateAffixesForItem === 'function' ? generateAffixesForItem('set', piece.type) : [];
+  const affixes = generateAffixesForItem('set', piece.type, 'set');
   return {
     name: piece.name,
     type: piece.type,
@@ -675,10 +675,18 @@ function affixDisplayName(stat: Affix['stat']): string {
   }
 }
 
-export function generateAffixesForItem(rarity: RarityKey, itemType: Item['type']): Affix[] {
-  // Gate affix generation behind a ~5% chance so most items drop without affixes.
-  const BASE_AFFIX_CHANCE = 0.05; // 5%
-  if (Math.random() > BASE_AFFIX_CHANCE) return [];
+export function generateAffixesForItem(
+  rarity: RarityKey,
+  itemType: Item['type'],
+  context: 'normal' | 'set' | 'boss' = 'normal'
+): Affix[] {
+  // Dynamic chance: base 5%, +1% per rarity tier, elevated for set/boss.
+  const base = 0.05;
+  const tierIndex = RARITY_ORDER.indexOf(rarity);
+  let chance = base + tierIndex * 0.01; // rare (~7%), epic (~8%), legendary (~9%), mythic (~10%), radiant (~12%)
+  if (context === 'set') chance = Math.max(chance, 0.25);
+  if (context === 'boss') chance = Math.max(chance, 0.35);
+  if (Math.random() > chance) return [];
 
   const cap = RARITY_AFFIX_CAP[rarity] || 0;
   if (cap === 0) return [];
@@ -826,7 +834,7 @@ export function generateLoot(
   const value = Math.round(rawValue * multiplier);
 
   const { requiredLevel, requiredStats } = calculateItemRequirements(type, rarity, enemyLevel, floor);
-  const affixes = generateAffixesForItem(rarity, type);
+  const affixes = generateAffixesForItem(rarity, type, 'normal');
   return {
     name,
     type,
@@ -891,7 +899,7 @@ function generateBossUniqueItem(enemyLevel: number, floor: number): Partial<Item
 
   const { requiredLevel, requiredStats } = calculateItemRequirements(template.type, template.rarity, enemyLevel, floor);
   const value = Math.round((damage || armor || 1) * (template.rarity === 'radiant' ? 10 : template.rarity === 'mythic' ? 8 : 6));
-  const affixes = generateAffixesForItem(template.rarity, template.type);
+  const affixes = generateAffixesForItem(template.rarity, template.type, 'boss');
 
   return {
     name: template.name,

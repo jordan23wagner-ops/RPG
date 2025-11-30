@@ -1,5 +1,6 @@
 // src/components/ItemTooltip.tsx
-import { Item } from '../types/game';
+import React from 'react';
+import { Item, Affix } from '../types/game';
 import {
   getRarityColor,
   getRarityBgColor,
@@ -51,20 +52,35 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
       {/* Affixes */}
       {item.affixes && item.affixes.length > 0 && (
         <div className="mt-1 border-t border-gray-800 pt-1.5 space-y-0.5">
-          {item.affixes.map((affix) => (
-            <div key={affix.id ?? affix.name} className="text-[11px] text-emerald-300">
-              +{affix.value} {affix.name}
-            </div>
-          ))}
+          {item.affixes.map((affix: Affix, idx: number) => {
+            const stat = affix.stat;
+            const val = affix.value;
+            let label = '';
+            let color = 'text-emerald-300';
+            switch (stat) {
+              case 'fire_damage': label = `+${val} Fire Damage`; color = 'text-orange-400'; break;
+              case 'ice_damage': label = `+${val} Ice Damage`; color = 'text-sky-300'; break;
+              case 'lightning_damage': label = `+${val} Lightning Damage`; color = 'text-yellow-300'; break;
+              case 'crit_chance': label = `+${val}% Crit Chance`; color = 'text-purple-300'; break;
+              case 'crit_damage': label = `+${val}% Crit Damage`; color = 'text-fuchsia-300'; break;
+              case 'speed': label = `+${val} Speed`; color = 'text-teal-300'; break;
+              case 'strength': label = `+${val} Strength`; break;
+              case 'dexterity': label = `+${val} Dexterity`; break;
+              case 'intelligence': label = `+${val} Intelligence`; break;
+              case 'health': label = `+${val} Health`; color = 'text-green-300'; break;
+              case 'mana': label = `+${val} Mana`; color = 'text-cyan-300'; break;
+              case 'damage': label = `+${val} Damage`; color = 'text-red-400'; break;
+              case 'armor': label = `+${val} Armor`; color = 'text-gray-300'; break;
+              default: label = `+${val} ${affix.name}`; break;
+            }
+            return (
+              <div key={`${affix.stat}-${idx}`} className={`text-[11px] ${color}`}>{label}</div>
+            );
+          })}
         </div>
       )}
 
-      {/* Unique / legendary effect */}
-      {item.uniqueEffect && (
-        <div className="mt-2 border-t border-gray-800 pt-1.5 text-[11px] text-amber-300">
-          {item.uniqueEffect}
-        </div>
-      )}
+      {/* Unique effects removed: not present on Item type */}
 
       {/* Set bonuses */}
       {item.setName && item.setBonuses && (

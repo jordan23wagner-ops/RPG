@@ -71,6 +71,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
+  // Affix drop statistics tracking (in-memory)
+  const affixStatsRef = useRef<{ total: number; withAffixes: number }>({ total: 0, withAffixes: 0 });
   // No waves: encounters are single per room; respawns only for non-boss rooms
   
   const toggleRarityFilter = (rarity: string) => {
@@ -568,6 +570,14 @@ try {
           equipped: false,
           required_level: 1,
         }];
+      }
+
+      // Affix stats logging
+      affixStatsRef.current.total += lootDrops.length;
+      affixStatsRef.current.withAffixes += lootDrops.filter(d => (d as any).affixes && (d as any).affixes.length > 0).length;
+      if (affixStatsRef.current.total % 20 === 0) {
+        const pct = (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100;
+        console.log(`[AffixStats] ${affixStatsRef.current.withAffixes}/${affixStatsRef.current.total} items (${pct.toFixed(1)}% with affixes)`);
       }
 
       // Insert all drops
