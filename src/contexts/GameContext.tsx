@@ -35,7 +35,8 @@ interface GameContextType {
   floorMap: FloorMap | null;
   currentRoomId: string | null;
   enemiesInWorld: Array<Enemy & { id: string; x: number; y: number }>;
-  ladderPos: { x: number; y: number } | null;
+  entryLadderPos: { x: number; y: number } | null;
+  exitLadderPos: { x: number; y: number } | null;
   loading: boolean;
   damageNumbers: DamageNumber[];
   zoneHeat: number;
@@ -71,7 +72,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [floorMap, setFloorMap] = useState<FloorMap | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [enemiesInWorld, setEnemiesInWorld] = useState<Array<Enemy & { id: string; x: number; y: number }>>([]);
-  const [ladderPos, setLadderPos] = useState<{ x: number; y: number } | null>(null);
+  const [entryLadderPos, setEntryLadderPos] = useState<{ x: number; y: number } | null>(null);
+  const [exitLadderPos, setExitLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
@@ -84,6 +86,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const lastEngagedWorldEnemyIdRef = useRef<string | null>(null);
   // Flag indicating current combat originated from a world enemy (not a room)
   const inWorldCombatRef = useRef<boolean>(false);
+  const previousExitLadderPosRef = useRef<{ x: number; y: number } | null>(null);
   const resetAffixStats = () => {
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
@@ -382,14 +385,24 @@ try {
     if (DEBUG_WORLD_ENEMIES) {
       console.log(`[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}`);
     }
-    // Ladder position
-    let ladder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+    // Entry ladder: previous floor's exit (if any) or none on floor 1
+    if (previousExitLadderPosRef.current && floor > 1) {
+      setEntryLadderPos(previousExitLadderPosRef.current);
+    } else if (floor === 1) {
+      setEntryLadderPos(null);
+    } else {
+      setEntryLadderPos(spawn);
+    }
+    // Exit ladder must be far from entry (or spawn if no entry)
+    const reference = (previousExitLadderPosRef.current && floor > 1) ? previousExitLadderPosRef.current : spawn;
+    let exitLadder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
     let guardL = 0;
-    while (dist(ladder, spawn) < minDistFromSpawn && guardL < 50) {
-      ladder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+    const MIN_DIST_FROM_ENTRY = 600;
+    while (dist(exitLadder, reference) < MIN_DIST_FROM_ENTRY && guardL < 150) {
+      exitLadder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
       guardL++;
     }
-    setLadderPos(ladder);
+    setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor]);
   const onEngageEnemy = (enemyWorldId: string) => {
@@ -886,17 +899,14 @@ try {
   };
 
   const nextFloor = () => {
-    // World-based descend: no room requirement here
     const newFloor = floor + 1;
+    // Store current exit ladder to place as entry ladder next floor
+    if (exitLadderPos) previousExitLadderPosRef.current = exitLadderPos;
     setFloor(newFloor);
-    // Reset map state for new floor
     const newMap = generateFloorMap(newFloor);
     setFloorMap(newMap);
     setCurrentRoomId(`room-${newFloor}-0`);
     setCurrentEnemy(null);
-    if (character) {
-      // Enemy spawns only when entering combat room, so none here
-    }
   };
 
   const sellItem = async (itemId: string) => {
@@ -1009,7 +1019,8 @@ try {
         floorMap,
         currentRoomId,
         enemiesInWorld,
-        ladderPos,
+        entryLadderPos,
+        exitLadderPos,
         loading,
         damageNumbers,
         zoneHeat,

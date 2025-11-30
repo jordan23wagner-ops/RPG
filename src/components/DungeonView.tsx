@@ -14,7 +14,7 @@ interface DungeonViewProps {
 }
 
 export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, zoneHeat }: DungeonViewProps) {
-  const { enemiesInWorld, ladderPos, onEngageEnemy } = useGame();
+  const { enemiesInWorld, entryLadderPos, exitLadderPos, onEngageEnemy } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
@@ -281,11 +281,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         });
       }
 
-      // Draw ladder marker
-      if (ladderPos) {
-        const lx = ladderPos.x - camX;
-        const ly = ladderPos.y - camY;
-        ctx.fillStyle = '#065f46';
+      // Draw entry (non-interactive) and exit (interactive) ladders
+      const drawLadder = (worldPos: {x:number;y:number} | null, label: string, interactive: boolean) => {
+        if (!worldPos) return;
+        const lx = worldPos.x - camX;
+        const ly = worldPos.y - camY;
+        ctx.fillStyle = interactive ? '#065f46' : '#374151';
         ctx.fillRect(lx - 8, ly - 20, 16, 40);
         ctx.strokeStyle = theme.hudAccent as any;
         ctx.lineWidth = 2;
@@ -293,22 +294,17 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.font = '11px Arial';
         ctx.fillStyle = theme.hudAccent;
         ctx.textAlign = 'center';
-        ctx.fillText('Ladder', lx, ly - 28);
-        // Prompt when near ladder
-        const dxL = playerPos.x - ladderPos.x;
-        const dyL = playerPos.y - ladderPos.y;
+        ctx.fillText(label, lx, ly - 28);
+        if (!interactive) return;
+        const dxL = playerPos.x - worldPos.x;
+        const dyL = playerPos.y - worldPos.y;
         const dL = Math.sqrt(dxL*dxL + dyL*dyL);
-        if (dL < 160) {
-          ladderDiscoveredRef.current = true;
-        }
+        if (dL < 160) ladderDiscoveredRef.current = true;
         if (dL < 140) {
           ctx.font = 'bold 14px Arial';
           ctx.fillStyle = theme.hudAccent;
-          ctx.textAlign = 'center';
           ctx.fillText('Press E to descend', lx, ly + 40);
         }
-
-        // Screen-edge indicator pointing to discovered ladder when off-screen
         const offscreen = lx < 0 || ly < 0 || lx > CANVAS_WIDTH || ly > CANVAS_HEIGHT;
         if (offscreen && ladderDiscoveredRef.current) {
           const centerX = CANVAS_WIDTH / 2;
@@ -318,16 +314,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           const len = Math.max(1, Math.sqrt(dirX*dirX + dirY*dirY));
           const nx = dirX / len;
           const ny = dirY / len;
-          // Position arrow slightly inside the edge
           let ax = centerX + nx * (Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) / 2 - 30);
           let ay = centerY + ny * (Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) / 2 - 30);
-          // Clamp within canvas bounds
           ax = Math.max(20, Math.min(CANVAS_WIDTH - 20, ax));
           ay = Math.max(20, Math.min(CANVAS_HEIGHT - 20, ay));
-          // Draw arrow triangle pointing towards ladder
           ctx.fillStyle = theme.hudAccent;
-          ctx.strokeStyle = theme.hudAccent as any;
-          ctx.lineWidth = 2;
           ctx.save();
           ctx.translate(ax, ay);
           const angle = Math.atan2(dirY, dirX);
@@ -340,7 +331,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ctx.fill();
           ctx.restore();
         }
-      }
+      };
+      drawLadder(entryLadderPos, 'Entry', false);
+      drawLadder(exitLadderPos, 'Ladder', true);
 
       // Player (apply camera offset)
       drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true);
@@ -476,9 +469,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.arc(pMiniX, pMiniY, 3, 0, Math.PI * 2);
         ctx.fill();
         // Ladder icon only if discovered
-        if (ladderPos && ladderDiscoveredRef.current) {
-          const lMiniX = miniX + (ladderPos.x / WORLD_WIDTH) * miniW;
-          const lMiniY = miniY + (ladderPos.y / WORLD_HEIGHT) * miniH;
+        if (exitLadderPos && ladderDiscoveredRef.current) {
+          const lMiniX = miniX + (exitLadderPos.x / WORLD_WIDTH) * miniW;
+          const lMiniY = miniY + (exitLadderPos.y / WORLD_HEIGHT) * miniH;
           ctx.fillStyle = theme.hudAccent;
           ctx.beginPath();
           ctx.arc(lMiniX, lMiniY, 3, 0, Math.PI * 2);
@@ -640,9 +633,9 @@ useEffect(() => {
     // Descend ladder with 'E' when near
     if (e.key === 'e' || e.key === 'E') {
       const playerPos = playerPosRef.current;
-      if (ladderPos) {
-        const dxL = playerPos.x - ladderPos.x;
-        const dyL = playerPos.y - ladderPos.y;
+      if (exitLadderPos) {
+        const dxL = playerPos.x - exitLadderPos.x;
+        const dyL = playerPos.y - exitLadderPos.y;
         const dL = Math.sqrt(dxL*dxL + dyL*dyL);
         if (dL < 140) {
           const evt = new CustomEvent('dungeon-descend');
