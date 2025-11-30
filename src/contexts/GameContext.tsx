@@ -368,23 +368,36 @@ try {
       killedWorldEnemiesRef.current.set(floor, new Set<string>());
     }
     const killedSet = killedWorldEnemiesRef.current.get(floor)!;
+    // Use seeded random for deterministic enemy positions per floor
+    const seededRandom = (seed: number) => {
+      const x = Math.sin(seed++) * 10000;
+      return x - Math.floor(x);
+    };
     for (let i = 0; i < count; i++) {
-      let pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+      // Generate deterministic position based on floor and index
+      const seed = floor * 1000 + i;
+      let pos = { 
+        x: Math.floor(seededRandom(seed) * WORLD_WIDTH), 
+        y: Math.floor(seededRandom(seed + 500) * WORLD_HEIGHT) 
+      };
       // Keep away from spawn
       let guard = 0;
       while (dist(pos, spawn) < minDistFromSpawn && guard < 50) {
-        pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+        pos = { 
+          x: Math.floor(seededRandom(seed + guard * 10) * WORLD_WIDTH), 
+          y: Math.floor(seededRandom(seed + guard * 10 + 500) * WORLD_HEIGHT) 
+        };
         guard++;
       }
-      // Pick enemy type with 5% mimic chance
-      const roll = Math.random();
+      // Pick enemy type with deterministic roll
+      const roll = seededRandom(seed + 1000);
       let type: RoomEventType = 'enemy';
       if (roll < 0.05) type = 'mimic';
       else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) { type = 'miniBoss'; miniBosses++; }
       else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
-      // Deterministic ID based on floor and position buckets to prevent respawn
-      const enemyId = `floor${floor}-pos${Math.floor(pos.x/100)}-${Math.floor(pos.y/100)}`;
+      // Use sequential ID that's truly unique per floor
+      const enemyId = `floor${floor}-enemy${i}`;
       if (!killedSet.has(enemyId)) {
         arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
         if (DEBUG_WORLD_ENEMIES) {
