@@ -676,6 +676,10 @@ function affixDisplayName(stat: Affix['stat']): string {
 }
 
 export function generateAffixesForItem(rarity: RarityKey, itemType: Item['type']): Affix[] {
+  // Gate affix generation behind a ~5% chance so most items drop without affixes.
+  const BASE_AFFIX_CHANCE = 0.05; // 5%
+  if (Math.random() > BASE_AFFIX_CHANCE) return [];
+
   const cap = RARITY_AFFIX_CAP[rarity] || 0;
   if (cap === 0) return [];
   const scalar = RARITY_SCALAR[rarity] || 1;
@@ -685,7 +689,7 @@ export function generateAffixesForItem(rarity: RarityKey, itemType: Item['type']
   const used = new Set<Affix['stat']>();
   while (affixes.length < cap && used.size < pool.length) {
     const stat = pool[Math.floor(Math.random() * pool.length)];
-    if (used.has(stat)) continue; // ensure unique stat per item
+    if (used.has(stat)) continue;
     used.add(stat);
     const value = rollAffixValue(stat, scalar);
     affixes.push({ name: affixDisplayName(stat), stat, value });
