@@ -750,7 +750,9 @@ try {
           const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
           killedSet.add(lastId);
           killedWorldEnemiesRef.current.set(floor, killedSet);
-          setKilledEnemyIds(new Set(killedSet)); // Update state for rendering
+          const newKilledIds = new Set(killedSet);
+          setKilledEnemyIds(newKilledIds); // Update state for rendering
+          console.log(`[Kill] Updating killedEnemyIds state:`, Array.from(newKilledIds));
           lastEngagedWorldEnemyIdRef.current = null;
           if (DEBUG_WORLD_ENEMIES) {
             console.log(`[Kill] World enemy ${lastId} marked killed; killedCount=${killedSet.size}`);
