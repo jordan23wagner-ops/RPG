@@ -458,7 +458,7 @@ try {
     } as Enemy;
     console.log(`[Engage] Setting currentEnemy:`, engagedEnemy);
     setCurrentEnemy(engagedEnemy);
-    setEnemiesInWorld((prev: Array<Enemy & { id: string; x: number; y: number }>) => prev.filter((e: Enemy & { id: string; x: number; y: number }) => e.id !== enemyWorldId));
+    // Don't remove from enemiesInWorld - let rendering filter it out based on engagement status
   };
 
   const exploreRoom = (roomId: string) => {

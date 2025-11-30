@@ -405,7 +405,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       // Draw world enemies as markers when not engaged
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
-        enemiesInWorld.forEach((ew: Enemy & { id: string; x: number; y: number }) => {
+        // Filter out the currently engaged enemy (if any)
+        const visibleEnemies = enemiesInWorld.filter((e: Enemy & { id: string; x: number; y: number }) => 
+          e.id !== currentlyEngagedIdRef.current
+        );
+        visibleEnemies.forEach((ew: Enemy & { id: string; x: number; y: number }) => {
           const sx = ew.x - camX;
           const sy = ew.y - camY;
           if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) return;
