@@ -402,7 +402,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ctx.fillStyle = theme.hudAccent;
           ctx.textAlign = 'center';
           ctx.fillText(ew.name, sx, sy - 16);
-          // Auto-engage if close
+          // Auto-engage if close (only after initial floor spawn is complete)
+          if (!hasSpawnedThisFloorRef.current) return; // Wait for floor to fully load
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx*dx + dy*dy);
