@@ -95,6 +95,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     window.location.reload();
   };
 
+  // Listen for dungeon-descend custom event from canvas to trigger nextFloor (must be top-level hook)
+  useEffect(() => {
+    const handler = () => nextFloor();
+    window.addEventListener('dungeon-descend', handler as EventListener);
+    return () => window.removeEventListener('dungeon-descend', handler as EventListener);
+  }, [nextFloor]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 flex items-center justify-center">
@@ -274,15 +281,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         {/* Center: Dungeon Canvas */}
         <div className="flex-shrink-0">
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
-          {/* Listen for dungeon-descend event from canvas to call nextFloor */}
-          {(() => {
-            useEffect(() => {
-              const handler = () => nextFloor();
-              window.addEventListener('dungeon-descend', handler as EventListener);
-              return () => window.removeEventListener('dungeon-descend', handler as EventListener);
-            }, [nextFloor]);
-            return null;
-          })()}
         </div>
 
         {/* Right: Equipped Gear Grid */}
