@@ -1,6 +1,6 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
-import { getCachedEnemySprite, ensureEnemySprite, preloadEnemySprites } from '../lib/sprites';
+import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 import { useGame } from '../contexts/GameContext';
@@ -464,26 +464,27 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       // Enemy + health bar
       if (enemy && enemy.health > 0) {
-        // Attempt sprite draw first
-        const sprite = getCachedEnemySprite(enemy);
         const ex = enemyPos.x - camX;
         // Idle bob animation (safe seed even if id missing)
         const seed = typeof (enemy as any).id === 'string' ? (enemy as any).id.length : (enemy.name?.length || 0);
         const bob = Math.sin(nowTime / 450 + seed) * 8;
         const ey = enemyPos.y - camY + bob;
-        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-          const baseSize = 64; // logical sprite size
-          ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,0.6)';
-          ctx.shadowBlur = 12;
-          ctx.drawImage(sprite, ex - baseSize / 2, ey - baseSize / 2, baseSize, baseSize);
-          ctx.restore();
-        } else {
-          // Fallback to procedural visuals while sprite loads
-          drawEnemy(ctx, enemy, ex, ey, nowTime);
-          // Kick off async load (non-blocking)
-          ensureEnemySprite(enemy).then(() => { /* next frame will use sprite */ });
-        }
+        
+        // Always draw procedural fallback first (sprites are 404 right now)
+        drawEnemy(ctx, enemy, ex, ey, nowTime);
+        
+        // Optionally try sprite overlay if available (currently disabled due to missing assets)
+        // const sprite = getCachedEnemySprite(enemy);
+        // if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        //   const baseSize = 64;
+        //   ctx.save();
+        //   ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        //   ctx.shadowBlur = 12;
+        //   ctx.drawImage(sprite, ex - baseSize / 2, ey - baseSize / 2, baseSize, baseSize);
+        //   ctx.restore();
+        // } else {
+        //   ensureEnemySprite(enemy).then(() => { /* next frame will use sprite */ });
+        // }
 
         ctx.font = 'bold 18px Arial';
         let rarityColor = '#ef4444';
