@@ -77,6 +77,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const affixStatsRef = useRef<{ total: number; withAffixes: number }>({ total: 0, withAffixes: 0 });
   // Track killed world enemies per floor to prevent respawning
   const killedWorldEnemiesRef = useRef<Map<number, Set<string>>>(new Map());
+  // Track the last engaged world enemy id to mark as killed on death
+  const lastEngagedWorldEnemyIdRef = useRef<string | null>(null);
   const resetAffixStats = () => {
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
@@ -382,7 +384,8 @@ try {
     if (!found) return;
     // Mark this enemy as killed for current floor
     const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
-    killedSet.add(enemyWorldId);
+    // Don't mark as killed yet; store ID and mark on actual death to be precise
+    lastEngagedWorldEnemyIdRef.current = enemyWorldId;
     killedWorldEnemiesRef.current.set(floor, killedSet);
     // Set currentEnemy and remove from world list
     setCurrentEnemy({
@@ -676,7 +679,14 @@ try {
         }
         setCurrentEnemy(null);
       } else {
-        // World encounter finished
+        // World encounter finished: mark last engaged world enemy as killed to prevent respawn
+        const lastId = lastEngagedWorldEnemyIdRef.current;
+        if (lastId) {
+          const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
+          killedSet.add(lastId);
+          killedWorldEnemiesRef.current.set(floor, killedSet);
+          lastEngagedWorldEnemyIdRef.current = null;
+        }
         setCurrentEnemy(null);
       }
     } else {
