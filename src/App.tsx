@@ -6,8 +6,17 @@ import { Game } from './components/Game';
 
 function App() {
   const [session, setSession] = useState<boolean | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
 
   useEffect(() => {
+    // Check for quickstart flag
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('quickstart')) {
+      setGuestMode(true);
+      setSession(true); // Treat guest as authenticated
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(!!session);
     });
