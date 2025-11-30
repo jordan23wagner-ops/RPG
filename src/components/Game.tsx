@@ -9,6 +9,7 @@ import { LogOut, FlaskConical, Package, Sword, ShoppingBag } from 'lucide-react'
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
 import { SettingsPanel } from './SettingsPanel';
+import { ItemTooltip } from './ItemTooltip';
 import { getRarityColor, getRarityBgColor, getRarityBorderColor } from '../utils/gameLogic';
 
 export function Game() {
@@ -202,21 +203,25 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 .map(item => (
                   <div
                     key={item.id}
-                    className={`relative group border rounded p-2 flex items-center justify-between hover:border-opacity-100 transition-colors text-sm ${getRarityBgColor(item.rarity)} border-2 ${getRarityBorderColor(item.rarity)}`}
+                    className={`relative group border rounded p-1.5 flex items-center justify-between hover:border-opacity-100 transition-colors text-sm ${getRarityBgColor(item.rarity)} border-2 ${getRarityBorderColor(item.rarity)}`}
                   >
+                    {/* Tooltip on hover */}
+                    <div className="absolute left-full ml-2 top-0 z-50 hidden group-hover:block">
+                      <ItemTooltip item={item} />
+                    </div>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div>
-                        <div className={`font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
+                        <div className={`font-semibold truncate text-xs ${getRarityColor(item.rarity)}`}>{item.name}</div>
                         {(() => {
                           const typeDisplay = item.type.replace(/_/g, ' ');
                           return (
-                            <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70 lowercase`}>
+                            <div className={`text-[10px] ${getRarityColor(item.rarity)} opacity-70 lowercase`}>
                               {item.rarity} <span className="capitalize">{typeDisplay}</span>
                             </div>
                           );
                         })()}
                         {(item.damage || item.armor) && (
-                          <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70 mt-0.5`}>
+                          <div className={`text-[10px] ${getRarityColor(item.rarity)} opacity-70 mt-0.5`}>
                             {item.damage && `+${item.damage} Dmg`}
                             {item.damage && item.armor && ' • '}
                             {item.armor && `+${item.armor} Arm`}
@@ -325,20 +330,26 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 return (
                   <div
                     key={slot.key}
-                    className={`aspect-square rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${borderClass} ${bgClass}`}
+                    className={`relative group aspect-square rounded-lg p-1.5 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${borderClass} ${bgClass}`}
                     title={item ? item.name : slot.label}
                   >
+                    {/* Tooltip on hover for equipped items */}
+                    {item && !item._mirroredTwoHand && (
+                      <div className="absolute left-full ml-2 top-0 z-50 hidden group-hover:block">
+                        <ItemTooltip item={item} />
+                      </div>
+                    )}
                     {item ? (
                       <div className="text-center w-full">
-                        <div className={`text-xs font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
-                        {item.damage && <div className="text-xs font-bold mt-0.5" style={{color: '#fbbf24'}}>+{item.damage}</div>}
-                        {item.armor && <div className="text-xs font-bold" style={{color: '#60a5fa'}}>+{item.armor}</div>}
+                        <div className={`text-[10px] font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
+                        {item.damage && <div className="text-[10px] font-bold mt-0.5" style={{color: '#fbbf24'}}>+{item.damage}</div>}
+                        {item.armor && <div className="text-[10px] font-bold" style={{color: '#60a5fa'}}>+{item.armor}</div>}
                         {item._mirroredTwoHand && (
-                          <div className="mt-0.5 text-[10px] text-gray-300">2H occupying off-hand</div>
+                          <div className="mt-0.5 text-[9px] text-gray-300">2H</div>
                         )}
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-600 text-center font-medium">{slot.label}</div>
+                      <div className="text-[10px] text-gray-600 text-center font-medium">{slot.label}</div>
                     )}
                   </div>
                 );

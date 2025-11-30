@@ -340,8 +340,11 @@ try {
     let miniBosses = 0;
     const MAX_MINI_BOSSES = 2;
     const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
-    // Get killed enemies for this floor
-    const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
+    // Get or initialize killed enemies for this floor
+    if (!killedWorldEnemiesRef.current.has(floor)) {
+      killedWorldEnemiesRef.current.set(floor, new Set<string>());
+    }
+    const killedSet = killedWorldEnemiesRef.current.get(floor)!;
     for (let i = 0; i < count; i++) {
       let pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
       // Keep away from spawn
@@ -357,7 +360,8 @@ try {
       else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) { type = 'miniBoss'; miniBosses++; }
       else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
-      const enemyId = `${floor}-${i}`;
+      // Deterministic ID based on floor and position buckets to prevent respawn
+      const enemyId = `floor${floor}-pos${Math.floor(pos.x/100)}-${Math.floor(pos.y/100)}`;
       if (!killedSet.has(enemyId)) {
         arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
       }
