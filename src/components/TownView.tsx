@@ -1,5 +1,6 @@
 import { Sword, ShoppingBag, Castle, FlaskConical } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useGame } from '../contexts/GameContext';
 
 export default function TownView({ onEnterDungeon, onOpenShop }: { onEnterDungeon: () => void; onOpenShop: () => void }) {
   return (
@@ -52,6 +53,11 @@ export default function TownView({ onEnterDungeon, onOpenShop }: { onEnterDungeo
             <h3 className="text-sm font-semibold text-gray-200 mb-2">Shopkeeper</h3>
             <MerchantNPC onClick={onOpenShop} />
             <div className="text-[11px] text-gray-400 mt-1">Click the shopkeeper to trade.</div>
+          </div>
+          {/* Orb of Refreshment */}
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-gray-200 mb-2">Orb of Refreshment</h3>
+            <RefreshOrb />
           </div>
           <h3 className="text-sm font-semibold text-gray-200 mb-2">Services</h3>
           <div className="space-y-2">
@@ -127,5 +133,70 @@ function MerchantNPC({ onClick }: { onClick: () => void }) {
         <div className="text-[11px] text-gray-300">"Best deals in town!"</div>
       </div>
     </button>
+  );
+}
+
+function RefreshOrb() {
+  const { character, updateCharacter } = useGame();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+
+    let frame = 0;
+    let raf = 0 as number;
+    const draw = () => {
+      frame++;
+      const t = frame / 30;
+      const w = c.width, h = c.height;
+      ctx.clearRect(0, 0, w, h);
+      // Glow background
+      const grad = ctx.createRadialGradient(w/2, h/2, 6, w/2, h/2, 36);
+      grad.addColorStop(0, 'rgba(56,189,248,0.85)');
+      grad.addColorStop(1, 'rgba(12,74,110,0.05)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(w/2, h/2, 36 + Math.sin(t)*2, 0, Math.PI*2);
+      ctx.fill();
+      // Core orb
+      ctx.beginPath();
+      ctx.arc(w/2, h/2, 20 + Math.sin(t*2)*1.5, 0, Math.PI*2);
+      ctx.fillStyle = '#22d3ee';
+      ctx.fill();
+      // Ring
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#67e8f9';
+      ctx.beginPath();
+      ctx.arc(w/2, h/2, 26 + Math.cos(t*2)*1.2, 0, Math.PI*2);
+      ctx.stroke();
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const handleClick = async () => {
+    if (!character) return;
+    await updateCharacter({ health: character.max_health, mana: character.max_mana });
+    setToast('Restored health and mana!');
+    setTimeout(() => setToast(null), 1200);
+  };
+
+  return (
+    <div className="w-full flex items-center gap-3 p-2 rounded border border-cyan-700/40 bg-sky-950/40 hover:bg-sky-900/40 transition shadow-sm">
+      <button onClick={handleClick} className="relative">
+        <canvas ref={canvasRef} width={80} height={80} className="rounded border border-cyan-700/40 bg-black/40" />
+        <span className="absolute inset-0" />
+      </button>
+      <div className="text-left">
+        <div className="text-sm font-semibold text-cyan-300">Orb of Refreshment</div>
+        <div className="text-[11px] text-gray-300">Restore HP and Mana to full.</div>
+        {toast && <div className="mt-1 text-[11px] text-emerald-300">{toast}</div>}
+      </div>
+    </div>
   );
 }
