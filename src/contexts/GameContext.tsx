@@ -75,6 +75,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
   // Affix drop statistics tracking (in-memory)
   const affixStatsRef = useRef<{ total: number; withAffixes: number }>({ total: 0, withAffixes: 0 });
+  // Track killed world enemies per floor to prevent respawning
+  const killedWorldEnemiesRef = useRef<Map<number, Set<string>>>(new Map());
   const resetAffixStats = () => {
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
@@ -338,6 +340,8 @@ try {
     let miniBosses = 0;
     const MAX_MINI_BOSSES = 2;
     const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
+    // Get killed enemies for this floor
+    const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
     for (let i = 0; i < count; i++) {
       let pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
       // Keep away from spawn
@@ -353,7 +357,10 @@ try {
       else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) { type = 'miniBoss'; miniBosses++; }
       else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
-      arr.push({ ...e, id: `${floor}-${i}-${Date.now()}`, x: pos.x, y: pos.y });
+      const enemyId = `${floor}-${i}`;
+      if (!killedSet.has(enemyId)) {
+        arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
+      }
     }
     setEnemiesInWorld(arr);
     // Ladder position
@@ -369,6 +376,10 @@ try {
   const onEngageEnemy = (enemyWorldId: string) => {
     const found = enemiesInWorld.find((e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId);
     if (!found) return;
+    // Mark this enemy as killed for current floor
+    const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
+    killedSet.add(enemyWorldId);
+    killedWorldEnemiesRef.current.set(floor, killedSet);
     // Set currentEnemy and remove from world list
     setCurrentEnemy({
       name: found.name,

@@ -8,7 +8,7 @@ import { CreateCharacter } from './CreateCharacter';
 import { LogOut, FlaskConical, Package, Sword, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
-import { AffixStatsPanel } from './AffixStatsPanel';
+import { SettingsPanel } from './SettingsPanel';
 import { getRarityColor, getRarityBgColor, getRarityBorderColor } from '../utils/gameLogic';
 
 export function Game() {
@@ -110,6 +110,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4">
+      <SettingsPanel />
       {notification && (
         <NotificationBar
           message={notification.message}
@@ -145,9 +146,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
       {/* Main row: backpack (left) - dungeon (center) - gear (right) */}
       <div className="flex justify-center gap-4 mt-4 max-w-6xl mx-auto">
         {/* Left: Character + Backpack */}
-        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-3">
           {/* Character Stats */}
-          <div className="mb-4">
+          <div className="mb-3">
             <h3 className="text-lg font-bold text-yellow-500 mb-2">{character.name}</h3>
             <div className="grid grid-cols-3 gap-2 text-xs mb-2">
               <div className="bg-gray-800 rounded p-1.5">
@@ -191,7 +192,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
             <Package className="w-5 h-5 text-yellow-500" />
             <h3 className="text-lg font-bold text-yellow-500">Backpack</h3>
           </div>
-          <div className="h-96 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-950/50 space-y-2">
+          <div className="h-80 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-950/50 space-y-1.5">
             {items.filter((i: any) => !i.equipped && i.type !== 'potion').length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">No items</div>
             ) : (
@@ -245,29 +246,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               {firstPotion ? `Use (${potionCount})` : 'None'}
             </button>
           </div>
-
-          {/* Rarity Filter */}
-          <div className="mt-4 p-3 rounded-lg border border-purple-900/40 bg-black/40">
-            <div className="text-xs text-gray-300 uppercase font-semibold mb-2">Skip Rarities</div>
-            <div className="grid grid-cols-2 gap-1">
-              {['common', 'magic', 'rare', 'epic', 'legendary', 'mythic', 'set', 'radiant'].map(rarity => (
-                <button
-                  key={rarity}
-                  onClick={() => toggleRarityFilter(rarity)}
-                  className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
-                    rarityFilter.has(rarity)
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {rarity.charAt(0).toUpperCase() + rarity.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Affix Stats Panel */}
-          <AffixStatsPanel />
         </div>
 
         {/* Center: Dungeon Canvas */}
@@ -285,7 +263,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         </div>
 
         {/* Right: Equipped Gear Grid */}
-        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-4">
             <Sword className="w-5 h-5 text-yellow-500" />
             <h3 className="text-lg font-bold text-yellow-500">Equipment</h3>
@@ -297,12 +275,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 const slot = (() => {
                   if (item.type === 'weapon' || item.type === 'melee_weapon' || item.type === 'ranged_weapon' || item.type === 'mage_weapon') return 'weapon';
                   if (item.type === 'helmet') return 'helmet';
-                  if (item.type === 'melee_armor' || item.type === 'ranged_armor' || item.type === 'mage_armor') return 'armor';
+                  if (item.type === 'trinket') return 'trinket';
                   if (item.type === 'gloves') return 'gloves';
                   if (item.type === 'boots') return 'boots';
                   if (item.type === 'belt') return 'belt';
                   if (item.type === 'ring') return 'ring';
                   if (item.type === 'amulet') return 'amulet';
+                  if (item.type === 'melee_armor' || item.type === 'ranged_armor' || item.type === 'mage_armor') return 'armor';
                   return 'other';
                 })();
                 if (!equippedBySlot[slot]) equippedBySlot[slot] = [];
@@ -319,7 +298,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               })();
 
               const slotConfig: Record<number, { key: string; label: string }> = {
+                1: { key: 'gloves', label: 'Gloves' },
                 2: { key: 'helmet', label: 'Head' },
+                3: { key: 'trinket', label: 'Trinket' },
                 4: { key: 'weapon', label: 'Weapon' },
                 5: { key: 'armor', label: 'Body' },
                 6: { key: 'amulet', label: 'Off-Hand' },
