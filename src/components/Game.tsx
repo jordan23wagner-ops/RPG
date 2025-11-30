@@ -1,5 +1,4 @@
 import { Inventory } from './Inventory';
-import { FloorMap } from './FloorMap';
 import { useState, useCallback, useEffect } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
@@ -266,12 +265,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
         </div>
 
-        {/* Center: Dungeon Canvas + Floor Map */}
+        {/* Center: Dungeon Canvas */}
         <div className="flex-shrink-0">
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
-          <div className="mt-4">
-            <FloorMap />
-          </div>
         </div>
 
         {/* Right: Equipped Gear Grid */}

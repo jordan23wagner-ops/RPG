@@ -66,6 +66,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
+  // Track per-room enemy queues for wave combat (5-10 per combat room)
+  const roomEnemyQueuesRef = useRef<Record<string, Enemy[]>>({});
   
   const toggleRarityFilter = (rarity: string) => {
     setRarityFilter((prev: Set<string>) => {
@@ -237,7 +239,7 @@ try {
   const generateFloorMap = (floorNumber: number): FloorMap => {
     const roomCount = 9; // simple 3x3 conceptual map
     const rooms: FloorRoom[] = [];
-    const mimicChance = Math.min(0.05 + floorNumber * 0.005, 0.15); // up to 15%
+    const mimicChance = 0.05; // fixed 5% mimic chance
     const miniBossChance = Math.min(0.01 + Math.floor(floorNumber / 5) * 0.01, 0.08); // up to 8%
     const rareEnemyChance = Math.min(0.15 + floorNumber * 0.01, 0.35); // scales with depth
     const isBossFloor = floorNumber % 10 === 0;
@@ -254,9 +256,10 @@ try {
 
       rooms.push({ id, index: i, type, explored: i === 0, cleared: false });
     }
-
-    // Place ladder in a random non-start room
-    const ladderIndex = Math.max(1, Math.floor(Math.random() * roomCount));
+  // Place ladder in a random non-start room, not adjacent to spawn (index 0)
+  const forbiddenIndices = new Set<number>([0, 1, 3]); // avoid right and down from spawn
+  const candidates: number[] = Array.from({ length: roomCount }, (_, i) => i).filter(i => !forbiddenIndices.has(i));
+  const ladderIndex = candidates[Math.floor(Math.random() * candidates.length)];
     // Boss floor: ensure one dedicated boss room distinct from ladder & start
     if (isBossFloor) {
       let bossIndex = Math.floor(Math.random() * roomCount);
@@ -297,24 +300,32 @@ try {
     if (!room.explored) {
       room.explored = true;
     }
-    // Spawn enemies: if room is combat, spawn variant. After cleared, allow respawns except for boss rooms.
-    if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
-      // Prevent boss respawn once cleared
-      if (room.type === 'boss' && room.cleared) {
+    // Spawn enemies: wave-based for combat rooms (5-10), single for boss rooms
+    if (['enemy','rareEnemy','miniBoss','mimic'].includes(room.type)) {
+      if (!roomEnemyQueuesRef.current[room.id] || room.cleared) {
+        // Build a new queue 5-10 enemies
+        const waveCount = Math.floor(Math.random() * 6) + 5; // 5..10
+        const queue: Enemy[] = [];
+        for (let i = 0; i < waveCount; i++) {
+          const roll = Math.random();
+          let spawnType: RoomEventType = 'enemy';
+          if (roll < 0.05) spawnType = 'mimic'; // 5% mimic
+          else if (roll < 0.05 + 0.08) spawnType = 'miniBoss'; // up to 8%; keep modest
+          else if (roll < 0.05 + 0.08 + 0.25) spawnType = 'rareEnemy';
+          const e = generateEnemyVariant(spawnType, floor, character?.level || 1, zoneHeat);
+          queue.push(e);
+        }
+        roomEnemyQueuesRef.current[room.id] = queue;
+        room.cleared = false;
+      }
+      const next = roomEnemyQueuesRef.current[room.id]?.shift() || null;
+      setCurrentEnemy(next);
+    } else if (room.type === 'boss') {
+      if (room.cleared) {
         setCurrentEnemy(null);
       } else {
-        // Mimic surprise trap only on first exploration before spawn
-        if (!room.cleared && room.type === 'mimic' && character) {
-          const trapPct = 0.2; // 20% max health
-          const trapDamage = Math.floor(character.max_health * trapPct);
-          const newHealth = Math.max(1, character.health - trapDamage);
-          updateCharacter({ health: newHealth });
-          console.log(`[Trap] Mimic chest bit you for ${trapDamage} HP!`);
-        }
-        // If room was cleared, downgrade respawn to regular enemy to avoid farming special types
-        const spawnType = room.cleared && room.type !== 'boss' ? 'enemy' : (room.type as any);
-        const variantEnemy = generateEnemyVariant(spawnType, floor, character?.level || 1, zoneHeat);
-        setCurrentEnemy(variantEnemy);
+        const e = generateEnemyVariant('boss', floor, character?.level || 1, zoneHeat);
+        setCurrentEnemy(e);
       }
     } else if (room.type === 'empty') {
       setCurrentEnemy(null);
@@ -426,7 +437,8 @@ try {
       // Determine room context for special loot logic
       const room = floorMap?.rooms.find((r: FloorRoom) => r.id === currentRoomId);
       const isBossRoom = room?.type === 'boss';
-      const isMimicRoom = room?.type === 'mimic';
+      // If current enemy was generated as mimic variant, treat as mimic for loot
+      const isMimicRoom = currentEnemy.rarity === 'mimic' || room?.type === 'mimic';
 
       let lootDrops: Partial<Item>[] = [];
       if (isBossRoom) {
@@ -503,14 +515,21 @@ try {
       const gainedHeat = heatGainMap[currentEnemy.rarity] || 3;
       setZoneHeat((prev: number) => Math.min(100, prev + gainedHeat));
 
-      // If inside an explored floor room, mark it cleared and do NOT auto spawn
+      // Wave progression: if room has remaining queue, spawn next; else mark cleared
       if (floorMap && currentRoomId) {
         const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
         if (room) {
-          room.cleared = true;
-          setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
+          const queue = roomEnemyQueuesRef.current[room.id] || [];
+          if (queue.length > 0) {
+            const next = queue.shift() || null;
+            roomEnemyQueuesRef.current[room.id] = queue;
+            setCurrentEnemy(next);
+          } else {
+            room.cleared = true;
+            setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
+            setCurrentEnemy(null);
+          }
         }
-        setCurrentEnemy(null);
       } else {
         // Legacy fallback: spawn continuous enemies
         setTimeout(
