@@ -16,6 +16,9 @@ import {
   isTwoHanded,
 } from '../utils/gameLogic';
 
+// Debug flag for verbose world enemy lifecycle logging
+const DEBUG_WORLD_ENEMIES = true;
+
 export interface DamageNumber {
   id: string;
   damage: number;
@@ -368,9 +371,17 @@ try {
       const enemyId = `floor${floor}-pos${Math.floor(pos.x/100)}-${Math.floor(pos.y/100)}`;
       if (!killedSet.has(enemyId)) {
         arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
+        if (DEBUG_WORLD_ENEMIES) {
+          console.log(`[WorldGen] Spawned ${enemyId} type=${type} lvl=${e.level} hp=${e.health}`);
+        }
+      } else if (DEBUG_WORLD_ENEMIES) {
+        console.log(`[WorldGen] Skipped previously killed ${enemyId}`);
       }
     }
     setEnemiesInWorld(arr);
+    if (DEBUG_WORLD_ENEMIES) {
+      console.log(`[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}`);
+    }
     // Ladder position
     let ladder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
     let guardL = 0;
@@ -390,6 +401,9 @@ try {
     lastEngagedWorldEnemyIdRef.current = enemyWorldId;
     killedWorldEnemiesRef.current.set(floor, killedSet);
     inWorldCombatRef.current = true;
+    if (DEBUG_WORLD_ENEMIES) {
+      console.log(`[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`);
+    }
     // Set currentEnemy and remove from world list
     setCurrentEnemy({
       name: found.name,
@@ -692,6 +706,9 @@ try {
           killedSet.add(lastId);
           killedWorldEnemiesRef.current.set(floor, killedSet);
           lastEngagedWorldEnemyIdRef.current = null;
+          if (DEBUG_WORLD_ENEMIES) {
+            console.log(`[Kill] World enemy ${lastId} marked killed; killedCount=${killedSet.size}`);
+          }
         }
         inWorldCombatRef.current = false;
         setCurrentEnemy(null);
