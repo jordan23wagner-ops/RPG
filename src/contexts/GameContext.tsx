@@ -299,7 +299,15 @@ try {
     // If combat room and not cleared, spawn appropriate enemy variant
     if (!room.cleared) {
       if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
-        // Lazy import of variant generator to avoid circular if changed later
+        // Mimic surprise trap on first exploration before spawning enemy
+        if (room.type === 'mimic' && character) {
+          const trapPct = 0.2; // 20% max health
+          const trapDamage = Math.floor(character.max_health * trapPct);
+          // Do not kill player outright
+          const newHealth = Math.max(1, character.health - trapDamage);
+          updateCharacter({ health: newHealth });
+          console.log(`[Trap] Mimic chest bit you for ${trapDamage} HP!`);
+        }
         const variantEnemy = generateEnemyVariant(room.type as any, floor, character?.level || 1, zoneHeat);
         setCurrentEnemy(variantEnemy);
       } else if (room.type === 'empty') {
@@ -410,56 +418,74 @@ try {
 
       await updateCharacter(updates);
 
-      let loot = generateLoot(
-        currentEnemy.level,
-        floor,
-        currentEnemy.rarity,
-        zoneHeat,
-      );
+      // Determine room context for special loot logic
+      const room = floorMap?.rooms.find((r: FloorRoom) => r.id === currentRoomId);
+      const isBossRoom = room?.type === 'boss';
+      const isMimicRoom = room?.type === 'mimic';
 
-      // Check if loot rarity is filtered (should be skipped)
-      if (loot && rarityFilter.has(loot.rarity)) {
-        console.log(`[Loot] ${loot.rarity} "${loot.name}" filtered out (in skip list)`);
-        loot = null;
+      let lootDrops: Partial<Item>[] = [];
+      if (isBossRoom) {
+        // Boss: multiple guaranteed rare+ drops
+        const { generateBossLoot } = await import('../utils/gameLogic');
+        lootDrops = generateBossLoot(currentEnemy.level, floor, zoneHeat);
+      } else if (isMimicRoom) {
+        // Mimic: magic+ guaranteed, chance second drop
+        const { generateMimicLoot } = await import('../utils/gameLogic');
+        lootDrops = generateMimicLoot(currentEnemy.level, floor, zoneHeat);
+      } else {
+        // Standard single roll
+        const single = generateLoot(
+          currentEnemy.level,
+          floor,
+          currentEnemy.rarity,
+          zoneHeat,
+        );
+        if (single) lootDrops = [single];
       }
 
-      if (!loot) {
-        loot = {
+      // Filter drops & provide fallback if empty
+      lootDrops = lootDrops.filter(ld => !rarityFilter.has(ld.rarity));
+      if (lootDrops.length === 0) {
+        lootDrops = [{
           name: 'Tarnished Trinket',
           type: 'melee_armor',
           rarity: 'common',
           armor: 1,
           value: 5,
           equipped: false,
-        };
+          required_level: 1,
+        }];
       }
 
-      if (loot) {
-        // Notify if epic or higher
-        if (notifyDrop && (loot.rarity === 'epic' || loot.rarity === 'legendary' || loot.rarity === 'mythic' || loot.rarity === 'radiant' || loot.rarity === 'set')) {
-          console.log(`[Drop] ${loot.rarity}: ${loot.name}`);
-          notifyDrop(loot.rarity, loot.name || 'Unknown Item');
-        }
-        const { error } = await supabase.from('items').insert([
-          {
-            character_id: character.id,
-            name: loot.name,
-            type: loot.type,
-            rarity: loot.rarity,
-            damage: loot.damage,
-            armor: loot.armor,
-            value: loot.value,
-            equipped: loot.equipped,
-            required_level: loot.requiredLevel,
-            required_stats: loot.requiredStats,
-          },
-        ]);
-        if (error) {
-          console.error('[DB Error] Failed to insert item:', error.message, { loot, character_id: character.id });
-        } else {
-          console.log(`[Inventory] Item added: ${loot.name} (${loot.rarity})`);
-          await loadItems(character.id);
-        }
+      // Insert all drops
+      const rows = lootDrops.map(ld => ({
+        character_id: character.id,
+        name: ld.name,
+        type: ld.type,
+        rarity: ld.rarity,
+        damage: ld.damage,
+        armor: ld.armor,
+        value: ld.value,
+        equipped: ld.equipped,
+        required_level: (ld as any).required_level,
+        required_stats: (ld as any).required_stats,
+      }));
+
+      if (notifyDrop) {
+        lootDrops.forEach(ld => {
+          if (['epic','legendary','mythic','radiant','set'].includes(ld.rarity || '')) {
+            console.log(`[Drop] ${ld.rarity}: ${ld.name}`);
+            notifyDrop(ld.rarity!, ld.name || 'Unknown Item');
+          }
+        });
+      }
+
+      const { error } = await supabase.from('items').insert(rows);
+      if (error) {
+        console.error('[DB Error] Failed to insert loot batch:', error.message, { rows });
+      } else {
+        console.log(`[Inventory] Added ${rows.length} item(s): ${rows.map(r => r.name).join(', ')}`);
+        await loadItems(character.id);
       }
 
       // Increase zone heat based on enemy rarity

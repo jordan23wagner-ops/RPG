@@ -675,6 +675,64 @@ export function generateLoot(
   };
 }
 
+// ----------------- SPECIAL LOOT HELPERS -----------------
+
+const RARITY_ORDER: RarityKey[] = ['common','magic','rare','epic','legendary','mythic','set','radiant'];
+function rarityIndex(r: RarityKey) { return RARITY_ORDER.indexOf(r); }
+
+function generateGuaranteedLoot(enemyLevel: number, floor: number, zoneHeat: number, minRarity: RarityKey): Partial<Item> {
+  let attempts = 0;
+  let loot: Partial<Item> | null = null;
+  while (attempts < 10) {
+    loot = generateLoot(enemyLevel, floor, 'legendary', zoneHeat); // pass high enemy rarity to bias upward
+    if (loot && rarityIndex(loot.rarity as RarityKey) >= rarityIndex(minRarity)) break;
+    attempts++;
+  }
+  if (!loot) {
+    // Fallback basic item meeting minimum rarity by forcing armor piece
+    loot = {
+      name: `${minRarity[0].toUpperCase()}${minRarity.slice(1)} Trophy`,
+      type: 'melee_armor',
+      rarity: minRarity,
+      armor: 5 + floor,
+      value: 25 + floor * 5,
+      equipped: false,
+      required_level: Math.max(1, Math.floor(enemyLevel * 0.8)),
+    };
+  }
+  // Ensure snake_case requirement fields exist if coming from generateLoot (which uses required_level etc.)
+  if ((loot as any).requiredLevel && !(loot as any).required_level) {
+    (loot as any).required_level = (loot as any).requiredLevel;
+  }
+  if ((loot as any).requiredStats && !(loot as any).required_stats) {
+    (loot as any).required_stats = (loot as any).requiredStats;
+  }
+  return loot;
+}
+
+export function generateBossLoot(enemyLevel: number, floor: number, zoneHeat: number): Partial<Item>[] {
+  const drops: Partial<Item>[] = [];
+  // Two guaranteed rare+ items
+  drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
+  drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
+  // Chance for third epic+ item
+  if (Math.random() < 0.6) {
+    drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'epic'));
+  }
+  return drops;
+}
+
+export function generateMimicLoot(enemyLevel: number, floor: number, zoneHeat: number): Partial<Item>[] {
+  const drops: Partial<Item>[] = [];
+  // One guaranteed magic+ item
+  drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'magic'));
+  // 35% chance for second rare+ item
+  if (Math.random() < 0.35) {
+    drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
+  }
+  return drops;
+}
+
 // ----------------- RARITY COLORS -----------------
 
 export function getRarityColor(rarity: string): string {
