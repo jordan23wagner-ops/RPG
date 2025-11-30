@@ -1,3 +1,37 @@
+// ---------- Equipment Slot Types ----------
+
+export type EquipmentSlot =
+  | 'helmet'
+  | 'chest'
+  | 'legs'
+  | 'boots'
+  | 'gloves'
+  | 'weapon'
+  | 'shield'
+  | 'amulet'
+  | 'ring'
+  | 'belt'
+  | 'trinket';
+
+// For item types that can be equipped in a slot
+export type EquippableItemType =
+  | 'weapon'
+  | 'helmet'
+  | 'chest'
+  | 'legs'
+  | 'boots'
+  | 'gloves'
+  | 'shield'
+  | 'amulet'
+  | 'ring'
+  | 'belt'
+  | 'trinket'
+  | 'melee_weapon'
+  | 'ranged_weapon'
+  | 'mage_weapon'
+  | 'melee_armor'
+  | 'ranged_armor'
+  | 'mage_armor';
 // src/types/game.ts
 
 // ---------- Core Types ----------
@@ -47,28 +81,7 @@ export interface Item {
   id: string;
   character_id: string;
   name: string;
-  type:
-    | 'weapon'
-    | 'armor'
-    | 'helmet'
-    | 'boots'
-    | 'potion'
-    | 'melee_weapon'
-    | 'ranged_weapon'
-    | 'mage_weapon'
-    | 'melee_armor'
-    | 'ranged_armor'
-    | 'mage_armor'
-    | 'amulet'
-    | 'ring'
-    | 'gloves'
-    | 'belt'
-    | 'trinket';
-  // NOTE: Rarity now includes additional tiers beyond the classic common→legendary
-  // progression. We support 'epic' between rare and legendary as well as
-  // 'set' items, which have special bonuses when multiple pieces are equipped.
-  // Mythic and Radiant remain for backwards compatibility with older loot
-  // logic but are not used by the new generator.
+  type: EquippableItemType | 'armor' | 'potion';
   rarity:
     | 'common'
     | 'magic'

@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase';
 import { GameProvider } from './contexts/GameContext';
 import { AuthFlow } from './components/AuthFlow';
 import { Game } from './components/Game';
+import CharacterVisualTest from './components/CharacterVisualTest';
 
 function App() {
   const [session, setSession] = useState<boolean | null>(null);
@@ -44,7 +45,14 @@ function App() {
 
   return (
     <GameProvider>
-      <Game />
+      <div className="flex flex-col md:flex-row gap-8 p-4">
+        <div className="flex-1">
+          <Game />
+        </div>
+        <div className="w-full md:w-[340px]">
+          <CharacterVisualTest />
+        </div>
+      </div>
     </GameProvider>
   );
 }

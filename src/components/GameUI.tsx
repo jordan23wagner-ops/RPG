@@ -14,6 +14,7 @@ import {
   getRarityBgColor,
   getRarityBorderColor,
 } from '../utils/gameLogic';
+import { useGame } from '../contexts/GameContext';
 
 interface GameUIProps {
   character: Character;
@@ -38,6 +39,8 @@ export function GameUI({
   onOpenShop,
   onSellAll,
 }: GameUIProps) {
+  // Debug/dev: Equip/unequip all
+  const { equipAll, unequipAll } = useGame();
   const healthPercent = (character.health / character.max_health) * 100;
   const manaPercent = (character.mana / character.max_mana) * 100;
   const expToNext = character.level * 100;
@@ -79,6 +82,21 @@ export function GameUI({
 
   return (
     <div className="space-y-4">
+      {/* Debug/dev: Equip/unequip all equipment */}
+      <div className="flex gap-2 mb-2">
+        <button
+          onClick={equipAll}
+          className="px-2 py-1 bg-blue-700 hover:bg-blue-800 text-white text-xs rounded"
+        >
+          Equip All
+        </button>
+        <button
+          onClick={unequipAll}
+          className="px-2 py-1 bg-gray-700 hover:bg-gray-800 text-white text-xs rounded"
+        >
+          Unequip All
+        </button>
+      </div>
       {/* Character panel */}
       <div className="bg-gray-900 border-2 border-yellow-600 rounded p-3">
         <h2 className="text-lg font-bold text-yellow-500 mb-2">
