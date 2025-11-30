@@ -160,18 +160,16 @@ export function EquipmentPanel({ items, onEquip }: EquipmentPanelProps) {
   };
 
   return (
-    <div className="mt-6 bg-gray-900 border-2 border-yellow-600 rounded p-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="mt-4 bg-gray-900 border-2 border-yellow-600 rounded-md p-3 text-[13px]">
+      <div className="flex items-center gap-1 mb-2">
         <Package className="w-4 h-4 text-yellow-500" />
-        <h3 className="font-bold text-yellow-500 text-sm">Equipped Gear</h3>
+        <h3 className="font-semibold text-yellow-500 text-xs tracking-wide">Equipped Gear</h3>
       </div>
-
-      <div className="relative border border-gray-700 rounded-lg p-4 bg-gray-950/70">
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10">
-          <User2 className="w-24 h-24 text-gray-400" />
+      <div className="relative border border-gray-700 rounded-md p-3 bg-gray-950/70">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-5">
+          <User2 className="w-20 h-20 text-gray-400" />
         </div>
-
-        <div className="grid grid-cols-4 auto-rows-[110px] gap-3 relative z-10">
+        <div className="grid grid-cols-4 auto-rows-[96px] gap-2 relative z-10">
           {EQUIPMENT_UI_SLOTS.map(slot => (
             <div key={slot.id}>{renderSlot(slot.id, slot.label)}</div>
           ))}

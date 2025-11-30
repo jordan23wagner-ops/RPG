@@ -120,7 +120,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   const firstPotion = potionItems[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-3 text-[13px]">
       <SettingsPanel />
       {notification && (
         <NotificationBar
@@ -129,9 +129,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           onClose={() => setNotification(null)}
         />
       )}
-      <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
+          <h1 className="text-3xl font-bold text-yellow-500 tracking-tight">Dark Dungeon</h1>
           <div className="text-sm text-gray-300">
             <Tooltip text={"Zone Heat mechanics:\n• Kills add Heat: Normal +3, Rare +8, Elite +15, Boss +30.\n• Heat decays 1 every 15s.\n• Heat scales enemy difficulty (up to +100% at 100 heat) and increases loot quality: higher chances for rare/epic/legendary and slightly higher set-drop chance. High risk, high reward."} />
           </div>
@@ -139,14 +139,14 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShopOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-800 hover:bg-orange-700 text-white rounded-lg transition-colors font-semibold"
+            className="flex items-center gap-2 px-3 py-1.5 bg-orange-800 hover:bg-orange-700 text-white rounded-md transition-colors font-semibold text-sm"
           >
             <ShoppingBag className="w-4 h-4" />
             Merchant
           </button>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-md transition-colors text-sm"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -155,13 +155,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
       </div>
 
       {/* Main row: backpack (left) - dungeon (center) - gear (right) */}
-      <div className="flex justify-center gap-4 mt-4 max-w-6xl mx-auto">
+      <div className="flex justify-center gap-3 mt-2 max-w-6xl mx-auto">
         {/* Left: Character + Backpack */}
-        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-3">
+        <div className="flex-shrink-0 w-64 bg-gray-900 border-2 border-yellow-600 rounded-md p-2">
           {/* Character Stats */}
           <div className="mb-3">
-            <h3 className="text-lg font-bold text-yellow-500 mb-2">{character.name}</h3>
-            <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+            <h3 className="text-base font-bold text-yellow-500 mb-1 leading-tight truncate">{character.name}</h3>
+            <div className="grid grid-cols-3 gap-1 text-[11px] mb-1">
               <div className="bg-gray-800 rounded p-1.5">
                 <div className="text-gray-400">STR</div>
                 <div className="font-bold text-white">{character.strength}</div>
@@ -175,7 +175,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 <div className="font-bold text-white">{character.intelligence}</div>
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-300">HP</span>
                 <span className="text-red-400">{character.health}/{character.max_health}</span>
@@ -199,11 +199,11 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 mb-4">
-            <Package className="w-5 h-5 text-yellow-500" />
-            <h3 className="text-lg font-bold text-yellow-500">Backpack</h3>
+          <div className="flex items-center gap-1 mb-2">
+            <Package className="w-4 h-4 text-yellow-500" />
+            <h3 className="text-sm font-semibold text-yellow-500">Backpack</h3>
           </div>
-          <div className="h-80 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-950/50 space-y-1.5">
+          <div className="h-72 overflow-y-auto border border-gray-700 rounded-md p-1.5 bg-gray-950/50 space-y-1">
             {items.filter((i: any) => !i.equipped && i.type !== 'potion').length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">No items</div>
             ) : (
@@ -213,7 +213,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 .map(item => (
                   <div
                     key={item.id}
-                    className={`relative group border rounded p-1.5 flex items-center justify-between hover:border-opacity-100 transition-colors text-sm ${getRarityBgColor(item.rarity)} border-2 ${getRarityBorderColor(item.rarity)}`}
+                    className={`relative group border rounded-sm p-1 flex items-center justify-between hover:border-opacity-100 transition-colors text-[12px] ${getRarityBgColor(item.rarity)} border ${getRarityBorderColor(item.rarity)}`}
                     onMouseEnter={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       setHoveredItem(item);
@@ -236,17 +236,17 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div>
-                        <div className={`font-semibold truncate text-xs ${getRarityColor(item.rarity)}`}>{item.name}</div>
+                        <div className={`font-semibold truncate text-[11px] ${getRarityColor(item.rarity)}`}>{item.name}</div>
                         {(() => {
                           const typeDisplay = item.type.replace(/_/g, ' ');
                           return (
-                            <div className={`text-[10px] ${getRarityColor(item.rarity)} opacity-70 lowercase`}>
+                            <div className={`text-[10px] ${getRarityColor(item.rarity)} opacity-70 lowercase leading-tight`}>
                               {item.rarity} <span className="capitalize">{typeDisplay}</span>
                             </div>
                           );
                         })()}
                         {(item.damage || item.armor) && (
-                          <div className={`text-[10px] ${getRarityColor(item.rarity)} opacity-70 mt-0.5`}>
+                          <div className={`text-[10px] ${getRarityColor(item.rarity)} opacity-70 mt-0.5 leading-tight`}>
                             {item.damage && `+${item.damage} Dmg`}
                             {item.damage && item.armor && ' • '}
                             {item.armor && `+${item.armor} Arm`}
@@ -256,7 +256,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                     </div>
                     <button
                       onClick={() => equipItem(item.id)}
-                      className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded flex-shrink-0"
+                      className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] rounded flex-shrink-0"
                     >
                       Equip
                     </button>
@@ -264,14 +264,14 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 ))
             )}
           </div>
-          <div className="mt-4 flex items-center gap-2 p-3 rounded-lg border border-red-900/40 bg-black/40">
-            <FlaskConical className="w-4 h-4 text-green-400" />
-            <span className="text-xs text-gray-300 uppercase">Potions</span>
+          <div className="mt-2 flex items-center gap-2 p-2 rounded-md border border-red-900/40 bg-black/40">
+            <FlaskConical className="w-3 h-3 text-green-400" />
+            <span className="text-[11px] text-gray-300 uppercase">Potions</span>
             <button
               type="button"
               disabled={!firstPotion}
               onClick={() => { if (firstPotion) void usePotion(firstPotion.id); }}
-              className={`ml-auto px-3 py-1 rounded text-xs font-medium ${firstPotion ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+              className={`ml-auto px-2 py-0.5 rounded text-[11px] font-medium ${firstPotion ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
             >
               {firstPotion ? `Use (${potionCount})` : 'None'}
             </button>
@@ -284,12 +284,12 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         </div>
 
         {/* Right: Equipped Gear Grid */}
-        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-3">
-          <div className="flex items-center gap-2 mb-4">
-            <Sword className="w-5 h-5 text-yellow-500" />
-            <h3 className="text-lg font-bold text-yellow-500">Equipment</h3>
+        <div className="flex-shrink-0 w-64 bg-gray-900 border-2 border-yellow-600 rounded-md p-2">
+          <div className="flex items-center gap-1 mb-2">
+            <Sword className="w-4 h-4 text-yellow-500" />
+            <h3 className="text-sm font-semibold text-yellow-500">Equipment</h3>
           </div>
-          <div className="bg-gray-950 border border-gray-700 rounded p-3">
+          <div className="bg-gray-950 border border-gray-700 rounded p-2">
             {(() => {
               const equippedBySlot: Record<string, any> = {};
               items.filter((i: any) => i.equipped).forEach(item => {
@@ -384,7 +384,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               };
 
               return (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1">
                   {Array.from({ length: 9 }, (_, i) => i + 1).map(gridNum => renderSlot(gridNum))}
                 </div>
               );

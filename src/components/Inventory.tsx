@@ -213,25 +213,20 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
   };
 
   return (
-    <div className="bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Package className="w-5 h-5 text-yellow-500" />
-        <h3 className="text-xl font-bold text-yellow-500">Inventory</h3>
+    <div className="bg-gray-900 border-2 border-yellow-600 rounded-md p-3 text-[13px]">
+      <div className="flex items-center gap-1 mb-3">
+        <Package className="w-4 h-4 text-yellow-500" />
+        <h3 className="text-sm font-semibold text-yellow-500 tracking-wide">Inventory</h3>
       </div>
 
       {/* EQUIPMENT GRID */}
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-gray-400 mb-2">
-          Equipped Gear
-        </h4>
-
-        <div className="relative border border-gray-700 rounded-lg p-3 bg-gray-950/70">
-          {/* Character silhouette in the middle */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10">
-            <User2 className="w-24 h-24 text-gray-400" />
+      <div className="mb-3">
+        <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Equipped Gear</h4>
+        <div className="relative border border-gray-700 rounded-md p-2 bg-gray-950/70">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-5">
+            <User2 className="w-20 h-20 text-gray-400" />
           </div>
-
-          <div className="grid grid-cols-3 auto-rows-[70px] gap-2 relative z-10">
+          <div className="grid grid-cols-3 auto-rows-[64px] gap-1.5 relative z-10">
             {EQUIPMENT_UI_SLOTS.map(slot => (
               <div key={slot.id}>{renderEquipmentSlot(slot.id, slot.label)}</div>
             ))}
@@ -241,17 +236,15 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
 
       {/* BACKPACK / POTIONS */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-400 mb-2">Backpack</h4>
+        <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Backpack</h4>
         {unequippedItems.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No items in backpack
-          </div>
+          <div className="text-center py-6 text-gray-500 text-[12px]">No items in backpack</div>
         ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-950/50">
+          <div className="space-y-1.5 max-h-80 overflow-y-auto border border-gray-700 rounded-md p-2 bg-gray-950/50">
             {unequippedItems.map(item => (
               <div
                 key={item.id}
-                className="relative group bg-gray-800 border border-gray-700 rounded p-2 flex items-center justify-between hover:border-gray-600 transition-colors"
+                className="relative group bg-gray-800 border border-gray-700 rounded-sm p-1.5 flex items-center justify-between hover:border-gray-600 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <div className={getRarityColor(item.rarity || 'common')}>
@@ -259,27 +252,25 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
                   </div>
                   <div>
                     <div
-                      className={`font-semibold ${getRarityColor(
-                        item.rarity || 'common',
-                      )}`}
+                      className={`font-semibold text-[12px] leading-tight ${getRarityColor(item.rarity || 'common')}`}
                     >
                       {(() => {
                         const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                         return (
-                          <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-1">
                             <span>{item.name}</span>
-                            <span className="text-gray-400 text-[10px] lowercase font-normal">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
+                            <span className="text-gray-400 text-[9px] lowercase font-normal">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
                           </span>
                         );
                       })()}
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-[10px] text-gray-400 leading-tight">
                       {item.damage && `+${item.damage} Damage`}
                       {item.damage && item.armor && ' • '}
                       {item.armor && `+${item.armor} Armor`}
                       {item.type === 'potion' && 'Restores 50 HP'}
                     </div>
-                    <div className="text-xs text-yellow-500">
+                    <div className="text-[10px] text-yellow-500 leading-tight">
                       Value: {item.value}g
                     </div>
                   </div>
@@ -288,14 +279,14 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
                 {item.type === 'potion' ? (
                   <button
                     onClick={() => onUsePotion(item.id)}
-                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                    className="px-2 py-0.5 bg-green-600 hover:bg-green-700 text-white text-[11px] rounded transition-colors"
                   >
                     Use
                   </button>
                 ) : (
                   <button
                     onClick={() => onEquip(item.id)}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                    className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] rounded transition-colors"
                   >
                     Equip
                   </button>
