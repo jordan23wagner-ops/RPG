@@ -1,7 +1,8 @@
-import { Inventory } from './Inventory';
+// import { Inventory } from './Inventory';
 import { useState, useCallback, useEffect } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
+import TownView from './TownView.tsx';
 import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
@@ -72,6 +73,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   const [tooltipPos, setTooltipPos] = useState<{x:number;y:number}>({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipTimer, setTooltipTimer] = useState<number | null>(null);
+  const [mode, setMode] = useState<'town' | 'dungeon'>('town');
   const {
     character,
     items,
@@ -101,6 +103,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     window.addEventListener('dungeon-descend', handler as EventListener);
     return () => window.removeEventListener('dungeon-descend', handler as EventListener);
   }, [nextFloor]);
+
+  // If quickstart is on, jump straight to dungeon once character exists
+  useEffect(() => {
+    if (autoStart && character) {
+      setMode('dungeon');
+    }
+  }, [autoStart, character]);
 
   if (loading) {
     return (
@@ -137,6 +146,23 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {mode === 'dungeon' ? (
+            <button
+              onClick={() => setMode('town')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-md transition-colors font-semibold text-sm"
+              title="Return to town"
+            >
+              🏘️ Town
+            </button>
+          ) : (
+            <button
+              onClick={() => setMode('dungeon')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-800 hover:bg-indigo-700 text-white rounded-md transition-colors font-semibold text-sm"
+              title="Enter the dungeon"
+            >
+              🗝️ Enter Dungeon
+            </button>
+          )}
           <button
             onClick={() => setShopOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-orange-800 hover:bg-orange-700 text-white rounded-md transition-colors font-semibold text-sm"
@@ -278,9 +304,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
         </div>
 
-        {/* Center: Dungeon Canvas */}
+        {/* Center: Town or Dungeon */}
         <div className="flex-shrink-0">
-          <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
+          {mode === 'dungeon' ? (
+            <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
+          ) : (
+            <TownView onEnterDungeon={() => setMode('dungeon')} onOpenShop={() => setShopOpen(true)} />
+          )}
         </div>
 
         {/* Right: Equipped Gear Grid */}
