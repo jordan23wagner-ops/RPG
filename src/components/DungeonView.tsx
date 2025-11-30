@@ -143,6 +143,15 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   }, [onAttack]);
 
   useEffect(() => {
+    // Track current enemy engagement status
+    if (enemy) {
+      currentlyEngagedIdRef.current = (enemy as any).id || null;
+    } else {
+      currentlyEngagedIdRef.current = null;
+    }
+  }, [enemy]);
+
+  useEffect(() => {
     damageNumbersRef.current = damageNumbers;
   }, [damageNumbers]);
 
