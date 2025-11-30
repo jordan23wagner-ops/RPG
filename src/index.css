@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body, #root, #app {
+  min-height: 100%;
+  background: radial-gradient(circle at 50% 20%, #161b29 0%, #0b0f17 60%, #07090d 100%);
+  background-attachment: fixed;
+}
+
+body {
+  color: #e5e7eb;
+}
+
+/* Utility: settings popover transitions */
+.settings-pop-enter { opacity: 0; transform: scale(0.9); }
+.settings-pop-enter-active { opacity: 1; transform: scale(1); transition: opacity .15s ease, transform .15s ease; }
+.settings-pop-exit { opacity: 1; transform: scale(1); }
+.settings-pop-exit-active { opacity: 0; transform: scale(0.9); transition: opacity .15s ease, transform .15s ease; }
+
 @keyframes fade-in-down {
   from {
     opacity: 0;

@@ -107,21 +107,20 @@ export default function CharacterVisualTest() {
 
   // UI: toggle each slot
   return (
-    <div className="p-4 bg-gray-900 rounded-lg border-2 border-yellow-600 w-fit">
-      <h2 className="text-lg font-bold text-yellow-400 mb-2">Character Visual Test</h2>
-      <canvas ref={canvasRef} width={120} height={120} className="bg-gray-800 rounded mb-2" />
+    <div>
+      <canvas ref={canvasRef} width={120} height={120} className="bg-gray-800 rounded mb-3 border border-gray-700" />
       <div className="flex flex-wrap gap-2 mb-2">
         {slots.map(slot => (
           <button
             key={slot}
             onClick={() => setEquipped(e => ({ ...e, [slot]: !e[slot] }))}
-            className={`px-2 py-1 rounded text-xs font-bold ${equipped[slot] ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+            className={`px-2 py-1 rounded text-[10px] tracking-wide font-semibold transition ${equipped[slot] ? 'bg-blue-600 text-white shadow' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
           >
             {slot}
           </button>
         ))}
       </div>
-      <div className="text-xs text-gray-400">Toggle equipment slots to preview overlays.</div>
+      <div className="text-[10px] text-gray-400">Toggle equipment slots to preview overlays.</div>
     </div>
   );
 }
