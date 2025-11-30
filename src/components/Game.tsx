@@ -8,6 +8,7 @@ import { CreateCharacter } from './CreateCharacter';
 import { LogOut, FlaskConical, Package, Sword, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
+import { AffixStatsPanel } from './AffixStatsPanel';
 import { getRarityColor, getRarityBgColor, getRarityBorderColor } from '../utils/gameLogic';
 
 export function Game() {
@@ -264,6 +265,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               ))}
             </div>
           </div>
+
+          {/* Affix Stats Panel */}
+          <AffixStatsPanel />
         </div>
 
         {/* Center: Dungeon Canvas */}

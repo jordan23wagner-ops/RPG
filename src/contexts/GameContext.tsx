@@ -54,6 +54,8 @@ interface GameContextType {
   sellAllItems: () => Promise<void>;
   buyPotion: () => Promise<void>;
   notifyDrop?: (rarity: string, itemName: string) => void;
+  affixStats: { total: number; withAffixes: number; percentage: number };
+  resetAffixStats: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -73,6 +75,9 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
   // Affix drop statistics tracking (in-memory)
   const affixStatsRef = useRef<{ total: number; withAffixes: number }>({ total: 0, withAffixes: 0 });
+  const resetAffixStats = () => {
+    affixStatsRef.current = { total: 0, withAffixes: 0 };
+  };
   // No waves: encounters are single per room; respawns only for non-boss rooms
   
   const toggleRarityFilter = (rarity: string) => {
@@ -952,6 +957,12 @@ try {
         buyPotion,
         allocateStatPoint,
         notifyDrop,
+        affixStats: {
+          total: affixStatsRef.current.total,
+          withAffixes: affixStatsRef.current.withAffixes,
+          percentage: affixStatsRef.current.total === 0 ? 0 : (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100,
+        },
+        resetAffixStats,
       }}
     >
       {children}
