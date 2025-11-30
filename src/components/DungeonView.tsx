@@ -21,6 +21,62 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   const minimapEnabledRef = useRef<boolean>(true);
   const ladderDiscoveredRef = useRef<boolean>(false);
 
+  // Floor theme palette helper
+  const getFloorTheme = (f: number) => {
+    const themes = [
+      { // dungeon
+        name: 'dungeon',
+        bg: '#1a1a2e',
+        tileFill: '#16213e',
+        tileStroke: '#0b132b',
+        hudAccent: '#fbbf24',
+        player: '#4f46e5',
+        enemy: '#dc2626',
+        minimapPanel: 'rgba(0,0,0,0.55)',
+        minimapWorld: '#0f172a',
+        minimapViewport: '#fbbf24',
+      },
+      { // lava / volcano
+        name: 'lava',
+        bg: '#2b1d1b',
+        tileFill: '#3b241f',
+        tileStroke: '#4a2a22',
+        hudAccent: '#fb923c',
+        player: '#ef4444',
+        enemy: '#7f1d1d',
+        minimapPanel: 'rgba(20,8,6,0.6)',
+        minimapWorld: '#1c1412',
+        minimapViewport: '#fb923c',
+      },
+      { // ice / snow
+        name: 'ice',
+        bg: '#0b1b2b',
+        tileFill: '#133b5c',
+        tileStroke: '#0f2a44',
+        hudAccent: '#60a5fa',
+        player: '#60a5fa',
+        enemy: '#1f6feb',
+        minimapPanel: 'rgba(6,12,18,0.6)',
+        minimapWorld: '#0a1826',
+        minimapViewport: '#60a5fa',
+      },
+      { // jungle
+        name: 'jungle',
+        bg: '#0d1f12',
+        tileFill: '#163d22',
+        tileStroke: '#0f2a18',
+        hudAccent: '#10b981',
+        player: '#22c55e',
+        enemy: '#065f46',
+        minimapPanel: 'rgba(7,18,12,0.6)',
+        minimapWorld: '#0a1d14',
+        minimapViewport: '#10b981',
+      },
+    ];
+    const idx = f % 4; // cycle themes every floor
+    return themes[idx];
+  };
+
   // keep zoneHeat prop in sync (set below via props)
 
   // ========== Constants ==========
@@ -168,8 +224,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       const camY = Math.max(0, Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, playerPos.y - CANVAS_HEIGHT / 2));
       cameraRef.current = { x: camX, y: camY };
 
-      // Background
-      ctx.fillStyle = '#1a1a2e';
+      // Background themed
+      const theme = getFloorTheme(currentFloor);
+      ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       // Stones tiled across the world; render only those within camera view
@@ -186,8 +243,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           const worldY = r * tileSize + 40;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
-          ctx.fillStyle = '#16213e';
+          // Themed tiles
+          ctx.fillStyle = theme.tileFill;
+          // Temporarily adjust stone stroke via context
+          const prevStroke = ctx.strokeStyle;
+          ctx.strokeStyle = theme.tileStroke as any;
           drawStone(ctx, screenX, screenY, 60, 80);
+          ctx.strokeStyle = prevStroke;
         }
       }
 
@@ -204,7 +266,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ctx.arc(sx, sy, 12, 0, Math.PI * 2);
           ctx.fill();
           ctx.font = '10px Arial';
-          ctx.fillStyle = '#fbbf24';
+          ctx.fillStyle = theme.hudAccent;
           ctx.textAlign = 'center';
           ctx.fillText(ew.name, sx, sy - 16);
           // Auto-engage if close
@@ -225,11 +287,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const ly = ladderPos.y - camY;
         ctx.fillStyle = '#065f46';
         ctx.fillRect(lx - 8, ly - 20, 16, 40);
-        ctx.strokeStyle = '#10b981';
+        ctx.strokeStyle = theme.hudAccent as any;
         ctx.lineWidth = 2;
         ctx.strokeRect(lx - 8, ly - 20, 16, 40);
         ctx.font = '11px Arial';
-        ctx.fillStyle = '#10b981';
+        ctx.fillStyle = theme.hudAccent;
         ctx.textAlign = 'center';
         ctx.fillText('Ladder', lx, ly - 28);
         // Prompt when near ladder
@@ -241,7 +303,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         }
         if (dL < 140) {
           ctx.font = 'bold 14px Arial';
-          ctx.fillStyle = '#10b981';
+          ctx.fillStyle = theme.hudAccent;
           ctx.textAlign = 'center';
           ctx.fillText('Press E to descend', lx, ly + 40);
         }
@@ -263,8 +325,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ax = Math.max(20, Math.min(CANVAS_WIDTH - 20, ax));
           ay = Math.max(20, Math.min(CANVAS_HEIGHT - 20, ay));
           // Draw arrow triangle pointing towards ladder
-          ctx.fillStyle = '#10b981';
-          ctx.strokeStyle = '#10b981';
+          ctx.fillStyle = theme.hudAccent;
+          ctx.strokeStyle = theme.hudAccent as any;
           ctx.lineWidth = 2;
           ctx.save();
           ctx.translate(ax, ay);
@@ -327,7 +389,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       // HUD text
       ctx.font = 'bold 16px Arial';
-      ctx.fillStyle = '#fbbf24';
+      ctx.fillStyle = theme.hudAccent;
       ctx.textAlign = 'left';
       ctx.fillText(`Floor ${currentFloor}`, 20, 30);
 
@@ -346,7 +408,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       // Background panel
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
-      ctx.strokeStyle = '#fbbf24';
+      ctx.strokeStyle = theme.hudAccent as any;
       ctx.lineWidth = 1;
       ctx.strokeRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
       ctx.font = '12px Arial';
@@ -378,7 +440,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       ctx.fillText(remaining > 0 ? 'Cooling...' : 'Ready', groupX + groupWidth / 2, cdY + barHeight - 2);
       // Attack hint
       ctx.font = '11px Arial';
-      ctx.fillStyle = '#fbbf24';
+      ctx.fillStyle = theme.hudAccent;
       ctx.fillText('Press SPACE in range to attack', groupX + groupWidth / 2, cdY + barHeight + 16);
 
       // Minimap overlay: world bounds, viewport, player (toggleable)
@@ -388,13 +450,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const miniX = CANVAS_WIDTH - miniW - 20;
         const miniY = 20;
         // Panel background
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillStyle = theme.minimapPanel;
         ctx.fillRect(miniX - 6, miniY - 6, miniW + 12, miniH + 12);
-        ctx.strokeStyle = '#fbbf24';
+        ctx.strokeStyle = theme.minimapViewport as any;
         ctx.lineWidth = 1;
         ctx.strokeRect(miniX - 6, miniY - 6, miniW + 12, miniH + 12);
         // World area
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = theme.minimapWorld;
         ctx.fillRect(miniX, miniY, miniW, miniH);
         ctx.strokeStyle = '#334155';
         ctx.strokeRect(miniX, miniY, miniW, miniH);
@@ -403,13 +465,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const vpH = (CANVAS_HEIGHT / WORLD_HEIGHT) * miniH;
         const vpX = miniX + (cameraRef.current.x / WORLD_WIDTH) * miniW;
         const vpY = miniY + (cameraRef.current.y / WORLD_HEIGHT) * miniH;
-        ctx.strokeStyle = '#fbbf24';
+        ctx.strokeStyle = theme.minimapViewport as any;
         ctx.lineWidth = 2;
         ctx.strokeRect(vpX, vpY, vpW, vpH);
         // Player dot
         const pMiniX = miniX + (playerPos.x / WORLD_WIDTH) * miniW;
         const pMiniY = miniY + (playerPos.y / WORLD_HEIGHT) * miniH;
-        ctx.fillStyle = '#60a5fa';
+        ctx.fillStyle = theme.player;
         ctx.beginPath();
         ctx.arc(pMiniX, pMiniY, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -417,7 +479,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         if (ladderPos && ladderDiscoveredRef.current) {
           const lMiniX = miniX + (ladderPos.x / WORLD_WIDTH) * miniW;
           const lMiniY = miniY + (ladderPos.y / WORLD_HEIGHT) * miniH;
-          ctx.fillStyle = '#10b981';
+          ctx.fillStyle = theme.hudAccent;
           ctx.beginPath();
           ctx.arc(lMiniX, lMiniY, 3, 0, Math.PI * 2);
           ctx.fill();

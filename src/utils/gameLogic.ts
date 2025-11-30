@@ -841,6 +841,58 @@ export function getRarityBorderColor(rarity: string): string {
   }
 }
 
+// ----------------- ITEM SPRITES -----------------
+
+/**
+ * Lightweight sprite mapping for items. Returns an emoji or short glyph
+ * representing the item visually without requiring external assets.
+ */
+export function getItemSprite(item: Item | Partial<Item>): string {
+  const type = (item as any).type as Item['type'] | undefined;
+  const name = ((item as any).name as string | undefined)?.toLowerCase() || '';
+
+  if (!type) return '📦';
+
+  // Weapon sprites
+  if (type === 'melee_weapon') {
+    if (name.includes('axe')) return '🪓';
+    if (name.includes('mace') || name.includes('hammer')) return '⚒️';
+    if (name.includes('flail')) return '🔗';
+    return '🗡️';
+  }
+  if (type === 'ranged_weapon') {
+    if (name.includes('crossbow')) return '🏹';
+    if (name.includes('longbow') || name.includes('bow')) return '🏹';
+    return '🏹';
+  }
+  if (type === 'mage_weapon') {
+    if (name.includes('staff')) return '🔮';
+    if (name.includes('wand')) return '✨';
+    if (name.includes('tome') || name.includes('scepter')) return '📜';
+    return '🔮';
+  }
+
+  // Armor & gear sprites
+  if (type === 'melee_armor') return '🛡️';
+  if (type === 'ranged_armor') return '🧥';
+  if (type === 'mage_armor') return '🧙‍♂️';
+  if (type === 'helmet') return '🥽';
+  if (type === 'boots') return '🥾';
+  if (type === 'gloves') return '🧤';
+  if (type === 'belt') return '🧷';
+
+  // Trinkets
+  if (type === 'ring') return '💍';
+  if (type === 'amulet') return '📿';
+  if (type === 'trinket') return '🎖️';
+
+  // Consumables
+  if (type === 'potion') return '🧪';
+
+  // Fallback
+  return '📦';
+}
+
 // ----------------- EQUIPMENT SLOT HELPERS -----------------
 
 export type EquipmentSlot = 'helmet' | 'chest' | 'boots' | 'weapon' | 'trinket' | 'amulet' | 'ring1' | 'ring2' | 'gloves' | 'belt';

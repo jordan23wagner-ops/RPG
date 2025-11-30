@@ -1,7 +1,7 @@
 // src/components/InventoryGrid.tsx
 import { Item } from '../types/game';
 import { ItemTooltip } from './ItemTooltip';
-import { getRarityBorderColor } from '../utils/gameLogic';
+import { getRarityBorderColor, getItemSprite } from '../utils/gameLogic';
 
 interface InventoryGridProps {
   items: Item[];
@@ -53,10 +53,13 @@ function InventorySlot({ item, onClickItem }: InventorySlotProps) {
       onClick={() => onClickItem?.(item)}
       className={`group relative aspect-square rounded-md border ${borderColor} bg-black/70 shadow-inner flex items-center justify-center`}
     >
-      {/* you can render icon or first letters here */}
-      <span className="text-[10px] sm:text-xs text-center px-1 leading-tight">
-        {item.name}
-      </span>
+      {/* sprite icon + short name */}
+      <div className="flex flex-col items-center gap-1">
+        <div className="text-xl leading-none">{getItemSprite(item)}</div>
+        <span className="text-[10px] sm:text-xs text-center px-1 leading-tight line-clamp-2">
+          {item.name}
+        </span>
+      </div>
 
       <ItemTooltipWrapper item={item} />
     </button>

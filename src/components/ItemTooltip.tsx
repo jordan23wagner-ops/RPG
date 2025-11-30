@@ -4,6 +4,7 @@ import {
   getRarityColor,
   getRarityBgColor,
   getEquipmentSlot,
+  getItemSprite,
 } from '../utils/gameLogic';
 
 interface ItemTooltipProps {
@@ -19,6 +20,7 @@ export function ItemTooltip({ item }: ItemTooltipProps) {
   return (
     <div className="rounded-lg border border-gray-800 bg-black/95 px-3 py-2 text-xs shadow-2xl max-w-xs">
       <div className={`mb-2 text-sm font-semibold ${rarityColor} flex items-center gap-2`}>
+        <span className="text-base">{getItemSprite(item)}</span>
         <span>{item.name}</span>
         <span className={`text-[10px] font-normal tracking-wide px-1.5 py-0.5 rounded ${rarityBg} lowercase text-gray-200`}>
           {item.rarity} <span className="capitalize">{typeDisplay}</span>
