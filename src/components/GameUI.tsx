@@ -218,13 +218,19 @@ export function GameUI({
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <div
-                      className={`font-semibold text-xs ${getRarityColor(
-                        item.rarity,
-                      )}`}
-                    >
-                      {item.name}
-                    </div>
+                    {(() => {
+                      const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                      return (
+                        <div
+                          className={`font-semibold text-xs ${getRarityColor(
+                            item.rarity,
+                          )} flex items-center gap-2`}
+                        >
+                          <span>{item.name}</span>
+                          <span className="text-gray-300 text-[9px] lowercase font-normal">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
+                        </div>
+                      );
+                    })()}
                     {item.damage && (
                       <div className="text-red-400 text-xs">
                         +{item.damage} DMG

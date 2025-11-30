@@ -83,9 +83,15 @@ export function Shop({ character, items, onClose, onSellItem, onBuyPotion, onSel
                       className={`${getRarityBgColor(item.rarity)} border rounded px-3 py-2 flex items-center justify-between`}
                     >
                       <div>
-                        <div className={`font-semibold text-sm ${getRarityColor(item.rarity)}`}>
-                          {item.name}
-                        </div>
+                        {(() => {
+                          const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                          return (
+                            <div className={`font-semibold text-sm ${getRarityColor(item.rarity)} flex items-center gap-2`}>
+                              <span>{item.name}</span>
+                              <span className="text-gray-300 text-[10px] lowercase font-normal">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
+                            </div>
+                          );
+                        })()}
                         <div className="text-yellow-500 text-xs font-semibold">
                           {item.value} Gold
                         </div>
