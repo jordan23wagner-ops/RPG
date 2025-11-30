@@ -16,6 +16,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
+  const minimapEnabledRef = useRef<boolean>(true);
 
   // keep zoneHeat prop in sync (set below via props)
 
@@ -311,6 +312,40 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       ctx.fillStyle = '#fbbf24';
       ctx.fillText('Press SPACE in range to attack', groupX + groupWidth / 2, cdY + barHeight + 16);
 
+      // Minimap overlay: world bounds, viewport, player (toggleable)
+      if (minimapEnabledRef.current) {
+        const miniW = 200;
+        const miniH = 150;
+        const miniX = CANVAS_WIDTH - miniW - 20;
+        const miniY = 20;
+        // Panel background
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(miniX - 6, miniY - 6, miniW + 12, miniH + 12);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(miniX - 6, miniY - 6, miniW + 12, miniH + 12);
+        // World area
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(miniX, miniY, miniW, miniH);
+        ctx.strokeStyle = '#334155';
+        ctx.strokeRect(miniX, miniY, miniW, miniH);
+        // Viewport rectangle based on camera
+        const vpW = (CANVAS_WIDTH / WORLD_WIDTH) * miniW;
+        const vpH = (CANVAS_HEIGHT / WORLD_HEIGHT) * miniH;
+        const vpX = miniX + (cameraRef.current.x / WORLD_WIDTH) * miniW;
+        const vpY = miniY + (cameraRef.current.y / WORLD_HEIGHT) * miniH;
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(vpX, vpY, vpW, vpH);
+        // Player dot
+        const pMiniX = miniX + (playerPos.x / WORLD_WIDTH) * miniW;
+        const pMiniY = miniY + (playerPos.y / WORLD_HEIGHT) * miniH;
+        ctx.fillStyle = '#60a5fa';
+        ctx.beginPath();
+        ctx.arc(pMiniX, pMiniY, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       // Draw damage numbers
       const currentTime = Date.now();
       damageNumbersRef.current.forEach((dmg: DamageNumber) => {
@@ -453,6 +488,12 @@ useEffect(() => {
       }
 
       // Don’t do anything else for Space
+      return;
+    }
+
+    // Toggle minimap with 'm' or 'M'
+    if (e.key === 'm' || e.key === 'M') {
+      minimapEnabledRef.current = !minimapEnabledRef.current;
       return;
     }
   };
