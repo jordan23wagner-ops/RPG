@@ -145,6 +145,7 @@ export type RoomEventType =
   | 'miniBoss'
   | 'mimic'
   | 'empty'
+  | 'boss'
   | 'ladder';
 
 export interface FloorRoom {

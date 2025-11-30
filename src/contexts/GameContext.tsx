@@ -239,6 +239,7 @@ try {
     const mimicChance = Math.min(0.05 + floorNumber * 0.005, 0.15); // up to 15%
     const miniBossChance = Math.min(0.01 + Math.floor(floorNumber / 5) * 0.01, 0.08); // up to 8%
     const rareEnemyChance = Math.min(0.15 + floorNumber * 0.01, 0.35); // scales with depth
+    const isBossFloor = floorNumber % 10 === 0;
 
     for (let i = 0; i < roomCount; i++) {
       const id = `room-${floorNumber}-${i}`;
@@ -255,7 +256,16 @@ try {
 
     // Place ladder in a random non-start room
     const ladderIndex = Math.max(1, Math.floor(Math.random() * roomCount));
-    rooms[ladderIndex].type = 'ladder';
+    // Boss floor: ensure one dedicated boss room distinct from ladder & start
+    if (isBossFloor) {
+      let bossIndex = Math.floor(Math.random() * roomCount);
+      if (bossIndex === 0) bossIndex = (bossIndex + 1) % roomCount;
+      if (bossIndex === ladderIndex) bossIndex = (bossIndex + 1) % roomCount;
+      rooms[bossIndex].type = 'boss';
+      rooms[ladderIndex].type = 'ladder';
+    } else {
+      rooms[ladderIndex].type = 'ladder';
+    }
 
     return {
       floor: floorNumber,
@@ -288,7 +298,7 @@ try {
     }
     // If combat room and not cleared, spawn appropriate enemy variant
     if (!room.cleared) {
-      if (['enemy','rareEnemy','miniBoss','mimic'].includes(room.type)) {
+      if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
         // Lazy import of variant generator to avoid circular if changed later
         const variantEnemy = generateEnemyVariant(room.type as any, floor, character?.level || 1, zoneHeat);
         setCurrentEnemy(variantEnemy);
@@ -607,6 +617,12 @@ try {
     if (floorMap) {
       const ladderRoom = floorMap.rooms.find((r: FloorRoom) => r.id === floorMap.ladderRoomId);
       if (!ladderRoom || !ladderRoom.explored) return;
+      // Boss floor requirement: boss room cleared
+      const needsBossClear = floor % 10 === 0;
+      if (needsBossClear) {
+        const bossRoom = floorMap.rooms.find((r: FloorRoom) => r.type === 'boss');
+        if (bossRoom && !bossRoom.cleared) return;
+      }
     }
     const newFloor = floor + 1;
     setFloor(newFloor);

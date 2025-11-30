@@ -1,7 +1,7 @@
 // src/components/FloorMap.tsx
 import { useGame } from '../contexts/GameContext';
 import { FloorRoom } from '../types/game';
-import { Swords, Crown, Activity, AlertTriangle, ArrowUpCircle } from 'lucide-react';
+import { Swords, Crown, Activity, AlertTriangle, ArrowUpCircle, Flame } from 'lucide-react';
 
 function roomLabel(room: FloorRoom) {
   switch (room.type) {
@@ -9,6 +9,7 @@ function roomLabel(room: FloorRoom) {
     case 'rareEnemy': return 'Rare';
     case 'miniBoss': return 'Mini';
     case 'mimic': return 'Mimic';
+    case 'boss': return 'Boss';
     case 'ladder': return 'Ladder';
     case 'empty': return 'Empty';
     default: return room.type;
@@ -20,6 +21,7 @@ function roomIcon(room: FloorRoom) {
     case 'miniBoss': return <Crown className="w-4 h-4" />;
     case 'rareEnemy': return <Activity className="w-4 h-4" />;
     case 'mimic': return <AlertTriangle className="w-4 h-4" />;
+    case 'boss': return <Flame className="w-5 h-5 text-red-500" />;
     case 'ladder': return <ArrowUpCircle className="w-4 h-4" />;
     default: return <Swords className="w-4 h-4" />;
   }

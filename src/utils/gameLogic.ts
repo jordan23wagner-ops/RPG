@@ -350,7 +350,7 @@ export function generateEnemy(floor: number, playerLevel: number, zoneHeat: numb
 }
 
 // Variant enemy generator used by floor exploration events
-export function generateEnemyVariant(kind: 'enemy' | 'rareEnemy' | 'miniBoss' | 'mimic', floor: number, playerLevel: number, zoneHeat: number = 0): Enemy {
+export function generateEnemyVariant(kind: 'enemy' | 'rareEnemy' | 'miniBoss' | 'mimic' | 'boss', floor: number, playerLevel: number, zoneHeat: number = 0): Enemy {
   if (kind === 'enemy') return generateEnemy(floor, playerLevel, zoneHeat);
 
   // Base enemy as template
@@ -392,6 +392,19 @@ export function generateEnemyVariant(kind: 'enemy' | 'rareEnemy' | 'miniBoss' | 
         experience: Math.floor(base.experience * 2.5),
         gold: Math.floor(base.gold * 3.0),
         rarity: 'elite',
+      };
+    }
+    case 'boss': {
+      // Boss floors every 10: very high stats, ensures tough encounter
+      return {
+        ...base,
+        name: `Floor ${floor} Boss ${base.name}`,
+        health: Math.floor(base.health * 3.0),
+        max_health: Math.floor(base.max_health * 3.0),
+        damage: Math.floor(base.damage * 2.5),
+        experience: Math.floor(base.experience * 3.5),
+        gold: Math.floor(base.gold * 4.0),
+        rarity: 'boss',
       };
     }
     default:
