@@ -14,6 +14,7 @@ import {
   generateLoot,
   getEquipmentSlot,
   computeSetBonuses,
+  isTwoHanded,
 } from '../utils/gameLogic';
 
 export interface DamageNumber {
@@ -597,6 +598,28 @@ try {
           .update({ equipped: false })
           .eq('id', itemId);
       } else {
+        // Enforce 2H rules: if equipping off-hand while a 2H weapon is equipped, block
+        if (slot === 'amulet') {
+          const twoHandedEquipped = items.some((i: Item) => i.equipped && (i.type === 'melee_weapon' || i.type === 'ranged_weapon' || i.type === 'mage_weapon') && isTwoHanded(i as Item));
+          if (twoHandedEquipped) {
+            console.warn('Cannot equip off-hand while a two-handed weapon is equipped');
+            return;
+          }
+        }
+
+        // If equipping a 2H weapon, unequip any off-hand items
+        if ((item.type === 'melee_weapon' || item.type === 'ranged_weapon' || item.type === 'mage_weapon') && isTwoHanded(item as Item)) {
+          const offhandIds = items
+            .filter((equippedItem: Item) => equippedItem.equipped && getEquipmentSlot(equippedItem) === 'amulet')
+            .map((i: Item) => i.id);
+          if (offhandIds.length > 0) {
+            await supabase
+              .from('items')
+              .update({ equipped: false })
+              .in('id', offhandIds);
+          }
+        }
+
         // Special handling for rings: allow two rings by checking if ring1 is taken
         if (item.type === 'ring' && slot === 'ring1') {
           const ring1Equipped = items.some(
