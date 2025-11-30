@@ -425,6 +425,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx*dx + dy*dy);
           if (d < 140) {
+            console.log(`[AutoEngage] Attempting to engage ${ew.id} at distance ${d.toFixed(0)}px`);
             // Set enemy position to world enemy position for combat
             enemyPosRef.current = { x: ew.x, y: ew.y };
             currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately
