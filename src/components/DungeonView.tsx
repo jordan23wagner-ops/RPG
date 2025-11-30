@@ -22,8 +22,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // ========== Constants ==========
   const CANVAS_WIDTH = 1000;
   const CANVAS_HEIGHT = 600;
+  // Large world dimensions for camera to pan around
+  const WORLD_WIDTH = 4000;
+  const WORLD_HEIGHT = 3000;
   const MOVE_SPEED = 5;
-  const BOUNDARY_PADDING = 50;
+  // const BOUNDARY_PADDING = 50; // deprecated with world bounds
   const ATTACK_COOLDOWN_MS = 400;
   const MAX_CHASE_DISTANCE = 450;
   const ENEMY_SPEED = 2.2;
@@ -34,8 +37,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // Using refs to avoid 60fps React re-renders and maintain state across frames
 
   // Player and enemy positions (updated each frame)
+  // World positions
   const playerPosRef = useRef({ x: 400, y: 450 });
-  const enemyPosRef = useRef({ x: 600, y: 220 });
+  const enemyPosRef = useRef({ x: 900, y: 600 });
+
+  // Camera state: top-left world coordinates of the visible viewport
+  const cameraRef = useRef({ x: 0, y: 0 });
 
   // Input tracking
   const keysPressed = useRef<{ [key: string]: boolean }>({});
@@ -169,16 +176,32 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       const enemy = enemyRef.current;
       const currentFloor = floorRef.current;
 
+      // Update camera to center on player (clamped to world bounds)
+      const camX = Math.max(0, Math.min(WORLD_WIDTH - CANVAS_WIDTH, playerPos.x - CANVAS_WIDTH / 2));
+      const camY = Math.max(0, Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, playerPos.y - CANVAS_HEIGHT / 2));
+      cameraRef.current = { x: camX, y: camY };
+
       // Background
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Stones
-      ctx.fillStyle = '#16213e';
-      for (let i = 0; i < 20; i++) {
-        const x = (i * 80) % CANVAS_WIDTH;
-        const y = Math.sin(i) * 50 + 300;
-        drawStone(ctx, x, y, 60, 80);
+      // Stones tiled across the world; render only those within camera view
+      const tileSize = 100;
+      const cols = Math.ceil(WORLD_WIDTH / tileSize);
+      const rows = Math.ceil(WORLD_HEIGHT / tileSize);
+      const startCol = Math.max(0, Math.floor(camX / tileSize) - 1);
+      const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / tileSize) + 1);
+      const startRow = Math.max(0, Math.floor(camY / tileSize) - 1);
+      const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / tileSize) + 1);
+      for (let r = startRow; r < endRow; r++) {
+        for (let c = startCol; c < endCol; c++) {
+          const worldX = c * tileSize + 20;
+          const worldY = r * tileSize + 40;
+          const screenX = worldX - camX;
+          const screenY = worldY - camY;
+          ctx.fillStyle = '#16213e';
+          drawStone(ctx, screenX, screenY, 60, 80);
+        }
       }
 
       // Torches
@@ -187,12 +210,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       drawTorch(ctx, 150, CANVAS_HEIGHT - 80);
       drawTorch(ctx, CANVAS_WIDTH - 150, CANVAS_HEIGHT - 80);
 
-      // Player
-      drawCharacter(ctx, playerPos.x, playerPos.y, true);
+      // Player (apply camera offset)
+      drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true);
 
       // Enemy + health bar
       if (enemy && enemy.health > 0) {
-        drawCharacter(ctx, enemyPos.x, enemyPos.y, false);
+        drawCharacter(ctx, enemyPos.x - camX, enemyPos.y - camY, false);
 
         ctx.font = 'bold 18px Arial';
         let rarityColor = '#ef4444';
@@ -202,21 +225,21 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
         ctx.fillStyle = rarityColor;
         ctx.textAlign = 'center';
-        ctx.fillText(enemy.name, enemyPos.x, enemyPos.y - 60);
+        ctx.fillText(enemy.name, enemyPos.x - camX, enemyPos.y - camY - 60);
 
         const healthPercent = (enemy.health / enemy.max_health) * 100;
         ctx.fillStyle = '#1f2937';
-        ctx.fillRect(enemyPos.x - 60, enemyPos.y - 35, 120, 10);
+        ctx.fillRect(enemyPos.x - camX - 60, enemyPos.y - camY - 35, 120, 10);
         ctx.fillStyle = healthPercent > 30 ? '#22c55e' : '#ef4444';
         ctx.fillRect(
-          enemyPos.x - 60,
-          enemyPos.y - 35,
+          enemyPos.x - camX - 60,
+          enemyPos.y - camY - 35,
           (healthPercent / 100) * 120,
           10,
         );
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2;
-        ctx.strokeRect(enemyPos.x - 60, enemyPos.y - 35, 120, 10);
+        ctx.strokeRect(enemyPos.x - camX - 60, enemyPos.y - camY - 35, 120, 10);
 
         const distX = playerPos.x - enemyPos.x;
         const distY = playerPos.y - enemyPos.y;
@@ -240,7 +263,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       ctx.fillStyle = 'rgba(200,200,200,0.8)';
       ctx.font = '12px Arial';
-      ctx.fillText('Use Arrow Keys to move', 20, 60);
+      ctx.fillText('Use Arrow Keys to move across the world', 20, 60);
 
       // Draw character HUD (HP, Mana, EXP)
       // Draw simplified action area: Heat bar + cooldown bar grouped at bottom center
@@ -302,7 +325,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.shadowColor = `rgba(0, 0, 0, ${opacity * 0.8})`;
         ctx.shadowBlur = 10;
         ctx.shadowOffsetY = 3;
-        ctx.fillText(`-${dmg.damage}`, dmg.x, dmg.y - yOffset);
+        // Convert world-space damage positions to screen-space using camera
+        ctx.fillText(`-${dmg.damage}`, dmg.x - camX, dmg.y - camY - yOffset);
         ctx.shadowColor = 'transparent';
       });
 
@@ -331,16 +355,16 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       const keys = keysPressed.current;
 
       if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-        newY = Math.max(BOUNDARY_PADDING, prev.y - MOVE_SPEED);
+        newY = Math.max(0, prev.y - MOVE_SPEED);
       }
       if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-        newY = Math.min(CANVAS_HEIGHT - BOUNDARY_PADDING, prev.y + MOVE_SPEED);
+        newY = Math.min(WORLD_HEIGHT, prev.y + MOVE_SPEED);
       }
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-        newX = Math.max(BOUNDARY_PADDING, prev.x - MOVE_SPEED);
+        newX = Math.max(0, prev.x - MOVE_SPEED);
       }
       if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-        newX = Math.min(CANVAS_WIDTH - BOUNDARY_PADDING, prev.x + MOVE_SPEED);
+        newX = Math.min(WORLD_WIDTH, prev.x + MOVE_SPEED);
       }
 
       playerPosRef.current = { x: newX, y: newY };
