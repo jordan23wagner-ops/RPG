@@ -16,11 +16,12 @@ const HERO_NAMES = [
 export function CreateCharacter({ onCreate, autoStart = false }: CreateCharacterProps) {
   const [name, setName] = useState('');
 
-  // Auto-start if requested
+  // Auto-start if requested - immediate execution
   useEffect(() => {
     if (autoStart) {
       const randomName = HERO_NAMES[Math.floor(Math.random() * HERO_NAMES.length)];
-      onCreate(randomName);
+      // Use setTimeout to ensure clean state transition
+      setTimeout(() => onCreate(randomName), 0);
     }
   }, [autoStart, onCreate]);
 
@@ -35,6 +36,15 @@ export function CreateCharacter({ onCreate, autoStart = false }: CreateCharacter
     const randomName = HERO_NAMES[Math.floor(Math.random() * HERO_NAMES.length)];
     onCreate(randomName);
   };
+
+  // Don't render the form if auto-starting
+  if (autoStart) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 flex items-center justify-center">
+        <div className="text-yellow-500 text-xl">Creating hero...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 flex items-center justify-center p-4">
