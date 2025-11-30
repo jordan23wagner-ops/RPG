@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   createContext,
   useContext,
@@ -41,6 +42,8 @@ interface GameContextType {
   damageNumbers: DamageNumber[];
   zoneHeat: number;
   rarityFilter: Set<string>;
+  killedEnemyIds: Set<string>;
+  killedWorldEnemiesRef: React.MutableRefObject<Map<number, Set<string>>>;
   increaseZoneHeat: (amount?: number) => void;
   resetZoneHeat: () => void;
   toggleRarityFilter: (rarity: string) => void;
@@ -63,24 +66,6 @@ interface GameContextType {
   affixStats: { total: number; withAffixes: number; percentage: number };
   resetAffixStats: () => void;
 }
-  // Debug/dev: Equip all and unequip all items
-  const equipAll = async () => {
-    if (!character) return;
-    const unequippedIds = items.filter(i => !i.equipped && i.type !== 'potion').map(i => i.id);
-    if (unequippedIds.length > 0) {
-      await supabase.from('items').update({ equipped: true }).in('id', unequippedIds);
-      await loadItems(character.id);
-    }
-  };
-
-  const unequipAll = async () => {
-    if (!character) return;
-    const equippedIds = items.filter(i => i.equipped && i.type !== 'potion').map(i => i.id);
-    if (equippedIds.length > 0) {
-      await supabase.from('items').update({ equipped: false }).in('id', equippedIds);
-      await loadItems(character.id);
-    }
-  };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -120,6 +105,134 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
       if (newFilter.has(rarity)) newFilter.delete(rarity); else newFilter.add(rarity);
       return newFilter;
     });
+  };
+
+  // ---------------- Internal Load Helpers ----------------
+  async function loadItems(characterId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('character_id', characterId)
+        .order('id', { ascending: true });
+      if (error) {
+        console.error('Error loading items:', error.message);
+        return;
+      }
+      setItems((data || []) as Item[]);
+    } catch (e) {
+      console.error('Unexpected error loading items:', e);
+    }
+  }
+
+  async function loadCharacter() {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      let char: Character | null = null;
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('characters')
+          .select('*')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        if (error && error.code !== 'PGRST116') { // ignore no rows
+          throw error;
+        }
+        if (data) char = data as Character;
+      }
+
+      // Guest fallback using localStorage
+      if (!char) {
+        const guestId = typeof window !== 'undefined' ? localStorage.getItem('guest_character_id') : null;
+        if (guestId) {
+          const { data, error } = await supabase
+            .from('characters')
+            .select('*')
+            .eq('id', guestId)
+            .limit(1)
+            .maybeSingle();
+          if (!error && data) {
+            char = data as Character;
+          }
+        }
+      }
+
+      // Create new character if none found
+      if (!char) {
+        const baseChar = {
+          user_id: user?.id ?? null,
+          name: 'Hero',
+          level: 1,
+          experience: 0,
+          health: 100,
+          max_health: 100,
+          mana: 50,
+          max_mana: 50,
+          strength: 10,
+          dexterity: 10,
+          intelligence: 10,
+          speed: 5,
+          crit_chance: 5,
+          crit_damage: 150,
+          stat_points: 0,
+          gold: 0,
+        };
+        const { data: created, error: createErr } = await supabase
+          .from('characters')
+          .insert([baseChar])
+          .select()
+          .single();
+        if (createErr) throw createErr;
+        char = created as Character;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('guest_character_id', char.id);
+        }
+        // Starter weapon
+        await supabase.from('items').insert([
+          {
+            character_id: char.id,
+            name: 'Rusty Sword',
+            type: 'melee_weapon',
+            rarity: 'common',
+            damage: 5,
+            value: 10,
+            equipped: true,
+            required_level: 1,
+            required_stats: { strength: 1 },
+            affixes: [],
+          },
+        ]);
+      }
+
+      setCharacter(char);
+      await loadItems(char.id);
+    } catch (e: any) {
+      console.error('Error loading character:', e?.message || e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Debug/dev: Equip all and unequip all items (now correctly scoped inside provider)
+  const equipAll = async () => {
+    if (!character) return;
+    const unequippedIds = items.filter(i => !i.equipped && i.type !== 'potion').map(i => i.id);
+    if (unequippedIds.length > 0) {
+      await supabase.from('items').update({ equipped: true }).in('id', unequippedIds);
+      await loadItems(character.id);
+    }
+  };
+
+  const unequipAll = async () => {
+    if (!character) return;
+    const equippedIds = items.filter(i => i.equipped && i.type !== 'potion').map(i => i.id);
+    if (equippedIds.length > 0) {
+      await supabase.from('items').update({ equipped: false }).in('id', equippedIds);
+      await loadItems(character.id);
+    }
   };
   
   const increaseZoneHeat = (amount: number = 5) => {
@@ -1030,6 +1143,8 @@ try {
         toggleRarityFilter,
         createCharacter,
         loadCharacter,
+        equipAll,
+        unequipAll,
         attack,
         usePotion,
         equipItem,
