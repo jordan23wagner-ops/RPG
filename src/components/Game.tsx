@@ -6,7 +6,7 @@ import TownView from './TownView.tsx';
 import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
-import { LogOut, FlaskConical, Package, Sword, ShoppingBag } from 'lucide-react';
+import { LogOut, FlaskConical, Package, Sword } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
 import { SettingsPanel } from './SettingsPanel';
@@ -170,13 +170,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               🗝️ Enter Dungeon
             </button>
           )}
-          <button
-            onClick={() => setShopOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-orange-800 hover:bg-orange-700 text-white rounded-md transition-colors font-semibold text-sm"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            Merchant
-          </button>
           <button
             onClick={handleSignOut}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-md transition-colors text-sm"
