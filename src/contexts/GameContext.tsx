@@ -341,7 +341,15 @@ try {
 
   useEffect(() => {
     // Only initialize each floor once to prevent regenerating enemies
-    if (initializedFloorRef.current === floor) return;
+    if (initializedFloorRef.current === floor) {
+      if (DEBUG_WORLD_ENEMIES) {
+        console.log(`[WorldGen] Floor ${floor} already initialized, skipping`);
+      }
+      return;
+    }
+    if (DEBUG_WORLD_ENEMIES) {
+      console.log(`[WorldGen] Initializing floor ${floor} for the first time`);
+    }
     initializedFloorRef.current = floor;
     
     initFloorIfNeeded();
