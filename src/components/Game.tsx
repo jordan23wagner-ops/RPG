@@ -20,10 +20,6 @@ export function Game() {
   } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
-  const [hoveredItem, setHoveredItem] = useState<any | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{x:number;y:number}>({ x: 0, y: 0 });
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipTimer, setTooltipTimer] = useState<number | null>(null);
 
   // Check for auto-start flag on mount
   useEffect(() => {
@@ -71,6 +67,11 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   setShopOpen: (open: boolean) => void;
   autoStart: boolean;
 }) {
+  // Local tooltip hover state (was previously in parent; moved here to prevent ReferenceError)
+  const [hoveredItem, setHoveredItem] = useState<any | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{x:number;y:number}>({ x: 0, y: 0 });
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipTimer, setTooltipTimer] = useState<number | null>(null);
   const {
     character,
     items,
@@ -79,7 +80,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     loading,
     damageNumbers,
     zoneHeat,
-    rarityFilter,
     createCharacter,
     attack,
     usePotion,
@@ -87,7 +87,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     sellItem,
     buyPotion,
     sellAllItems,
-    toggleRarityFilter,
     nextFloor,
   } = useGame();
 
@@ -108,7 +107,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     return <CreateCharacter onCreate={createCharacter} autoStart={autoStart} />;
   }
 
-  const enemyDefeated = currentEnemy ? currentEnemy.health <= 0 : false;
   // Quick access potion info for the bottom bar
   const potionItems = items.filter((i: any) => i.type === 'potion');
   const potionCount = potionItems.length;
