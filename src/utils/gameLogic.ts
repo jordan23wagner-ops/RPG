@@ -471,11 +471,17 @@ function pickRarity(enemyRarity: RarityKey, zoneHeat: number = 0): RarityKey {
   return 'common';
 }
 
-const WEAPON_TYPES = ['melee_weapon', 'ranged_weapon', 'mage_weapon'] as const;
-const ARMOR_TYPES = ['melee_armor', 'amulet', 'ring', 'gloves', 'belt', 'boots'] as const;
+// Deprecated direct type pools; theme-aware weighted pools used instead
 
 function randomFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Theme helper based on floor (0..3 cycling): 0=dungeon, 1=lava, 2=ice, 3=jungle
+export type FloorTheme = 'dungeon' | 'lava' | 'ice' | 'jungle';
+export function getFloorThemeByFloor(floor: number): FloorTheme {
+  const idx = floor % 4;
+  return idx === 1 ? 'lava' : idx === 2 ? 'ice' : idx === 3 ? 'jungle' : 'dungeon';
 }
 
 function rollBaseStats(
@@ -593,18 +599,51 @@ export function generateLoot(
   }
 
   const rarity = pickRarity(enemyRarity, zoneHeat);
-  const isWeapon = Math.random() < 0.6;
+  const theme = getFloorThemeByFloor(floor);
+  // Bias weapon vs armor by theme
+  let weaponChance = 0.6;
+  if (theme === 'lava') weaponChance = 0.7; // more weapons
+  if (theme === 'ice') weaponChance = 0.5; // more armor/mana gear
+  if (theme === 'jungle') weaponChance = 0.55; // slightly armor heavy
+  const isWeapon = Math.random() < weaponChance;
 
-  const type = isWeapon ? randomFrom(WEAPON_TYPES) : randomFrom(ARMOR_TYPES);
+  // Bias type selection within category
+  let type: Item['type'];
+  if (isWeapon) {
+    const weighted: Item['type'][] = [];
+    if (theme === 'lava') {
+      weighted.push('melee_weapon','melee_weapon','melee_weapon','ranged_weapon','mage_weapon');
+    } else if (theme === 'ice') {
+      weighted.push('mage_weapon','mage_weapon','ranged_weapon','melee_weapon');
+    } else if (theme === 'jungle') {
+      weighted.push('ranged_weapon','ranged_weapon','melee_weapon','mage_weapon');
+    } else {
+      weighted.push('melee_weapon','ranged_weapon','mage_weapon');
+    }
+    type = randomFrom(weighted);
+  } else {
+    const weighted: Item['type'][] = [] as any;
+    if (theme === 'lava') {
+      weighted.push('melee_armor','gloves','belt','boots','ring');
+    } else if (theme === 'ice') {
+      weighted.push('mage_armor','amulet','ring','boots');
+    } else if (theme === 'jungle') {
+      weighted.push('ranged_armor','boots','gloves','belt');
+    } else {
+      weighted.push('melee_armor','boots','gloves','belt','ring','amulet');
+    }
+    type = randomFrom(weighted as any);
+  }
   const { damage, armor } = rollBaseStats(type, enemyLevel, floor, rarity);
 
+  // Theme-influenced name prefixes
   const prefixes =
     type === 'melee_weapon'
-      ? ['Rusty', 'Jagged', 'Savage', 'Dread']
+      ? (theme === 'lava' ? ['Molten','Blazing','Charred','Infernal'] : theme === 'ice' ? ['Frosted','Glacial','Icy','Snowbound'] : theme === 'jungle' ? ['Vinewoven','Hunter','Wild','Primal'] : ['Rusty', 'Jagged', 'Savage', 'Dread'])
       : type === 'ranged_weapon'
-      ? ['Cracked', 'Hunter\'s', 'Sharpshot', 'Storm']
+      ? (theme === 'jungle' ? ['Hunter\'s','Stalker\'s','Sharpshot','Wild'] : theme === 'ice' ? ['Cold','Aurora','Storm','Glacial'] : theme === 'lava' ? ['Smoldering','Ashen','Storm','Scorching'] : ['Cracked', 'Hunter\'s', 'Sharpshot', 'Storm'])
       : type === 'mage_weapon'
-      ? ['Apprentice', 'Mystic', 'Arcane', 'Eldritch']
+      ? (theme === 'ice' ? ['Frostweaver','Mystic','Arcane','Eldritch'] : theme === 'lava' ? ['Pyromancer\'s','Mystic','Infernal','Eldritch'] : ['Apprentice', 'Mystic', 'Arcane', 'Eldritch'])
       : type === 'ring'
       ? ['Mystic', 'Arcane', 'Enchanted', 'Ethereal']
       : type === 'gloves'
@@ -634,7 +673,13 @@ export function generateLoot(
       ? ['Boots', 'Footgear', 'Treads', 'Sabatons']
       : ['Breastplate', 'Chainmail', 'Plate Armor'];
 
-  const suffixes = ['of Might', 'of the Fox', 'of Embers', 'of the Depths'];
+  const suffixes = theme === 'lava'
+    ? ['of Embers','of Flames','of Ash','of the Furnace']
+    : theme === 'ice'
+    ? ['of Frost','of the Glacier','of Snow','of the Aurora']
+    : theme === 'jungle'
+    ? ['of the Hunt','of Vines','of the Wild','of the Canopy']
+    : ['of Might', 'of the Fox', 'of Embers', 'of the Depths'];
 
   let name = `${randomFrom(prefixes)} ${randomFrom(bases)}`;
   if (rarity !== 'common' && Math.random() < 0.7) {
