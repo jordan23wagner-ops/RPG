@@ -195,24 +195,24 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       baseColor: '#dc2626',
       accent: '#fbbf24',
       auraColor: 'rgba(255,0,0,0.35)',
-      size: 26,
+      size: 32, // Increased from 26 to make all enemies more visible
     } as { shape: string; baseColor: string; accent: string; auraColor: string; size: number };
     switch (enemy.rarity) {
       case 'rare':
-        Object.assign(base, { baseColor: '#3b82f6', accent: '#93c5fd', auraColor: 'rgba(59,130,246,0.30)', shape: 'hex', size: 28 });
+        Object.assign(base, { baseColor: '#3b82f6', accent: '#93c5fd', auraColor: 'rgba(59,130,246,0.30)', shape: 'hex', size: 36 });
         break;
       case 'elite':
-        Object.assign(base, { baseColor: '#f59e0b', accent: '#fcd34d', auraColor: 'rgba(245,158,11,0.30)', shape: 'crystal', size: 30 });
+        Object.assign(base, { baseColor: '#f59e0b', accent: '#fcd34d', auraColor: 'rgba(245,158,11,0.30)', shape: 'crystal', size: 40 });
         break;
       case 'boss':
-        Object.assign(base, { baseColor: '#7e22ce', accent: '#c084fc', auraColor: 'rgba(126,34,206,0.45)', shape: 'crown', size: 40 });
+        Object.assign(base, { baseColor: '#7e22ce', accent: '#c084fc', auraColor: 'rgba(126,34,206,0.45)', shape: 'crown', size: 48 });
         break;
       default:
         break;
     }
     // Special room types influence style (mimic -> chest)
     if (/mimic/i.test(enemy.name)) {
-      Object.assign(base, { shape: 'chest', baseColor: '#8b5a2b', accent: '#d97706', auraColor: 'rgba(217,119,6,0.25)', size: 30 });
+      Object.assign(base, { shape: 'chest', baseColor: '#8b5a2b', accent: '#d97706', auraColor: 'rgba(217,119,6,0.25)', size: 38 });
     }
     return base;
   };
