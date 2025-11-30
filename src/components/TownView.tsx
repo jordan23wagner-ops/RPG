@@ -1,4 +1,5 @@
 import { Sword, ShoppingBag, Castle, FlaskConical } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 export default function TownView({ onEnterDungeon, onOpenShop }: { onEnterDungeon: () => void; onOpenShop: () => void }) {
   return (
@@ -46,6 +47,12 @@ export default function TownView({ onEnterDungeon, onOpenShop }: { onEnterDungeo
 
         {/* Services quick access */}
         <div className="bg-black/30 border border-gray-800 rounded p-3">
+          {/* Merchant NPC */}
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-gray-200 mb-2">Shopkeeper</h3>
+            <MerchantNPC onClick={onOpenShop} />
+            <div className="text-[11px] text-gray-400 mt-1">Click the shopkeeper to trade.</div>
+          </div>
           <h3 className="text-sm font-semibold text-gray-200 mb-2">Services</h3>
           <div className="space-y-2">
             <button
@@ -66,5 +73,59 @@ export default function TownView({ onEnterDungeon, onOpenShop }: { onEnterDungeo
         </div>
       </div>
     </div>
+  );
+}
+
+function MerchantNPC({ onClick }: { onClick: () => void }) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+    const x = 40; // center
+    const y = 48;
+    // Head
+    ctx.fillStyle = '#fcd7b6';
+    ctx.fillRect(x - 4, y - 18, 8, 8);
+    // Hair
+    ctx.fillStyle = '#6b4f1d';
+    ctx.fillRect(x - 4, y - 18, 8, 4);
+    // Eyes
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x - 2, y - 15, 2, 2);
+    ctx.fillRect(x + 1, y - 15, 2, 2);
+    // Body (brown apron)
+    ctx.fillStyle = '#92400e';
+    ctx.fillRect(x - 4, y - 10, 8, 10);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(x - 1, y - 8, 2, 8);
+    // Arms
+    ctx.fillStyle = '#92400e';
+    ctx.fillRect(x - 7, y - 10, 3, 9);
+    ctx.fillRect(x + 4, y - 10, 3, 9);
+    // Legs/boots
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(x - 4, y, 3, 8);
+    ctx.fillRect(x + 1, y, 3, 8);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(x - 4, y + 8, 3, 3);
+    ctx.fillRect(x + 1, y + 8, 3, 3);
+  }, []);
+
+  return (
+    <button
+      onClick={onClick}
+      className="group w-full flex items-center gap-3 p-2 rounded border border-yellow-700/40 bg-gray-900/60 hover:bg-gray-800 transition shadow-sm"
+      title="Click to trade"
+    >
+      <canvas ref={ref} width={80} height={80} className="bg-gray-800 rounded border border-gray-700" />
+      <div className="text-left">
+        <div className="text-sm font-semibold text-yellow-400">Shopkeeper</div>
+        <div className="text-[11px] text-gray-300">"Best deals in town!"</div>
+      </div>
+    </button>
   );
 }
