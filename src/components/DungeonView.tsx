@@ -155,8 +155,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
   // ✅ Reset enemy position only when a NEW enemy spawns
   // (id changes) – not on every health update
+  // BUT: Don't reset for world enemies (their position is set by auto-engage)
   useEffect(() => {
     if (!enemy) return;
+    
+    // World enemies have IDs like "floor1-pos37-5", room enemies don't
+    const isWorldEnemy = typeof (enemy as any).id === 'string' && (enemy as any).id.startsWith('floor');
+    if (isWorldEnemy) return; // Position already set by auto-engage
 
     enemyPosRef.current = {
       x: 600,
