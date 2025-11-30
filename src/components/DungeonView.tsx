@@ -101,6 +101,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // World positions
   const playerPosRef = useRef({ x: 400, y: 450 });
   const enemyPosRef = useRef({ x: 900, y: 600 });
+  const hasSpawnedThisFloorRef = useRef(false);
 
   // Camera state: top-left world coordinates of the visible viewport
   const cameraRef = useRef({ x: 0, y: 0 });
@@ -126,7 +127,15 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
   useEffect(() => {
     floorRef.current = floor;
-  }, [floor]);
+    hasSpawnedThisFloorRef.current = false; // Reset spawn flag on floor change
+    // Spawn player at entry ladder if it exists (floor > 1), else at default spawn
+    if (entryLadderPos && floor > 1) {
+      playerPosRef.current = { x: entryLadderPos.x, y: entryLadderPos.y };
+    } else {
+      playerPosRef.current = { x: 400, y: 450 };
+    }
+    hasSpawnedThisFloorRef.current = true;
+  }, [floor, entryLadderPos]);
 
   useEffect(() => {
     onAttackRef.current = onAttack;
@@ -783,14 +792,22 @@ useEffect(() => {
       return;
     }
 
-    // Descend ladder with 'E' when near
+    // Descend ladder with 'E' when near EXIT ladder only (not entry)
     if (e.key === 'e' || e.key === 'E') {
       const playerPos = playerPosRef.current;
       if (exitLadderPos) {
         const dxL = playerPos.x - exitLadderPos.x;
         const dyL = playerPos.y - exitLadderPos.y;
         const dL = Math.sqrt(dxL*dxL + dyL*dyL);
+        // Only descend if near exit ladder AND far from entry ladder (prevent instant re-descent)
         if (dL < 140) {
+          // Extra check: if near entry ladder too, ignore (player just spawned)
+          if (entryLadderPos) {
+            const dxE = playerPos.x - entryLadderPos.x;
+            const dyE = playerPos.y - entryLadderPos.y;
+            const dE = Math.sqrt(dxE*dxE + dyE*dyE);
+            if (dE < 80) return; // Too close to entry, ignore E press
+          }
           const evt = new CustomEvent('dungeon-descend');
           window.dispatchEvent(evt);
         }
