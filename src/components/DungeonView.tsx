@@ -410,6 +410,10 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           !killedEnemyIds.has(e.id) && e.id !== currentlyEngagedIdRef.current
         );
         
+        if (killedEnemyIds.size > 0) {
+          console.log(`[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`);
+        }
+        
         // Track if we've engaged an enemy this frame
         let engagedThisFrame = false;
         
