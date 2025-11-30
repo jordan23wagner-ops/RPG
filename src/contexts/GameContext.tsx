@@ -79,6 +79,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const killedWorldEnemiesRef = useRef<Map<number, Set<string>>>(new Map());
   // Track the last engaged world enemy id to mark as killed on death
   const lastEngagedWorldEnemyIdRef = useRef<string | null>(null);
+  // Flag indicating current combat originated from a world enemy (not a room)
+  const inWorldCombatRef = useRef<boolean>(false);
   const resetAffixStats = () => {
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
@@ -387,6 +389,7 @@ try {
     // Don't mark as killed yet; store ID and mark on actual death to be precise
     lastEngagedWorldEnemyIdRef.current = enemyWorldId;
     killedWorldEnemiesRef.current.set(floor, killedSet);
+    inWorldCombatRef.current = true;
     // Set currentEnemy and remove from world list
     setCurrentEnemy({
       name: found.name,
@@ -406,6 +409,8 @@ try {
     const room = floorMap.rooms.find((r: FloorRoom) => r.id === roomId);
     if (!room) return;
     setCurrentRoomId(roomId);
+    // Room exploration resets world combat flag
+    inWorldCombatRef.current = false;
     if (!room.explored) {
       room.explored = true;
     }
@@ -671,7 +676,8 @@ try {
       setZoneHeat((prev: number) => Math.min(100, prev + gainedHeat));
 
       // Mark room cleared after kill; respawns only if revisited (non-boss)
-      if (floorMap && currentRoomId) {
+      // Distinguish between room combat and world combat explicitly
+      if (!inWorldCombatRef.current && floorMap && currentRoomId) {
         const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
         if (room) {
           room.cleared = true;
@@ -687,6 +693,7 @@ try {
           killedWorldEnemiesRef.current.set(floor, killedSet);
           lastEngagedWorldEnemyIdRef.current = null;
         }
+        inWorldCombatRef.current = false;
         setCurrentEnemy(null);
       }
     } else {
