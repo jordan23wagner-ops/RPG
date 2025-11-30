@@ -613,7 +613,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         if (d < 150) {
           ctx.font = 'bold 14px Arial';
           ctx.fillStyle = theme.hudAccent;
-          ctx.fillText('Press T to return', gx, gy + 40);
+          ctx.fillText('Press E or T to return', gx, gy + 40);
         }
       };
       drawTownGate(TOWN_GATE_POS);
@@ -776,6 +776,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.fillStyle = theme.player;
         ctx.beginPath();
         ctx.arc(pMiniX, pMiniY, 3, 0, Math.PI * 2);
+        ctx.fill();
+        // Town Gate marker
+        const tMiniX = miniX + (TOWN_GATE_POS.x / WORLD_WIDTH) * miniW;
+        const tMiniY = miniY + (TOWN_GATE_POS.y / WORLD_HEIGHT) * miniH;
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(tMiniX, tMiniY, 3, 0, Math.PI * 2);
         ctx.fill();
         // Ladder icon only if discovered
         if (exitLadderPos && ladderDiscoveredRef.current) {
@@ -951,6 +958,17 @@ useEffect(() => {
     // Descend ladder with 'E' when near EXIT ladder only (not entry)
     if (e.key === 'e' || e.key === 'E') {
       const playerPos = playerPosRef.current;
+      // First: if near Town Gate, return to town
+      {
+        const dxT = playerPos.x - TOWN_GATE_POS.x;
+        const dyT = playerPos.y - TOWN_GATE_POS.y;
+        const dT = Math.sqrt(dxT*dxT + dyT*dyT);
+        if (dT < 140) {
+          const evt = new CustomEvent('return-to-town');
+          window.dispatchEvent(evt);
+          return;
+        }
+      }
       if (exitLadderPos) {
         const dxL = playerPos.x - exitLadderPos.x;
         const dyL = playerPos.y - exitLadderPos.y;
