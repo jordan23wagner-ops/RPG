@@ -299,6 +299,15 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 equippedBySlot[slot].push(item);
               });
 
+              // Detect two-handed weapon to mirror in off-hand slot visually
+              const twoHandedWeapon = (() => {
+                const w = (equippedBySlot['weapon'] || [])[0];
+                if (!w) return null;
+                const nameLast = String(w.name || '').split(' ').slice(-1)[0].toLowerCase();
+                const twoHandedList = ['bow','longbow','shortbow','crossbow','staff','warhammer'];
+                return twoHandedList.includes(nameLast) ? w : null;
+              })();
+
               const slotConfig: Record<number, { key: string; label: string }> = {
                 2: { key: 'helmet', label: 'Head' },
                 4: { key: 'weapon', label: 'Weapon' },
@@ -313,7 +322,12 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                 const slot = slotConfig[gridNum];
                 if (!slot) return <div key={`empty-${gridNum}`} className="aspect-square" />;
 
-                const item = (equippedBySlot[slot.key] || [])[0];
+                let item = (equippedBySlot[slot.key] || [])[0];
+                // If off-hand empty but two-handed weapon equipped, show mirrored weapon
+                const isOffHand = slot.key === 'amulet';
+                if (!item && isOffHand && twoHandedWeapon) {
+                  item = { ...twoHandedWeapon, _mirroredTwoHand: true };
+                }
                 const borderClass = item ? `border-2 ${getRarityBorderColor(item.rarity)}` : 'border-2 border-dashed border-gray-600';
                 const bgClass = item ? getRarityBgColor(item.rarity) : 'bg-gray-950';
 
@@ -328,6 +342,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                         <div className={`text-xs font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
                         {item.damage && <div className="text-xs font-bold mt-0.5" style={{color: '#fbbf24'}}>+{item.damage}</div>}
                         {item.armor && <div className="text-xs font-bold" style={{color: '#60a5fa'}}>+{item.armor}</div>}
+                        {item._mirroredTwoHand && (
+                          <div className="mt-0.5 text-[10px] text-gray-300">2H occupying off-hand</div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-xs text-gray-600 text-center font-medium">{slot.label}</div>
