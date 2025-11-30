@@ -104,6 +104,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     return () => window.removeEventListener('dungeon-descend', handler as EventListener);
   }, [nextFloor]);
 
+  // Listen for return-to-town from canvas
+  useEffect(() => {
+    const toTown = () => setMode('town');
+    window.addEventListener('return-to-town', toTown as EventListener);
+    return () => window.removeEventListener('return-to-town', toTown as EventListener);
+  }, []);
+
   // If quickstart is on, jump straight to dungeon once character exists
   useEffect(() => {
     if (autoStart && character) {

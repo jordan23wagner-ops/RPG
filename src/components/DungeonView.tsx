@@ -95,6 +95,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   const ENEMY_SPEED = 2.2;
   const ATTACK_RANGE = 120;
   const MIN_PLAYER_ENEMY_DISTANCE = 10; // Prevents overlap
+  // Town gate world position (near initial spawn)
+  const TOWN_GATE_POS = { x: 340, y: 450 };
 
   // ========== Ref Storage for Game State ==========
   // Using refs to avoid 60fps React re-renders and maintain state across frames
@@ -586,6 +588,36 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       drawLadder(entryLadderPos, 'Entry', false);
       drawLadder(exitLadderPos, 'Ladder', true);
 
+      // Draw Town Gate (interactive)
+      const drawTownGate = (worldPos: {x:number;y:number}) => {
+        const gx = worldPos.x - camX;
+        const gy = worldPos.y - camY;
+        ctx.fillStyle = '#1f2937';
+        ctx.fillRect(gx - 14, gy - 28, 28, 56);
+        ctx.strokeStyle = theme.hudAccent as any;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(gx - 14, gy - 28, 28, 56);
+        // Arch
+        ctx.beginPath();
+        ctx.arc(gx, gy - 28, 14, Math.PI, 0);
+        ctx.stroke();
+        // Label
+        ctx.font = '11px Arial';
+        ctx.fillStyle = theme.hudAccent;
+        ctx.textAlign = 'center';
+        ctx.fillText('Town', gx, gy - 38);
+        // Hint when close
+        const dx = playerPos.x - worldPos.x;
+        const dy = playerPos.y - worldPos.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 150) {
+          ctx.font = 'bold 14px Arial';
+          ctx.fillStyle = theme.hudAccent;
+          ctx.fillText('Press T to return', gx, gy + 40);
+        }
+      };
+      drawTownGate(TOWN_GATE_POS);
+
       // Player (apply camera offset)
       const equippedMap: Record<string, boolean> = {};
       if (character) {
@@ -936,6 +968,13 @@ useEffect(() => {
           window.dispatchEvent(evt);
         }
       }
+      return;
+    }
+
+    // Return to town via hotkey 'T'
+    if (e.key === 't' || e.key === 'T') {
+      const evt = new CustomEvent('return-to-town');
+      window.dispatchEvent(evt);
       return;
     }
   };
