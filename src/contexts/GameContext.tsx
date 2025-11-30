@@ -1055,6 +1055,7 @@ try {
         currentRoomId,
         enemiesInWorld,
         killedEnemyIds,
+        killedWorldEnemiesRef,
         entryLadderPos,
         exitLadderPos,
         loading,
