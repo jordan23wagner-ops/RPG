@@ -218,7 +218,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   };
 
   const drawEnemy = (ctx: CanvasRenderingContext2D, enemy: Enemy, x: number, y: number, time: number) => {
+    console.log(`[DrawEnemy] Called for ${enemy.name} at (${x.toFixed(0)},${y.toFixed(0)}) health=${enemy.health}`);
     const v = getEnemyVisual(enemy);
+    console.log(`[DrawEnemy] Visual config:`, v);
     // Pulsing aura
     const pulse = (Math.sin(time / 500) + 1) / 2; // 0..1
     const auraRadius = v.size + 18 + pulse * 6;
@@ -532,6 +534,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           CANVAS_WIDTH / 2,
           30,
         );
+      } else if (enemy) {
+        // Enemy exists but not rendering - log why
+        console.warn(`[Render] Enemy exists but not rendering:`, { name: enemy.name, health: enemy.health, maxHealth: enemy.max_health });
       }
 
       // HUD text

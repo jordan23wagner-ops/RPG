@@ -419,7 +419,7 @@ try {
     }
     // Set currentEnemy and remove from world list
     // Include id so downstream canvas logic (animation seed, sprite cache) does not crash
-    setCurrentEnemy({
+    const engagedEnemy = {
       id: enemyWorldId,
       name: found.name,
       level: found.level,
@@ -429,7 +429,9 @@ try {
       experience: found.experience,
       gold: found.gold,
       rarity: found.rarity,
-    } as Enemy);
+    } as Enemy;
+    console.log(`[Engage] Setting currentEnemy:`, engagedEnemy);
+    setCurrentEnemy(engagedEnemy);
     setEnemiesInWorld((prev: Array<Enemy & { id: string; x: number; y: number }>) => prev.filter((e: Enemy & { id: string; x: number; y: number }) => e.id !== enemyWorldId));
   };
 
