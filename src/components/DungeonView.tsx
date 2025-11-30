@@ -21,6 +21,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
   const ladderDiscoveredRef = useRef<boolean>(false);
+  const currentlyEngagedIdRef = useRef<string | null>(null);
 
   // Floor theme palette helper
   const getFloorTheme = (f: number) => {
@@ -409,12 +410,15 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ctx.fillText(ew.name, sx, sy - 16);
           // Auto-engage if close (only after initial floor spawn is complete)
           if (!hasSpawnedThisFloorRef.current) return; // Wait for floor to fully load
+          // Don't engage if already in combat or if this specific enemy is already engaged
+          if (currentlyEngagedIdRef.current !== null) return;
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx*dx + dy*dy);
           if (d < 140) {
             // Set enemy position to world enemy position for combat
             enemyPosRef.current = { x: ew.x, y: ew.y };
+            currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately
             onEngageEnemy(ew.id);
           }
         });
