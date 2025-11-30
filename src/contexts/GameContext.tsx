@@ -32,6 +32,8 @@ interface GameContextType {
   floor: number;
   floorMap: FloorMap | null;
   currentRoomId: string | null;
+  enemiesInWorld: Array<Enemy & { id: string; x: number; y: number }>;
+  ladderPos: { x: number; y: number } | null;
   loading: boolean;
   damageNumbers: DamageNumber[];
   zoneHeat: number;
@@ -46,6 +48,7 @@ interface GameContextType {
   equipItem: (itemId: string) => Promise<void>;
   nextFloor: () => void;
   exploreRoom: (roomId: string) => void;
+  onEngageEnemy: (enemyWorldId: string) => void;
   updateCharacter: (updates: Partial<Character>) => Promise<void>;
   sellItem: (itemId: string) => Promise<void>;
   sellAllItems: () => Promise<void>;
@@ -62,6 +65,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [floor, setFloor] = useState(1);
   const [floorMap, setFloorMap] = useState<FloorMap | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const [enemiesInWorld, setEnemiesInWorld] = useState<Array<Enemy & { id: string; x: number; y: number }>>([]);
+  const [ladderPos, setLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
@@ -316,8 +321,58 @@ try {
 
   useEffect(() => {
     initFloorIfNeeded();
+    // Generate world enemies and ladder position per floor
+    const WORLD_WIDTH = 4000;
+    const WORLD_HEIGHT = 3000;
+    const spawn = { x: 400, y: 450 };
+    const dist = (a: {x:number;y:number}, b: {x:number;y:number}) => Math.hypot(a.x-b.x, a.y-b.y);
+    const minDistFromSpawn = 300;
+    const count = Math.floor(Math.random() * 6) + 5; // 5..10
+    const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
+    for (let i = 0; i < count; i++) {
+      let pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+      // Keep away from spawn
+      let guard = 0;
+      while (dist(pos, spawn) < minDistFromSpawn && guard < 50) {
+        pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+        guard++;
+      }
+      // Pick enemy type with 5% mimic chance
+      const roll = Math.random();
+      let type: RoomEventType = 'enemy';
+      if (roll < 0.05) type = 'mimic';
+      else if (roll < 0.05 + 0.08) type = 'miniBoss';
+      else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
+      const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
+      arr.push({ ...e, id: `${floor}-${i}-${Date.now()}`, x: pos.x, y: pos.y });
+    }
+    setEnemiesInWorld(arr);
+    // Ladder position
+    let ladder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+    let guardL = 0;
+    while (dist(ladder, spawn) < minDistFromSpawn && guardL < 50) {
+      ladder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+      guardL++;
+    }
+    setLadderPos(ladder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor]);
+  const onEngageEnemy = (enemyWorldId: string) => {
+    const found = enemiesInWorld.find((e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId);
+    if (!found) return;
+    // Set currentEnemy and remove from world list
+    setCurrentEnemy({
+      name: found.name,
+      level: found.level,
+      damage: found.damage,
+      health: found.health,
+      max_health: found.max_health,
+      experience: found.experience,
+      gold: found.gold,
+      rarity: found.rarity,
+    } as Enemy);
+    setEnemiesInWorld((prev: Array<Enemy & { id: string; x: number; y: number }>) => prev.filter((e: Enemy & { id: string; x: number; y: number }) => e.id !== enemyWorldId));
+  };
 
   const exploreRoom = (roomId: string) => {
     if (!floorMap) return;
@@ -540,10 +595,8 @@ try {
         }
         setCurrentEnemy(null);
       } else {
-        setTimeout(
-          () => generateNewEnemy(leveled ? newLevel : character.level),
-          800,
-        );
+        // World encounter finished
+        setCurrentEnemy(null);
       }
     } else {
       // Enemy counter-attack
@@ -794,6 +847,8 @@ try {
         floor,
         floorMap,
         currentRoomId,
+        enemiesInWorld,
+        ladderPos,
         loading,
         damageNumbers,
         zoneHeat,
@@ -808,6 +863,7 @@ try {
         equipItem,
         nextFloor,
         exploreRoom,
+        onEngageEnemy,
         updateCharacter,
         sellItem,
         sellAllItems,

@@ -2,6 +2,7 @@
 import { useRef, useEffect } from 'react';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
+import { useGame } from '../contexts/GameContext';
 
 interface DungeonViewProps {
   enemy: Enemy | null;
@@ -13,6 +14,7 @@ interface DungeonViewProps {
 }
 
 export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, zoneHeat }: DungeonViewProps) {
+  const { enemiesInWorld, ladderPos, onEngageEnemy } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
@@ -210,6 +212,47 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       drawTorch(ctx, CANVAS_WIDTH - 100, 100);
       drawTorch(ctx, 150, CANVAS_HEIGHT - 80);
       drawTorch(ctx, CANVAS_WIDTH - 150, CANVAS_HEIGHT - 80);
+
+      // Draw world enemies as markers when not engaged
+      if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
+        enemiesInWorld.forEach((ew: Enemy & { id: string; x: number; y: number }) => {
+          const sx = ew.x - camX;
+          const sy = ew.y - camY;
+          if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) return;
+          ctx.fillStyle = '#7f1d1d';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = '10px Arial';
+          ctx.fillStyle = '#fbbf24';
+          ctx.textAlign = 'center';
+          ctx.fillText(ew.name, sx, sy - 16);
+          // Auto-engage if close
+          const dx = playerPos.x - ew.x;
+          const dy = playerPos.y - ew.y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if (d < 140) {
+            // Set enemy position to world enemy position for combat
+            enemyPosRef.current = { x: ew.x, y: ew.y };
+            onEngageEnemy(ew.id);
+          }
+        });
+      }
+
+      // Draw ladder marker
+      if (ladderPos) {
+        const lx = ladderPos.x - camX;
+        const ly = ladderPos.y - camY;
+        ctx.fillStyle = '#065f46';
+        ctx.fillRect(lx - 8, ly - 20, 16, 40);
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(lx - 8, ly - 20, 16, 40);
+        ctx.font = '11px Arial';
+        ctx.fillStyle = '#10b981';
+        ctx.textAlign = 'center';
+        ctx.fillText('Ladder', lx, ly - 28);
+      }
 
       // Player (apply camera offset)
       drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true);
