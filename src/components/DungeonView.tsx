@@ -19,6 +19,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
+  const ladderDiscoveredRef = useRef<boolean>(false);
 
   // keep zoneHeat prop in sync (set below via props)
 
@@ -127,24 +128,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     ctx.shadowColor = 'transparent';
   };
 
-  const drawTorch = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-  ) => {
-    ctx.fillStyle = '#8b7355';
-    ctx.fillRect(x - 3, y - 20, 6, 25);
-
-    ctx.fillStyle = 'rgba(255, 140, 0, 0.8)';
-    ctx.beginPath();
-    ctx.arc(x, y - 20, 15, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = 'rgba(255, 200, 0, 0.5)';
-    ctx.beginPath();
-    ctx.arc(x, y - 20, 10, 0, Math.PI * 2);
-    ctx.fill();
-  };
+  // Torch drawing helper removed
 
   const drawStone = (
     ctx: CanvasRenderingContext2D,
@@ -207,11 +191,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         }
       }
 
-      // Torches
-      drawTorch(ctx, 100, 100);
-      drawTorch(ctx, CANVAS_WIDTH - 100, 100);
-      drawTorch(ctx, 150, CANVAS_HEIGHT - 80);
-      drawTorch(ctx, CANVAS_WIDTH - 150, CANVAS_HEIGHT - 80);
+      // Torches removed for a cleaner canvas per request
 
       // Draw world enemies as markers when not engaged
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
@@ -256,11 +236,47 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const dxL = playerPos.x - ladderPos.x;
         const dyL = playerPos.y - ladderPos.y;
         const dL = Math.sqrt(dxL*dxL + dyL*dyL);
+        if (dL < 160) {
+          ladderDiscoveredRef.current = true;
+        }
         if (dL < 140) {
           ctx.font = 'bold 14px Arial';
           ctx.fillStyle = '#10b981';
           ctx.textAlign = 'center';
           ctx.fillText('Press E to descend', lx, ly + 40);
+        }
+
+        // Screen-edge indicator pointing to discovered ladder when off-screen
+        const offscreen = lx < 0 || ly < 0 || lx > CANVAS_WIDTH || ly > CANVAS_HEIGHT;
+        if (offscreen && ladderDiscoveredRef.current) {
+          const centerX = CANVAS_WIDTH / 2;
+          const centerY = CANVAS_HEIGHT / 2;
+          const dirX = lx - centerX;
+          const dirY = ly - centerY;
+          const len = Math.max(1, Math.sqrt(dirX*dirX + dirY*dirY));
+          const nx = dirX / len;
+          const ny = dirY / len;
+          // Position arrow slightly inside the edge
+          let ax = centerX + nx * (Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) / 2 - 30);
+          let ay = centerY + ny * (Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) / 2 - 30);
+          // Clamp within canvas bounds
+          ax = Math.max(20, Math.min(CANVAS_WIDTH - 20, ax));
+          ay = Math.max(20, Math.min(CANVAS_HEIGHT - 20, ay));
+          // Draw arrow triangle pointing towards ladder
+          ctx.fillStyle = '#10b981';
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 2;
+          ctx.save();
+          ctx.translate(ax, ay);
+          const angle = Math.atan2(dirY, dirX);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-12, 6);
+          ctx.lineTo(-12, -6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         }
       }
 
@@ -397,6 +413,15 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.beginPath();
         ctx.arc(pMiniX, pMiniY, 3, 0, Math.PI * 2);
         ctx.fill();
+        // Ladder icon only if discovered
+        if (ladderPos && ladderDiscoveredRef.current) {
+          const lMiniX = miniX + (ladderPos.x / WORLD_WIDTH) * miniW;
+          const lMiniY = miniY + (ladderPos.y / WORLD_HEIGHT) * miniH;
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(lMiniX, lMiniY, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       // Draw damage numbers
