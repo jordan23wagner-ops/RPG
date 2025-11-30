@@ -396,7 +396,7 @@ try {
     }
     setEnemiesInWorld(arr);
     if (DEBUG_WORLD_ENEMIES) {
-      console.log(`[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}`);
+      console.log(`[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}; enemyIds=${arr.map(e => e.id).join(', ')}`);
     }
     // Entry ladder: previous floor's exit (if any) or none on floor 1
     if (previousExitLadderPosRef.current && floor > 1) {
