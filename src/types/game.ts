@@ -15,6 +15,9 @@ export interface Character {
   strength: number;
   dexterity: number;
   intelligence: number;
+  speed: number;
+  crit_chance: number;
+  crit_damage: number;
   gold: number;
   created_at: string;
   updated_at: string;
@@ -30,7 +33,10 @@ export interface Affix {
     | 'health'
     | 'mana'
     | 'damage'
-    | 'armor';
+    | 'armor'
+    | 'speed'
+    | 'crit_chance'
+    | 'crit_damage';
 }
 
 export interface Item {

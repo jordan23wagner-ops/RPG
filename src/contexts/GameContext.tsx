@@ -199,6 +199,9 @@ try {
             strength: 10,
             dexterity: 10,
             intelligence: 10,
+            speed: 5,
+            crit_chance: 5,
+            crit_damage: 150,
             gold: 0,
           },
         ])
@@ -455,8 +458,15 @@ try {
     const setBonuses = computeSetBonuses(items.filter((i: Item) => i.equipped));
     const effectiveStrength = character.strength + setBonuses.strength;
     const baseDamage = effectiveStrength * 0.5 + weaponDamage;
+    
+    // Apply crit mechanics: base 5% crit chance, 150% crit damage
+    const critChance = (character.crit_chance || 5) / 100;
+    const critDamage = (character.crit_damage || 150) / 100;
+    const isCrit = Math.random() < critChance;
+    const critMultiplier = isCrit ? critDamage : 1.0;
+    
     const playerDamage = Math.floor(
-      baseDamage + setBonuses.damage + Math.random() * 10,
+      (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier,
     );
 
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
@@ -498,6 +508,9 @@ try {
         updates.strength = character.strength + 2;
         updates.dexterity = character.dexterity + 2;
         updates.intelligence = character.intelligence + 2;
+        updates.speed = (character.speed || 5) + 1;
+        updates.crit_chance = (character.crit_chance || 5) + 0.5;
+        updates.crit_damage = (character.crit_damage || 150) + 5;
       }
 
       await updateCharacter(updates);
@@ -675,6 +688,30 @@ try {
           .update({ equipped: false })
           .eq('id', itemId);
       } else {
+        // Check requirements (level 5+)
+        const reqLevel = item.required_level || item.requiredLevel;
+        const reqStats = item.required_stats || item.requiredStats;
+        
+        if (reqLevel && character.level < reqLevel) {
+          console.warn(`Cannot equip: requires level ${reqLevel}`);
+          return;
+        }
+        
+        if (reqStats) {
+          if (reqStats.strength && character.strength < reqStats.strength) {
+            console.warn(`Cannot equip: requires ${reqStats.strength} strength`);
+            return;
+          }
+          if (reqStats.dexterity && character.dexterity < reqStats.dexterity) {
+            console.warn(`Cannot equip: requires ${reqStats.dexterity} dexterity`);
+            return;
+          }
+          if (reqStats.intelligence && character.intelligence < reqStats.intelligence) {
+            console.warn(`Cannot equip: requires ${reqStats.intelligence} intelligence`);
+            return;
+          }
+        }
+        
         // Enforce 2H rules: if equipping off-hand while a 2H weapon is equipped, block
         if (slot === 'amulet') {
           const twoHandedEquipped = items.some((i: Item) => i.equipped && (i.type === 'melee_weapon' || i.type === 'ranged_weapon' || i.type === 'mage_weapon') && isTwoHanded(i as Item));

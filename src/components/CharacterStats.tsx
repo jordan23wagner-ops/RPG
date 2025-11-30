@@ -98,6 +98,21 @@ export function CharacterStats({ character }: CharacterStatsProps) {
           </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-700">
+        <div className="bg-gray-800 rounded p-2 text-center">
+          <div className="text-xs text-gray-400">Speed</div>
+          <div className="text-sm font-bold text-green-400">{character.speed || 5}</div>
+        </div>
+        <div className="bg-gray-800 rounded p-2 text-center">
+          <div className="text-xs text-gray-400">Crit %</div>
+          <div className="text-sm font-bold text-orange-400">{character.crit_chance || 5}%</div>
+        </div>
+        <div className="bg-gray-800 rounded p-2 text-center">
+          <div className="text-xs text-gray-400">Crit Dmg</div>
+          <div className="text-sm font-bold text-red-400">{character.crit_damage || 150}%</div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -545,31 +545,38 @@ function calculateItemRequirements(
   };
 
   const baseLevel = Math.max(1, Math.floor(level * 0.8 + floor * 0.3));
-  const requiredLevel = Math.ceil(baseLevel * rarityMultiplier[rarity]);
+  const calculatedLevel = Math.ceil(baseLevel * rarityMultiplier[rarity]);
+  
+  // Only enforce requirements for items that would be level 5+
+  // This allows early game progression without restrictions
+  const requiredLevel = calculatedLevel >= 5 ? calculatedLevel : undefined;
 
   const requiredStats: { strength?: number; dexterity?: number; intelligence?: number } = {};
 
-  // Assign stat requirements based on item type
-  if (itemType === 'melee_weapon' || itemType === 'melee_armor') {
-    const baseStr = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
-    requiredStats.strength = Math.ceil(baseStr * rarityMultiplier[rarity]);
-  } else if (itemType === 'ranged_weapon' || itemType === 'ranged_armor') {
-    const baseDex = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
-    requiredStats.dexterity = Math.ceil(baseDex * rarityMultiplier[rarity]);
-  } else if (itemType === 'mage_weapon' || itemType === 'mage_armor') {
-    const baseInt = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
-    requiredStats.intelligence = Math.ceil(baseInt * rarityMultiplier[rarity]);
-  } else if (itemType === 'amulet' || itemType === 'ring') {
-    // Trinkets require balanced stats
-    const baseStat = Math.max(1, Math.floor(level * 0.3 + floor * 0.15));
-    requiredStats.strength = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
-    requiredStats.dexterity = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
-    requiredStats.intelligence = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
-  } else if (itemType === 'gloves' || itemType === 'belt' || itemType === 'boots') {
-    // Accessories require moderate stats across the board
-    const baseStat = Math.max(1, Math.floor(level * 0.25 + floor * 0.15));
-    requiredStats.strength = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.6);
-    requiredStats.dexterity = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.6);
+  // Only add stat requirements if level requirement is being enforced (5+)
+  if (requiredLevel && requiredLevel >= 5) {
+    // Assign stat requirements based on item type
+    if (itemType === 'melee_weapon' || itemType === 'melee_armor') {
+      const baseStr = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
+      requiredStats.strength = Math.ceil(baseStr * rarityMultiplier[rarity]);
+    } else if (itemType === 'ranged_weapon' || itemType === 'ranged_armor') {
+      const baseDex = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
+      requiredStats.dexterity = Math.ceil(baseDex * rarityMultiplier[rarity]);
+    } else if (itemType === 'mage_weapon' || itemType === 'mage_armor') {
+      const baseInt = Math.max(1, Math.floor(level * 0.4 + floor * 0.2));
+      requiredStats.intelligence = Math.ceil(baseInt * rarityMultiplier[rarity]);
+    } else if (itemType === 'amulet' || itemType === 'ring') {
+      // Trinkets require balanced stats
+      const baseStat = Math.max(1, Math.floor(level * 0.3 + floor * 0.15));
+      requiredStats.strength = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
+      requiredStats.dexterity = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
+      requiredStats.intelligence = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.7);
+    } else if (itemType === 'gloves' || itemType === 'belt' || itemType === 'boots') {
+      // Accessories require moderate stats across the board
+      const baseStat = Math.max(1, Math.floor(level * 0.25 + floor * 0.15));
+      requiredStats.strength = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.6);
+      requiredStats.dexterity = Math.ceil(baseStat * rarityMultiplier[rarity] * 0.6);
+    }
   }
 
   return {
