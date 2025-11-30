@@ -252,6 +252,16 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.fillStyle = '#10b981';
         ctx.textAlign = 'center';
         ctx.fillText('Ladder', lx, ly - 28);
+        // Prompt when near ladder
+        const dxL = playerPos.x - ladderPos.x;
+        const dyL = playerPos.y - ladderPos.y;
+        const dL = Math.sqrt(dxL*dxL + dyL*dyL);
+        if (dL < 140) {
+          ctx.font = 'bold 14px Arial';
+          ctx.fillStyle = '#10b981';
+          ctx.textAlign = 'center';
+          ctx.fillText('Press E to descend', lx, ly + 40);
+        }
       }
 
       // Player (apply camera offset)
@@ -537,6 +547,21 @@ useEffect(() => {
     // Toggle minimap with 'm' or 'M'
     if (e.key === 'm' || e.key === 'M') {
       minimapEnabledRef.current = !minimapEnabledRef.current;
+      return;
+    }
+
+    // Descend ladder with 'E' when near
+    if (e.key === 'e' || e.key === 'E') {
+      const playerPos = playerPosRef.current;
+      if (ladderPos) {
+        const dxL = playerPos.x - ladderPos.x;
+        const dyL = playerPos.y - ladderPos.y;
+        const dL = Math.sqrt(dxL*dxL + dyL*dyL);
+        if (dL < 140) {
+          const evt = new CustomEvent('dungeon-descend');
+          window.dispatchEvent(evt);
+        }
+      }
       return;
     }
   };

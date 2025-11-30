@@ -328,6 +328,8 @@ try {
     const dist = (a: {x:number;y:number}, b: {x:number;y:number}) => Math.hypot(a.x-b.x, a.y-b.y);
     const minDistFromSpawn = 300;
     const count = Math.floor(Math.random() * 6) + 5; // 5..10
+    let miniBosses = 0;
+    const MAX_MINI_BOSSES = 2;
     const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
     for (let i = 0; i < count; i++) {
       let pos = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
@@ -341,7 +343,7 @@ try {
       const roll = Math.random();
       let type: RoomEventType = 'enemy';
       if (roll < 0.05) type = 'mimic';
-      else if (roll < 0.05 + 0.08) type = 'miniBoss';
+      else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) { type = 'miniBoss'; miniBosses++; }
       else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
       arr.push({ ...e, id: `${floor}-${i}-${Date.now()}`, x: pos.x, y: pos.y });
@@ -746,17 +748,7 @@ try {
   };
 
   const nextFloor = () => {
-    // Only allow if ladder room explored
-    if (floorMap) {
-      const ladderRoom = floorMap.rooms.find((r: FloorRoom) => r.id === floorMap.ladderRoomId);
-      if (!ladderRoom || !ladderRoom.explored) return;
-      // Boss floor requirement: boss room cleared
-      const needsBossClear = floor % 10 === 0;
-      if (needsBossClear) {
-        const bossRoom = floorMap.rooms.find((r: FloorRoom) => r.type === 'boss');
-        if (bossRoom && !bossRoom.cleared) return;
-      }
-    }
+    // World-based descend: no room requirement here
     const newFloor = floor + 1;
     setFloor(newFloor);
     // Reset map state for new floor

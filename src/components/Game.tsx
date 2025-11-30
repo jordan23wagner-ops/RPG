@@ -81,6 +81,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     buyPotion,
     sellAllItems,
     toggleRarityFilter,
+    nextFloor,
   } = useGame();
 
   const handleSignOut = async () => {
@@ -268,6 +269,15 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         {/* Center: Dungeon Canvas */}
         <div className="flex-shrink-0">
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
+          {/* Listen for dungeon-descend event from canvas to call nextFloor */}
+          {(() => {
+            useEffect(() => {
+              const handler = () => nextFloor();
+              window.addEventListener('dungeon-descend', handler as EventListener);
+              return () => window.removeEventListener('dungeon-descend', handler as EventListener);
+            }, [nextFloor]);
+            return null;
+          })()}
         </div>
 
         {/* Right: Equipped Gear Grid */}
