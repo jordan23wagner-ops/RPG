@@ -202,17 +202,27 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
       if (e.key === 'e' || e.key === 'E') {
         const p = playerPosRef.current;
         const d = (a:{x:number;y:number}, b:{x:number;y:number}) => Math.hypot(a.x-b.x, a.y-b.y);
-        if (d(p, { x: 520, y: 680 }) < 130) {
+        
+        // Check merchant first (priority order matters)
+        if (d(p, MERCHANT_POS) < 130) {
+          e.preventDefault();
+          e.stopPropagation();
           onOpenShop();
           return;
         }
-        if (d(p, { x: 900, y: 660 }) < 130) {
+        // Check orb second
+        if (d(p, ORB_POS) < 130) {
+          e.preventDefault();
+          e.stopPropagation();
           if (character) {
             void updateCharacter({ health: character.max_health, mana: character.max_mana });
           }
           return;
         }
-        if (d(p, { x: 1400, y: 720 }) < 150) {
+        // Check dungeon gate last
+        if (d(p, GATE_POS) < 150) {
+          e.preventDefault();
+          e.stopPropagation();
           onEnterDungeon();
           return;
         }
