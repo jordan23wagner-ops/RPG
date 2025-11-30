@@ -205,7 +205,14 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div>
                         <div className={`font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
-                        <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70`}>{item.rarity}</div>
+                        {(() => {
+                          const typeDisplay = item.type.replace(/_/g, ' ');
+                          return (
+                            <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70 lowercase`}>
+                              {item.rarity} <span className="capitalize">{typeDisplay}</span>
+                            </div>
+                          );
+                        })()}
                         {(item.damage || item.armor) && (
                           <div className={`text-xs ${getRarityColor(item.rarity)} opacity-70 mt-0.5`}>
                             {item.damage && `+${item.damage} Dmg`}

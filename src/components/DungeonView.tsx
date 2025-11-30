@@ -150,95 +150,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     ctx.strokeRect(x, y, width, height);
   };
 
-  const drawCharacterHUD = (ctx: CanvasRenderingContext2D) => {
-    const c = characterRef.current;
-    if (!c) return;
-
-    // Draw compact bottom HUD bars to avoid covering top-left UI
-    const padding = 18;
-    const barHeight = 12;
-    const barWidth = 280;
-    const barGap = 10;
-
-    // HP: bottom-left
-    const hpX = padding;
-    const hpY = CANVAS_HEIGHT - padding - barHeight;
-    const hpPercent = Math.max(0, Math.min(1, c.health / c.max_health));
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(hpX - 6, hpY - 6, barWidth + 12, barHeight + 12);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(hpX - 6, hpY - 6, barWidth + 12, barHeight + 12);
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(hpX, hpY, barWidth, barHeight);
-    ctx.fillStyle = hpPercent > 0.3 ? '#22c55e' : '#ef4444';
-    ctx.fillRect(hpX, hpY, hpPercent * barWidth, barHeight);
-    ctx.font = '11px Arial';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
-    ctx.fillText(`HP ${Math.floor(c.health)}/${c.max_health}`, hpX + 6, hpY + barHeight - 2);
-
-    // EXP: bottom-center
-    const expToNext = c.level * 100;
-    const expPercent = Math.max(0, Math.min(1, c.experience / expToNext));
-    const expW = 300;
-    const expX = Math.round(CANVAS_WIDTH / 2 - expW / 2);
-    const expY = CANVAS_HEIGHT - padding - barHeight;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(expX - 6, expY - 6, expW + 12, barHeight + 12);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(expX - 6, expY - 6, expW + 12, barHeight + 12);
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(expX, expY, expW, barHeight);
-    ctx.fillStyle = '#a855f7';
-    ctx.fillRect(expX, expY, expPercent * expW, barHeight);
-    ctx.font = '11px Arial';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.fillText(`EXP ${Math.floor(c.experience)}/${expToNext}`, expX + expW / 2, expY + barHeight - 2);
-
-    // Mana: bottom-right
-    const manaW = 280;
-    const manaX = CANVAS_WIDTH - padding - manaW;
-    const manaY = CANVAS_HEIGHT - padding - barHeight;
-    const manaPercent = Math.max(0, Math.min(1, c.mana / c.max_mana));
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(manaX - 6, manaY - 6, manaW + 12, barHeight + 12);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(manaX - 6, manaY - 6, manaW + 12, barHeight + 12);
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(manaX, manaY, manaW, barHeight);
-    ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(manaX, manaY, manaPercent * manaW, barHeight);
-    ctx.font = '11px Arial';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${Math.floor(c.mana)}/${c.max_mana} Mana`, manaX + manaW - 6, manaY + barHeight - 2);
-
-    // Gold: small element above mana bar on the right
-    const goldW = 140;
-    const goldH = 26;
-    const goldX = CANVAS_WIDTH - padding - goldW;
-    const goldY = manaY - barGap - goldH;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(goldX, goldY, goldW, goldH);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(goldX, goldY, goldW, goldH);
-    // gold icon
-    ctx.fillStyle = '#fbbf24';
-    ctx.beginPath();
-    ctx.arc(goldX + 18, goldY + goldH / 2, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '11px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Gold: ${c.gold}`, goldX + 34, goldY + goldH / 2 + 4);
-
-
-  };
+  // (Removed legacy character HUD drawing; handled in main UI panels.)
 
   // ---------- Render loop ----------
 
@@ -331,32 +243,50 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       ctx.fillText('Use Arrow Keys to move', 20, 60);
 
       // Draw character HUD (HP, Mana, EXP)
-      drawCharacterHUD(ctx);
-
-      // Zone Heat display above EXP bar (reads latest from zoneHeatRef)
-      const finalHeat = zoneHeatRef.current;
-      if (typeof finalHeat === 'number') {
-        const padding = 18;
-        const barHeight = 12;
-        const barGap = 10;
-        const heatPercent = Math.max(0, Math.min(100, finalHeat));
-        const heatW = 240;
-        const heatX = Math.round(CANVAS_WIDTH / 2 - heatW / 2);
-        const heatY = CANVAS_HEIGHT - padding - (barHeight * 3) - (barGap * 2) - 20; // above action and exp
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(heatX - 6, heatY - 6, heatW + 12, barHeight + 12);
-        ctx.strokeStyle = '#ff6b6b';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(heatX - 6, heatY - 6, heatW + 12, barHeight + 12);
-        ctx.fillStyle = '#1f2937';
-        ctx.fillRect(heatX, heatY, heatW, barHeight);
-        ctx.fillStyle = '#ff6b6b';
-        ctx.fillRect(heatX, heatY, (heatPercent / 100) * heatW, barHeight);
-        ctx.font = '10px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Heat: ${Math.round(heatPercent)}%`, heatX + heatW / 2, heatY + barHeight - 2);
-      }
+      // Draw simplified action area: Heat bar + cooldown bar grouped at bottom center
+      const padding = 18;
+      const barHeight = 12;
+      const heatPercent = Math.max(0, Math.min(100, zoneHeatRef.current || 0));
+      const groupWidth = 300;
+      const groupX = Math.round(CANVAS_WIDTH / 2 - groupWidth / 2);
+      const groupY = CANVAS_HEIGHT - padding - barHeight * 2 - 28; // allow space for two bars + label
+      // Background panel
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText('Action', groupX + groupWidth / 2, groupY + 2);
+      // Heat bar
+      const heatY = groupY + 14;
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(groupX, heatY, groupWidth, barHeight);
+      ctx.fillStyle = '#ff6b6b';
+      ctx.fillRect(groupX, heatY, (heatPercent / 100) * groupWidth, barHeight);
+      ctx.font = '10px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Heat ${Math.round(heatPercent)}%`, groupX + groupWidth / 2, heatY + barHeight - 2);
+      // Cooldown bar
+      const now = Date.now();
+      const remaining = Math.max(0, nextAttackTimeRef.current - now);
+      const percent = remaining / ATTACK_COOLDOWN_MS;
+      const cdY = heatY + barHeight + 10;
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(groupX, cdY, groupWidth, barHeight);
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(groupX, cdY, groupWidth * (1 - percent), barHeight);
+      ctx.font = '10px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(remaining > 0 ? 'Cooling...' : 'Ready', groupX + groupWidth / 2, cdY + barHeight - 2);
+      // Attack hint
+      ctx.font = '11px Arial';
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText('Press SPACE in range to attack', groupX + groupWidth / 2, cdY + barHeight + 16);
 
       // Draw damage numbers
       const currentTime = Date.now();
@@ -376,29 +306,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.shadowColor = 'transparent';
       });
 
-      // Draw attack cooldown indicator bar (positioned between zone heat and exp bar)
-      const now = Date.now();
-      const remaining = Math.max(0, nextAttackTimeRef.current - now);
-      const percent = remaining / ATTACK_COOLDOWN_MS;
-      const padding = 18;
-      const barHeight = 12;
-      const barGap = 10;
-      const cooldownW = 200;
-      const cooldownX = Math.round(CANVAS_WIDTH / 2 - cooldownW / 2);
-      const cooldownY = CANVAS_HEIGHT - padding - (barHeight * 2) - barGap - 10; // between heat and exp
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(cooldownX - 6, cooldownY - 6, cooldownW + 12, barHeight + 12);
-      ctx.strokeStyle = '#60a5fa';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(cooldownX - 6, cooldownY - 6, cooldownW + 12, barHeight + 12);
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(cooldownX, cooldownY, cooldownW, barHeight);
-      ctx.fillStyle = '#60a5fa';
-      ctx.fillRect(cooldownX, cooldownY, cooldownW * (1 - percent), barHeight);
-      ctx.font = '10px Arial';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.fillText(`Ready`, cooldownX + cooldownW / 2, cooldownY + barHeight - 2);
+      // (Removed legacy separate cooldown bar; unified in action panel.)
 
       animationFrameId = requestAnimationFrame(render);
     };
