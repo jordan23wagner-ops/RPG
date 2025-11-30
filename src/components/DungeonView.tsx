@@ -80,8 +80,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // keep zoneHeat prop in sync (set below via props)
 
   // ========== Constants ==========
-  const CANVAS_WIDTH = 1000;
-  const CANVAS_HEIGHT = 600;
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 480;
   // Large world dimensions for camera to pan around
   const WORLD_WIDTH = 4000;
   const WORLD_HEIGHT = 3000;

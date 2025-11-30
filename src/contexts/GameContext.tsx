@@ -391,21 +391,21 @@ try {
     if (!room.explored) {
       room.explored = true;
     }
-    // Single encounter per room; respawn only for non-boss rooms
+    // Single encounter per room; no respawns after cleared
     if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
-      if (room.type === 'boss' && room.cleared) {
+      if (room.cleared) {
+        // Already cleared: no enemy
         setCurrentEnemy(null);
       } else {
-        // Mimic trap on first exploration
-        if (!room.cleared && room.type === 'mimic' && character) {
+        // First exploration: trigger mimic trap if applicable
+        if (room.type === 'mimic' && character) {
           const trapPct = 0.2;
           const trapDamage = Math.floor(character.max_health * trapPct);
           const newHealth = Math.max(1, character.health - trapDamage);
           updateCharacter({ health: newHealth });
           console.log(`[Trap] Mimic chest bit you for ${trapDamage} HP!`);
         }
-        const spawnType = room.cleared && room.type !== 'boss' ? 'enemy' : (room.type as any);
-        const variantEnemy = generateEnemyVariant(spawnType, floor, character?.level || 1, zoneHeat);
+        const variantEnemy = generateEnemyVariant(room.type as any, floor, character?.level || 1, zoneHeat);
         setCurrentEnemy(variantEnemy);
       }
     } else if (room.type === 'empty') {
@@ -609,9 +609,34 @@ try {
         });
       }
 
-      const { error } = await supabase.from('items').insert(rows);
-      if (error) {
-        console.error('[DB Error] Failed to insert loot batch:', error.message, { rows });
+      // Insert all drops with affixes; if "affixes" column missing, retry without affixes
+      let insertError = null as any;
+      let inserted = false;
+      try {
+        const { error } = await supabase.from('items').insert(rows);
+        insertError = error;
+        inserted = !error;
+      } catch (e: any) {
+        insertError = e;
+      }
+      if (!inserted && insertError) {
+        const msg = String(insertError.message || insertError);
+        if (msg.includes("affixes") && msg.includes("column")) {
+          const fallbackRows = rows.map(r => {
+            const { affixes, ...rest } = r as any;
+            return rest;
+          });
+          const { error: fallbackError } = await supabase.from('items').insert(fallbackRows);
+          if (fallbackError) {
+            console.error('[DB Error] Fallback insert failed:', fallbackError.message, { fallbackRows });
+          } else {
+            console.warn('[DB] Affixes column missing — inserted items without affixes. Consider running the migration to add affixes jsonb.');
+            console.log(`[Inventory] Added ${fallbackRows.length} item(s): ${fallbackRows.map(r => r.name).join(', ')}`);
+            await loadItems(character.id);
+          }
+        } else {
+          console.error('[DB Error] Failed to insert loot batch:', insertError.message || insertError, { rows });
+        }
       } else {
         console.log(`[Inventory] Added ${rows.length} item(s): ${rows.map(r => r.name).join(', ')}`);
         await loadItems(character.id);

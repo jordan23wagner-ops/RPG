@@ -117,7 +117,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           onClose={() => setNotification(null)}
         />
       )}
-      <div className="flex items-center justify-between mb-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
           <h1 className="text-4xl font-bold text-yellow-500">Dark Dungeon</h1>
           <div className="text-sm text-gray-300">
@@ -143,9 +143,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
       </div>
 
       {/* Main row: backpack (left) - dungeon (center) - gear (right) */}
-      <div className="flex justify-center gap-4 mt-4 max-w-7xl mx-auto">
+      <div className="flex justify-center gap-4 mt-4 max-w-6xl mx-auto">
         {/* Left: Character + Backpack */}
-        <div className="flex-shrink-0 w-80 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
           {/* Character Stats */}
           <div className="mb-4">
             <h3 className="text-lg font-bold text-yellow-500 mb-2">{character.name}</h3>
@@ -285,7 +285,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         </div>
 
         {/* Right: Equipped Gear Grid */}
-        <div className="flex-shrink-0 w-80 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+        <div className="flex-shrink-0 w-72 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-4">
             <Sword className="w-5 h-5 text-yellow-500" />
             <h3 className="text-lg font-bold text-yellow-500">Equipment</h3>
