@@ -409,10 +409,16 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const visibleEnemies = enemiesInWorld.filter((e: Enemy & { id: string; x: number; y: number }) => 
           e.id !== currentlyEngagedIdRef.current
         );
-        visibleEnemies.forEach((ew: Enemy & { id: string; x: number; y: number }) => {
+        
+        // Track if we've engaged an enemy this frame
+        let engagedThisFrame = false;
+        
+        for (const ew of visibleEnemies) {
+          if (engagedThisFrame) break; // Only engage one enemy per frame
+          
           const sx = ew.x - camX;
           const sy = ew.y - camY;
-          if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) return;
+          if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) continue;
           ctx.fillStyle = '#7f1d1d';
           ctx.beginPath();
           ctx.arc(sx, sy, 12, 0, Math.PI * 2);
@@ -422,9 +428,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ctx.textAlign = 'center';
           ctx.fillText(ew.name, sx, sy - 16);
           // Auto-engage if close (only after initial floor spawn is complete)
-          if (!hasSpawnedThisFloorRef.current) return; // Wait for floor to fully load
+          if (!hasSpawnedThisFloorRef.current) continue; // Wait for floor to fully load
           // Don't engage if already in combat or if this specific enemy is already engaged
-          if (currentlyEngagedIdRef.current !== null) return;
+          if (currentlyEngagedIdRef.current !== null) continue;
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx*dx + dy*dy);
@@ -434,8 +440,10 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
             enemyPosRef.current = { x: ew.x, y: ew.y };
             currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately
             onEngageEnemy(ew.id);
+            engagedThisFrame = true; // Prevent engaging multiple enemies
+            break; // Exit the loop immediately
           }
-        });
+        }
       }
 
       // Draw entry (non-interactive) and exit (interactive) ladders
