@@ -37,7 +37,10 @@ export interface Affix {
     | 'armor'
     | 'speed'
     | 'crit_chance'
-    | 'crit_damage';
+    | 'crit_damage'
+    | 'fire_damage'
+    | 'ice_damage'
+    | 'lightning_damage';
 }
 
 export interface Item {

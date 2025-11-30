@@ -180,6 +180,7 @@ export function generateSetItem(enemyLevel: number, floor: number): Partial<Item
 
   const { requiredLevel, requiredStats } = calculateItemRequirements(piece.type, 'set', enemyLevel, floor);
 
+  const affixes = typeof generateAffixesForItem === 'function' ? generateAffixesForItem('set', piece.type) : [];
   return {
     name: piece.name,
     type: piece.type,
@@ -190,6 +191,7 @@ export function generateSetItem(enemyLevel: number, floor: number): Partial<Item
     equipped: false,
     setName,
     setBonuses,
+    affixes,
     required_level: requiredLevel,
     required_stats: requiredStats,
   };
@@ -585,6 +587,112 @@ function calculateItemRequirements(
   };
 }
 
+// ----------------- AFFIX GENERATION (NEW SYSTEM) -----------------
+// Number of affixes allowed per rarity tier.
+const RARITY_AFFIX_CAP: Record<RarityKey, number> = {
+  common: 0,
+  magic: 1,
+  rare: 2,
+  epic: 3,
+  legendary: 4,
+  mythic: 5,
+  set: 5,
+  radiant: 6,
+};
+
+// Scalar multiplier for affix value scaling.
+const RARITY_SCALAR: Record<RarityKey, number> = {
+  common: 1,
+  magic: 1.15,
+  rare: 1.35,
+  epic: 1.65,
+  legendary: 2.0,
+  mythic: 2.4,
+  set: 2.2,
+  radiant: 2.8,
+};
+
+const WEAPON_AFFIX_STATS: Affix['stat'][] = [
+  'fire_damage',
+  'ice_damage',
+  'lightning_damage',
+  'crit_chance',
+  'crit_damage',
+  'speed',
+];
+const ARMOR_AFFIX_STATS: Affix['stat'][] = [
+  'crit_chance',
+  'crit_damage',
+  'speed',
+  'mana',
+  'health',
+];
+
+function rollAffixValue(stat: Affix['stat'], scalar: number): number {
+  switch (stat) {
+    case 'fire_damage':
+    case 'ice_damage':
+    case 'lightning_damage':
+      return Math.round((3 + Math.random() * 5) * scalar);
+    case 'crit_chance':
+      return Math.round((1 + Math.random() * 2) * scalar * 10) / 10; // percentage points
+    case 'crit_damage':
+      return Math.round((5 + Math.random() * 8) * scalar); // percentage points
+    case 'speed':
+      return Math.round((0.2 + Math.random() * 0.5) * scalar * 10) / 10;
+    case 'mana':
+      return Math.round((5 + Math.random() * 15) * scalar);
+    case 'health':
+      return Math.round((10 + Math.random() * 25) * scalar);
+    case 'strength':
+    case 'dexterity':
+    case 'intelligence':
+      return Math.round((2 + Math.random() * 6) * scalar);
+    case 'damage':
+    case 'armor':
+      return Math.round((2 + Math.random() * 6) * scalar);
+    default:
+      return Math.round((2 + Math.random() * 5) * scalar);
+  }
+}
+
+function affixDisplayName(stat: Affix['stat']): string {
+  switch (stat) {
+    case 'fire_damage': return 'of Flames';
+    case 'ice_damage': return 'of Frost';
+    case 'lightning_damage': return 'of Storms';
+    case 'crit_chance': return 'of Precision';
+    case 'crit_damage': return 'of Cruelty';
+    case 'speed': return 'of Swiftness';
+    case 'mana': return 'of Mana';
+    case 'health': return 'of Vitality';
+    case 'strength': return 'of Strength';
+    case 'dexterity': return 'of Dexterity';
+    case 'intelligence': return 'of Intelligence';
+    case 'damage': return 'of Power';
+    case 'armor': return 'of Protection';
+    default: return 'Enchanted';
+  }
+}
+
+export function generateAffixesForItem(rarity: RarityKey, itemType: Item['type']): Affix[] {
+  const cap = RARITY_AFFIX_CAP[rarity] || 0;
+  if (cap === 0) return [];
+  const scalar = RARITY_SCALAR[rarity] || 1;
+  const isWeapon = ['melee_weapon','ranged_weapon','mage_weapon'].includes(itemType as string);
+  const pool = isWeapon ? WEAPON_AFFIX_STATS : ARMOR_AFFIX_STATS;
+  const affixes: Affix[] = [];
+  const used = new Set<Affix['stat']>();
+  while (affixes.length < cap && used.size < pool.length) {
+    const stat = pool[Math.floor(Math.random() * pool.length)];
+    if (used.has(stat)) continue; // ensure unique stat per item
+    used.add(stat);
+    const value = rollAffixValue(stat, scalar);
+    affixes.push({ name: affixDisplayName(stat), stat, value });
+  }
+  return affixes;
+}
+
 export function generateLoot(
   enemyLevel: number,
   floor: number,
@@ -714,7 +822,7 @@ export function generateLoot(
   const value = Math.round(rawValue * multiplier);
 
   const { requiredLevel, requiredStats } = calculateItemRequirements(type, rarity, enemyLevel, floor);
-
+  const affixes = generateAffixesForItem(rarity, type);
   return {
     name,
     type,
@@ -723,6 +831,7 @@ export function generateLoot(
     armor,
     value,
     equipped: false,
+    affixes,
     required_level: requiredLevel,
     required_stats: requiredStats,
   };
@@ -763,10 +872,10 @@ const BOSS_UNIQUE_ITEMS: BossUniqueItem[] = [
 function generateBossUniqueItem(enemyLevel: number, floor: number): Partial<Item> {
   const template = BOSS_UNIQUE_ITEMS[Math.floor(Math.random() * BOSS_UNIQUE_ITEMS.length)];
   const factor = enemyLevel + floor * 0.5;
-  
+
   let damage: number | undefined;
   let armor: number | undefined;
-  
+
   if (template.damageBonus) {
     const base = (5 + factor * 2.5) * template.damageBonus;
     damage = Math.round(base + Math.random() * factor);
@@ -775,10 +884,11 @@ function generateBossUniqueItem(enemyLevel: number, floor: number): Partial<Item
     const base = (3 + factor * 1.8) * template.armorBonus;
     armor = Math.round(base + Math.random() * factor * 0.6);
   }
-  
+
   const { requiredLevel, requiredStats } = calculateItemRequirements(template.type, template.rarity, enemyLevel, floor);
   const value = Math.round((damage || armor || 1) * (template.rarity === 'radiant' ? 10 : template.rarity === 'mythic' ? 8 : 6));
-  
+  const affixes = generateAffixesForItem(template.rarity, template.type);
+
   return {
     name: template.name,
     type: template.type,
@@ -787,6 +897,7 @@ function generateBossUniqueItem(enemyLevel: number, floor: number): Partial<Item
     armor,
     value,
     equipped: false,
+    affixes,
     required_level: requiredLevel,
     required_stats: requiredStats,
   };

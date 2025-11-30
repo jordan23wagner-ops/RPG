@@ -228,6 +228,7 @@ try {
           equipped: true,
           required_level: 1,
           required_stats: { strength: 1 },
+          affixes: [],
         },
       ]);
 
@@ -455,15 +456,33 @@ try {
     );
 
     const weaponDamage = equippedWeapon?.damage || 0;
-    // Compute set bonuses from all equipped items. These bonuses can add
-    // flat damage, armor or core stats such as strength/dexterity/intelligence.
-    const setBonuses = computeSetBonuses(items.filter((i: Item) => i.equipped));
-    const effectiveStrength = character.strength + setBonuses.strength;
-    const baseDamage = effectiveStrength * 0.5 + weaponDamage;
+    // Equipped items & aggregated affixes
+    const equippedItems = items.filter((i: Item) => i.equipped);
+    const setBonuses = computeSetBonuses(equippedItems);
+    const allAffixes = equippedItems.flatMap((i: Item) => i.affixes || []);
+    // Aggregate affix-provided stat bonuses
+    const affixStatBonus = {
+      strength: 0,
+      dexterity: 0,
+      intelligence: 0,
+      crit_chance: 0,
+      crit_damage: 0,
+      speed: 0,
+      fire_damage: 0,
+      ice_damage: 0,
+      lightning_damage: 0,
+    } as Record<string, number>;
+    for (const a of allAffixes) {
+      affixStatBonus[a.stat] = (affixStatBonus[a.stat] || 0) + a.value;
+    }
+
+    const effectiveStrength = character.strength + setBonuses.strength + (affixStatBonus.strength || 0);
+    const elementalFlat = (affixStatBonus.fire_damage || 0) + (affixStatBonus.ice_damage || 0) + (affixStatBonus.lightning_damage || 0);
+    const baseDamage = effectiveStrength * 0.5 + weaponDamage + elementalFlat;
     
     // Apply crit mechanics: base 5% crit chance, 150% crit damage
-    const critChance = (character.crit_chance || 5) / 100;
-    const critDamage = (character.crit_damage || 150) / 100;
+    const critChance = ((character.crit_chance || 5) + (affixStatBonus.crit_chance || 0)) / 100;
+    const critDamage = ((character.crit_damage || 150) + (affixStatBonus.crit_damage || 0)) / 100;
     const isCrit = Math.random() < critChance;
     const critMultiplier = isCrit ? critDamage : 1.0;
     
@@ -563,6 +582,7 @@ try {
         equipped: ld.equipped,
         required_level: (ld as any).required_level,
         required_stats: (ld as any).required_stats,
+        affixes: (ld as any).affixes || [],
       }));
 
       if (notifyDrop) {
@@ -849,6 +869,7 @@ try {
         value: POTION_COST,
         equipped: false,
         required_level: 1,
+        affixes: [],
       },
     ]);
 
