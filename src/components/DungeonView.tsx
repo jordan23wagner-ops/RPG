@@ -15,7 +15,7 @@ interface DungeonViewProps {
 }
 
 export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, zoneHeat }: DungeonViewProps) {
-  const { enemiesInWorld, entryLadderPos, exitLadderPos, onEngageEnemy } = useGame();
+  const { enemiesInWorld, killedEnemyIds, entryLadderPos, exitLadderPos, onEngageEnemy } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
@@ -405,9 +405,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       // Draw world enemies as markers when not engaged
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
-        // Filter out the currently engaged enemy (if any)
+        // Filter out killed enemies and currently engaged enemy
         const visibleEnemies = enemiesInWorld.filter((e: Enemy & { id: string; x: number; y: number }) => 
-          e.id !== currentlyEngagedIdRef.current
+          !killedEnemyIds.has(e.id) && e.id !== currentlyEngagedIdRef.current
         );
         
         // Track if we've engaged an enemy this frame

@@ -72,6 +72,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [floorMap, setFloorMap] = useState<FloorMap | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [enemiesInWorld, setEnemiesInWorld] = useState<Array<Enemy & { id: string; x: number; y: number }>>([]);
+  const [killedEnemyIds, setKilledEnemyIds] = useState<Set<string>>(new Set());
   const [entryLadderPos, setEntryLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [exitLadderPos, setExitLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -368,6 +369,7 @@ try {
       killedWorldEnemiesRef.current.set(floor, new Set<string>());
     }
     const killedSet = killedWorldEnemiesRef.current.get(floor)!;
+    setKilledEnemyIds(new Set(killedSet)); // Sync state with ref
     // Use seeded random for deterministic enemy positions per floor
     const seededRandom = (seed: number) => {
       const x = Math.sin(seed++) * 10000;
@@ -748,6 +750,7 @@ try {
           const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
           killedSet.add(lastId);
           killedWorldEnemiesRef.current.set(floor, killedSet);
+          setKilledEnemyIds(new Set(killedSet)); // Update state for rendering
           lastEngagedWorldEnemyIdRef.current = null;
           if (DEBUG_WORLD_ENEMIES) {
             console.log(`[Kill] World enemy ${lastId} marked killed; killedCount=${killedSet.size}`);
@@ -1049,6 +1052,7 @@ try {
         floorMap,
         currentRoomId,
         enemiesInWorld,
+        killedEnemyIds,
         entryLadderPos,
         exitLadderPos,
         loading,
