@@ -349,6 +349,56 @@ export function generateEnemy(floor: number, playerLevel: number, zoneHeat: numb
   };
 }
 
+// Variant enemy generator used by floor exploration events
+export function generateEnemyVariant(kind: 'enemy' | 'rareEnemy' | 'miniBoss' | 'mimic', floor: number, playerLevel: number, zoneHeat: number = 0): Enemy {
+  if (kind === 'enemy') return generateEnemy(floor, playerLevel, zoneHeat);
+
+  // Base enemy as template
+  const base = generateEnemy(floor, playerLevel, zoneHeat);
+
+  switch (kind) {
+    case 'rareEnemy': {
+      return {
+        ...base,
+        name: `Rare ${base.name}`,
+        health: Math.floor(base.health * 1.3),
+        max_health: Math.floor(base.max_health * 1.3),
+        damage: Math.floor(base.damage * 1.25),
+        experience: Math.floor(base.experience * 1.4),
+        gold: Math.floor(base.gold * 1.5),
+        rarity: 'rare',
+      };
+    }
+    case 'miniBoss': {
+      return {
+        ...base,
+        name: `Mini Boss ${base.name}`,
+        health: Math.floor(base.health * 2.0),
+        max_health: Math.floor(base.max_health * 2.0),
+        damage: Math.floor(base.damage * 1.8),
+        experience: Math.floor(base.experience * 2.2),
+        gold: Math.floor(base.gold * 2.0),
+        rarity: 'elite',
+      };
+    }
+    case 'mimic': {
+      // Mimics: low HP, high damage spike, big loot (gold/exp)
+      return {
+        ...base,
+        name: `Mimic Chest (${playerLevel})`,
+        health: Math.floor(base.health * 0.6),
+        max_health: Math.floor(base.max_health * 0.6),
+        damage: Math.floor(base.damage * 2.2),
+        experience: Math.floor(base.experience * 2.5),
+        gold: Math.floor(base.gold * 3.0),
+        rarity: 'elite',
+      };
+    }
+    default:
+      return base;
+  }
+}
+
 // ----------------- LOOT GENERATION (NEW SYSTEM) -----------------
 
 const BASE_RARITY_WEIGHTS = {

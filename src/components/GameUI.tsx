@@ -7,6 +7,7 @@ import {
   Sparkles,
   ShoppingBag,
 } from 'lucide-react';
+import { FloorMap } from './FloorMap';
 import { Character, Item } from '../types/game';
 import {
   getRarityColor,
@@ -289,18 +290,10 @@ export function GameUI({
         Visit Merchant
       </button>
 
-      {/* Floor / next floor */}
-      {enemyDefeated && (
-        <button
-          onClick={onNextFloor}
-          className="w-full px-3 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-900 font-bold rounded-lg transition-all text-sm"
-        >
-          <div className="flex items-center justify-center gap-1">
-            <ArrowDown className="w-4 h-4" />
-            Descend Floor {floor + 1}
-          </div>
-        </button>
-      )}
+      {/* Floor Exploration Map */}
+      <FloorMap />
+
+      {/* Legacy descend button removed – ladder ascend handled in FloorMap */}
     </div>
   );
 }

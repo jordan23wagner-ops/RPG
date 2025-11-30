@@ -137,6 +137,31 @@ export interface Enemy {
   rarity: 'normal' | 'rare' | 'elite' | 'boss';
 }
 
+// ---------- Floor Exploration Types ----------
+
+export type RoomEventType =
+  | 'enemy'
+  | 'rareEnemy'
+  | 'miniBoss'
+  | 'mimic'
+  | 'empty'
+  | 'ladder';
+
+export interface FloorRoom {
+  id: string;
+  index: number; // position in simple linear map or grid ordering
+  type: RoomEventType;
+  explored: boolean; // clicked / revealed
+  cleared: boolean; // combat done or loot taken
+}
+
+export interface FloorMap {
+  floor: number;
+  rooms: FloorRoom[];
+  ladderRoomId: string;
+  startedAt: string;
+}
+
 export interface GameSession {
   id: string;
   character_id: string;

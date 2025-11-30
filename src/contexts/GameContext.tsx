@@ -7,7 +7,8 @@ import {
   ReactNode,
 } from 'react';
 import { supabase } from '../lib/supabase';
-import { Character, Item, Enemy } from '../types/game';
+import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
+import { generateEnemyVariant } from '../utils/gameLogic';
 import {
   generateEnemy,
   generateLoot,
@@ -28,6 +29,8 @@ interface GameContextType {
   items: Item[];
   currentEnemy: Enemy | null;
   floor: number;
+  floorMap: FloorMap | null;
+  currentRoomId: string | null;
   loading: boolean;
   damageNumbers: DamageNumber[];
   zoneHeat: number;
@@ -41,6 +44,7 @@ interface GameContextType {
   usePotion: (itemId: string) => Promise<void>;
   equipItem: (itemId: string) => Promise<void>;
   nextFloor: () => void;
+  exploreRoom: (roomId: string) => void;
   updateCharacter: (updates: Partial<Character>) => Promise<void>;
   sellItem: (itemId: string) => Promise<void>;
   sellAllItems: () => Promise<void>;
@@ -55,33 +59,31 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [items, setItems] = useState<Item[]>([]);
   const [currentEnemy, setCurrentEnemy] = useState<Enemy | null>(null);
   const [floor, setFloor] = useState(1);
+  const [floorMap, setFloorMap] = useState<FloorMap | null>(null);
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
   
   const toggleRarityFilter = (rarity: string) => {
-    setRarityFilter(prev => {
+    setRarityFilter((prev: Set<string>) => {
       const newFilter = new Set(prev);
-      if (newFilter.has(rarity)) {
-        newFilter.delete(rarity);
-      } else {
-        newFilter.add(rarity);
-      }
+      if (newFilter.has(rarity)) newFilter.delete(rarity); else newFilter.add(rarity);
       return newFilter;
     });
   };
   
   const increaseZoneHeat = (amount: number = 5) => {
-    setZoneHeat(prev => Math.min(100, (prev || 0) + amount));
+    setZoneHeat((prev: number) => Math.min(100, (prev || 0) + amount));
   };
   const resetZoneHeat = () => setZoneHeat(0);
 
   // Gradual decay: heat reduces over time to encourage active play to keep it high
   useEffect(() => {
     const interval = setInterval(() => {
-      setZoneHeat(prev => Math.max(0, (prev || 0) - 1));
-    }, 15000); // reduce 1 heat every 15s
+      setZoneHeat((prev: number) => Math.max(0, (prev || 0) - 1));
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -229,13 +231,84 @@ try {
     setCurrentEnemy(enemy);
   };
 
+  // --------------- Floor Generation / Exploration ---------------
+
+  const generateFloorMap = (floorNumber: number): FloorMap => {
+    const roomCount = 9; // simple 3x3 conceptual map
+    const rooms: FloorRoom[] = [];
+    const mimicChance = Math.min(0.05 + floorNumber * 0.005, 0.15); // up to 15%
+    const miniBossChance = Math.min(0.01 + Math.floor(floorNumber / 5) * 0.01, 0.08); // up to 8%
+    const rareEnemyChance = Math.min(0.15 + floorNumber * 0.01, 0.35); // scales with depth
+
+    for (let i = 0; i < roomCount; i++) {
+      const id = `room-${floorNumber}-${i}`;
+      let type: RoomEventType = 'enemy';
+
+      const roll = Math.random();
+      if (roll < mimicChance) type = 'mimic';
+      else if (roll < mimicChance + miniBossChance) type = 'miniBoss';
+      else if (roll < mimicChance + miniBossChance + rareEnemyChance) type = 'rareEnemy';
+      else if (roll > 0.85) type = 'empty'; // some empty dead-ends
+
+      rooms.push({ id, index: i, type, explored: i === 0, cleared: false });
+    }
+
+    // Place ladder in a random non-start room
+    const ladderIndex = Math.max(1, Math.floor(Math.random() * roomCount));
+    rooms[ladderIndex].type = 'ladder';
+
+    return {
+      floor: floorNumber,
+      rooms,
+      ladderRoomId: rooms[ladderIndex].id,
+      startedAt: new Date().toISOString(),
+    };
+  };
+
+  const initFloorIfNeeded = () => {
+    setFloorMap((prev: FloorMap | null) => prev ?? generateFloorMap(floor));
+    if (!currentRoomId) {
+      // start in first room
+      setCurrentRoomId(`room-${floor}-0`);
+    }
+  };
+
+  useEffect(() => {
+    initFloorIfNeeded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floor]);
+
+  const exploreRoom = (roomId: string) => {
+    if (!floorMap) return;
+    const room = floorMap.rooms.find((r: FloorRoom) => r.id === roomId);
+    if (!room) return;
+    setCurrentRoomId(roomId);
+    if (!room.explored) {
+      room.explored = true;
+    }
+    // If combat room and not cleared, spawn appropriate enemy variant
+    if (!room.cleared) {
+      if (['enemy','rareEnemy','miniBoss','mimic'].includes(room.type)) {
+        // Lazy import of variant generator to avoid circular if changed later
+        const variantEnemy = generateEnemyVariant(room.type as any, floor, character?.level || 1, zoneHeat);
+        setCurrentEnemy(variantEnemy);
+      } else if (room.type === 'empty') {
+        setCurrentEnemy(null);
+      } else if (room.type === 'ladder') {
+        setCurrentEnemy(null);
+      }
+    }
+    // Force re-render map update
+    setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
+  };
+
   const addDamageNumber = (damage: number, x: number, y: number) => {
     const id = `damage-${Date.now()}-${Math.random()}`;
     const newDamage: DamageNumber = { id, damage, x, y, createdAt: Date.now() };
-    setDamageNumbers(prev => [...prev, newDamage]);
+    setDamageNumbers((prev: DamageNumber[]) => [...prev, newDamage]);
     // Auto-remove after 1.5 seconds
     setTimeout(() => {
-      setDamageNumbers(prev => prev.filter(d => d.id !== id));
+      setDamageNumbers((prev: DamageNumber[]) => prev.filter((d: DamageNumber) => d.id !== id));
     }, 1500);
   };
 
@@ -266,7 +339,7 @@ try {
     if (!character || !currentEnemy) return;
 
     const equippedWeapon = items.find(
-      i =>
+      (i: Item) =>
         i.equipped &&
         (i.type === 'weapon' ||
           i.type === 'melee_weapon' ||
@@ -277,7 +350,7 @@ try {
     const weaponDamage = equippedWeapon?.damage || 0;
     // Compute set bonuses from all equipped items. These bonuses can add
     // flat damage, armor or core stats such as strength/dexterity/intelligence.
-    const setBonuses = computeSetBonuses(items.filter(i => i.equipped));
+    const setBonuses = computeSetBonuses(items.filter((i: Item) => i.equipped));
     const effectiveStrength = character.strength + setBonuses.strength;
     const baseDamage = effectiveStrength * 0.5 + weaponDamage;
     const playerDamage = Math.floor(
@@ -387,13 +460,23 @@ try {
         boss: 30,
       };
       const gainedHeat = heatGainMap[currentEnemy.rarity] || 3;
-      setZoneHeat(prev => Math.min(100, prev + gainedHeat));
+      setZoneHeat((prev: number) => Math.min(100, prev + gainedHeat));
 
-      // Spawn a new enemy after a short delay
-      setTimeout(
-        () => generateNewEnemy(leveled ? newLevel : character.level),
-        800,
-      );
+      // If inside an explored floor room, mark it cleared and do NOT auto spawn
+      if (floorMap && currentRoomId) {
+        const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
+        if (room) {
+          room.cleared = true;
+          setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
+        }
+        setCurrentEnemy(null);
+      } else {
+        // Legacy fallback: spawn continuous enemies
+        setTimeout(
+          () => generateNewEnemy(leveled ? newLevel : character.level),
+          800,
+        );
+      }
     } else {
       // Enemy counter-attack
       setTimeout(() => {
@@ -405,9 +488,9 @@ try {
           currentEnemy.damage + Math.random() * 5,
         );
         const totalArmor = items
-          .filter(i => i.equipped && i.armor)
-          .reduce((sum, i) => sum + (i.armor || 0), 0);
-        const setBonusDef = computeSetBonuses(items.filter(i => i.equipped));
+          .filter((i: Item) => i.equipped && i.armor)
+          .reduce((sum: number, i: Item) => sum + (i.armor || 0), 0);
+        const setBonusDef = computeSetBonuses(items.filter((i: Item) => i.equipped));
         const effectiveArmor = totalArmor + setBonusDef.armor;
 
         const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
@@ -436,7 +519,7 @@ try {
     const now = Date.now();
     if (now < potionCooldownRef.current) return;
 
-    const potion = items.find(i => i.id === itemId && i.type === 'potion');
+    const potion = items.find((i: Item) => i.id === itemId && i.type === 'potion');
     if (!potion) return;
 
     const healAmount = 50;
@@ -461,7 +544,7 @@ try {
   const equipItem = async (itemId: string) => {
     if (!character) return;
 
-    const item = items.find(i => i.id === itemId);
+    const item = items.find((i: Item) => i.id === itemId);
     if (!item || item.type === 'potion') return;
 
     let slot = getEquipmentSlot(item);
@@ -477,7 +560,7 @@ try {
         // Special handling for rings: allow two rings by checking if ring1 is taken
         if (item.type === 'ring' && slot === 'ring1') {
           const ring1Equipped = items.some(
-            i => i.equipped && getEquipmentSlot(i) === 'ring1'
+            (i: Item) => i.equipped && getEquipmentSlot(i) === 'ring1'
           );
           if (ring1Equipped) {
             // Try ring2 instead
@@ -490,15 +573,14 @@ try {
 
         if (slot) {
           conflictingIds = items
-            .filter(equippedItem => {
+            .filter((equippedItem: Item) => {
               if (!equippedItem.equipped) return false;
               const eqSlot = getEquipmentSlot(equippedItem);
-              // Only one item per exact slot; all weapons share the same slot
               if (slot === 'weapon' && eqSlot === 'weapon') return true;
               if (eqSlot === slot) return true;
               return false;
             })
-            .map(i => i.id);
+            .map((i: Item) => i.id);
         }
 
         if (conflictingIds.length > 0) {
@@ -521,17 +603,27 @@ try {
   };
 
   const nextFloor = () => {
+    // Only allow if ladder room explored
+    if (floorMap) {
+      const ladderRoom = floorMap.rooms.find((r: FloorRoom) => r.id === floorMap.ladderRoomId);
+      if (!ladderRoom || !ladderRoom.explored) return;
+    }
     const newFloor = floor + 1;
     setFloor(newFloor);
+    // Reset map state for new floor
+    const newMap = generateFloorMap(newFloor);
+    setFloorMap(newMap);
+    setCurrentRoomId(`room-${newFloor}-0`);
+    setCurrentEnemy(null);
     if (character) {
-      generateNewEnemy(character.level);
+      // Enemy spawns only when entering combat room, so none here
     }
   };
 
   const sellItem = async (itemId: string) => {
     if (!character) return;
 
-    const item = items.find(i => i.id === itemId);
+    const item = items.find((i: Item) => i.id === itemId);
     if (!item) return;
 
     const newGold = character.gold + (item.value || 0);
@@ -549,15 +641,15 @@ try {
     if (!character) return;
 
     // Sell all unequipped, non-potion items
-    const sellable = items.filter(i => !i.equipped && i.type !== 'potion');
+    const sellable = items.filter((i: Item) => !i.equipped && i.type !== 'potion');
 
     if (sellable.length === 0) return;
 
     const totalValue = sellable.reduce(
-      (sum, i) => sum + (i.value || 0),
+      (sum: number, i: Item) => sum + (i.value || 0),
       0,
     );
-    const ids = sellable.map(i => i.id);
+    const ids = sellable.map((i: Item) => i.id);
 
     await updateCharacter({ gold: character.gold + totalValue });
 
@@ -604,6 +696,8 @@ try {
         items,
         currentEnemy,
         floor,
+        floorMap,
+        currentRoomId,
         loading,
         damageNumbers,
         zoneHeat,
@@ -617,6 +711,7 @@ try {
         usePotion,
         equipItem,
         nextFloor,
+        exploreRoom,
         updateCharacter,
         sellItem,
         sellAllItems,
