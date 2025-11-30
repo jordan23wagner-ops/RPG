@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
 import { SettingsPanel } from './SettingsPanel';
 import { ItemTooltip } from './ItemTooltip';
+import { TooltipPortal } from './TooltipPortal';
 import { getRarityColor, getRarityBgColor, getRarityBorderColor } from '../utils/gameLogic';
 
 export function Game() {
@@ -19,6 +20,10 @@ export function Game() {
   } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<any | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{x:number;y:number}>({ x: 0, y: 0 });
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipTimer, setTooltipTimer] = useState<number | null>(null);
 
   // Check for auto-start flag on mount
   useEffect(() => {
@@ -204,11 +209,26 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                   <div
                     key={item.id}
                     className={`relative group border rounded p-1.5 flex items-center justify-between hover:border-opacity-100 transition-colors text-sm ${getRarityBgColor(item.rarity)} border-2 ${getRarityBorderColor(item.rarity)}`}
+                    onMouseEnter={(e) => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setHoveredItem(item);
+                      // Edge-aware positioning: prefer right, flip to left if near screen edge
+                      const preferRightX = rect.right + 8;
+                      const preferLeftX = rect.left - 8;
+                      const spaceRight = window.innerWidth - rect.right;
+                      const x = spaceRight < 280 ? Math.max(8, preferLeftX - 260) : preferRightX;
+                      setTooltipPos({ x, y: Math.max(8, rect.top) });
+                      // Small delay to reduce flicker
+                      const t = window.setTimeout(() => setShowTooltip(true), 90);
+                      setTooltipTimer(t);
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredItem(null);
+                      setShowTooltip(false);
+                      if (tooltipTimer) window.clearTimeout(tooltipTimer);
+                      setTooltipTimer(null);
+                    }}
                   >
-                    {/* Tooltip on hover */}
-                    <div className="absolute left-full ml-2 top-0 z-50 hidden group-hover:block">
-                      <ItemTooltip item={item} />
-                    </div>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div>
                         <div className={`font-semibold truncate text-xs ${getRarityColor(item.rarity)}`}>{item.name}</div>
@@ -332,13 +352,25 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
                     key={slot.key}
                     className={`relative group aspect-square rounded-lg p-1.5 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg ${borderClass} ${bgClass}`}
                     title={item ? item.name : slot.label}
+                    onMouseEnter={(e) => {
+                      if (!item || item._mirroredTwoHand) return;
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setHoveredItem(item);
+                      const preferRightX = rect.right + 8;
+                      const preferLeftX = rect.left - 8;
+                      const spaceRight = window.innerWidth - rect.right;
+                      const x = spaceRight < 280 ? Math.max(8, preferLeftX - 260) : preferRightX;
+                      setTooltipPos({ x, y: Math.max(8, rect.top) });
+                      const t = window.setTimeout(() => setShowTooltip(true), 90);
+                      setTooltipTimer(t);
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredItem(null);
+                      setShowTooltip(false);
+                      if (tooltipTimer) window.clearTimeout(tooltipTimer);
+                      setTooltipTimer(null);
+                    }}
                   >
-                    {/* Tooltip on hover for equipped items */}
-                    {item && !item._mirroredTwoHand && (
-                      <div className="absolute left-full ml-2 top-0 z-50 hidden group-hover:block">
-                        <ItemTooltip item={item} />
-                      </div>
-                    )}
                     {item ? (
                       <div className="text-center w-full">
                         <div className={`text-[10px] font-semibold truncate ${getRarityColor(item.rarity)}`}>{item.name}</div>
@@ -374,6 +406,13 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           onBuyPotion={buyPotion}
           onSellAll={sellAllItems}
         />
+      )}
+
+      {/* Global tooltip portal */}
+      {hoveredItem && showTooltip && (
+        <TooltipPortal x={tooltipPos.x} y={tooltipPos.y}>
+          <ItemTooltip item={hoveredItem} />
+        </TooltipPortal>
       )}
     </div>
   );
