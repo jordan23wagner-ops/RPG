@@ -307,9 +307,10 @@ export function generateEnemy(floor: number, playerLevel: number, zoneHeat: numb
   const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
 
   // Slightly shift rarity thresholds upward as heat increases (more rares/elites/bosses)
-  const normalThreshold = 0.7 - heatBoost * 0.05; // normal chance decreases with heat
-  const rareThreshold = 0.9 - heatBoost * 0.03;
-  const eliteThreshold = 0.98 - heatBoost * 0.01;
+  // Rebalanced: normal enemies significantly more common, rare/elite much less frequent
+  const normalThreshold = 0.85 - heatBoost * 0.08; // normal chance decreases with heat
+  const rareThreshold = 0.96 - heatBoost * 0.04;
+  const eliteThreshold = 0.995 - heatBoost * 0.015;
 
   if (rarityRoll < normalThreshold) {
     rarity = 'normal';
@@ -680,6 +681,65 @@ export function generateLoot(
 const RARITY_ORDER: RarityKey[] = ['common','magic','rare','epic','legendary','mythic','set','radiant'];
 function rarityIndex(r: RarityKey) { return RARITY_ORDER.indexOf(r); }
 
+// Boss-exclusive unique loot table (always legendary or higher)
+interface BossUniqueItem {
+  name: string;
+  type: Item['type'];
+  rarity: RarityKey;
+  damageBonus?: number; // multiplier over baseline
+  armorBonus?: number;
+}
+
+const BOSS_UNIQUE_ITEMS: BossUniqueItem[] = [
+  { name: "Flamebringer's Edge", type: 'melee_weapon', rarity: 'legendary', damageBonus: 1.5 },
+  { name: "Shadowfang Blade", type: 'melee_weapon', rarity: 'mythic', damageBonus: 2.0 },
+  { name: "Voidcrusher Hammer", type: 'melee_weapon', rarity: 'legendary', damageBonus: 1.6 },
+  { name: "Deathwhisper Bow", type: 'ranged_weapon', rarity: 'legendary', damageBonus: 1.4 },
+  { name: "Stormcaller Crossbow", type: 'ranged_weapon', rarity: 'mythic', damageBonus: 1.8 },
+  { name: "Soulreaver Staff", type: 'mage_weapon', rarity: 'legendary', damageBonus: 1.5 },
+  { name: "Netherstorm Scepter", type: 'mage_weapon', rarity: 'mythic', damageBonus: 1.9 },
+  { name: "Dreadplate Armor", type: 'melee_armor', rarity: 'legendary', armorBonus: 1.5 },
+  { name: "Dragonscale Cuirass", type: 'melee_armor', rarity: 'mythic', armorBonus: 2.0 },
+  { name: "Phantom Cloak", type: 'ranged_armor', rarity: 'legendary', armorBonus: 1.4 },
+  { name: "Voidweave Robes", type: 'mage_armor', rarity: 'legendary', armorBonus: 1.3 },
+  { name: "Celestial Vestments", type: 'mage_armor', rarity: 'mythic', armorBonus: 1.7 },
+  { name: "Crown of the Damned", type: 'helmet', rarity: 'radiant', armorBonus: 2.2 },
+  { name: "Ring of Eternal Fire", type: 'ring', rarity: 'legendary', armorBonus: 1.0 },
+  { name: "Amulet of the Abyss", type: 'amulet', rarity: 'mythic', armorBonus: 1.2 },
+];
+
+function generateBossUniqueItem(enemyLevel: number, floor: number): Partial<Item> {
+  const template = BOSS_UNIQUE_ITEMS[Math.floor(Math.random() * BOSS_UNIQUE_ITEMS.length)];
+  const factor = enemyLevel + floor * 0.5;
+  
+  let damage: number | undefined;
+  let armor: number | undefined;
+  
+  if (template.damageBonus) {
+    const base = (5 + factor * 2.5) * template.damageBonus;
+    damage = Math.round(base + Math.random() * factor);
+  }
+  if (template.armorBonus) {
+    const base = (3 + factor * 1.8) * template.armorBonus;
+    armor = Math.round(base + Math.random() * factor * 0.6);
+  }
+  
+  const { requiredLevel, requiredStats } = calculateItemRequirements(template.type, template.rarity, enemyLevel, floor);
+  const value = Math.round((damage || armor || 1) * (template.rarity === 'radiant' ? 10 : template.rarity === 'mythic' ? 8 : 6));
+  
+  return {
+    name: template.name,
+    type: template.type,
+    rarity: template.rarity,
+    damage,
+    armor,
+    value,
+    equipped: false,
+    required_level: requiredLevel,
+    required_stats: requiredStats,
+  };
+}
+
 function generateGuaranteedLoot(enemyLevel: number, floor: number, zoneHeat: number, minRarity: RarityKey): Partial<Item> {
   let attempts = 0;
   let loot: Partial<Item> | null = null;
@@ -712,11 +772,12 @@ function generateGuaranteedLoot(enemyLevel: number, floor: number, zoneHeat: num
 
 export function generateBossLoot(enemyLevel: number, floor: number, zoneHeat: number): Partial<Item>[] {
   const drops: Partial<Item>[] = [];
-  // Two guaranteed rare+ items
+  // One guaranteed boss-exclusive unique item (legendary+)
+  drops.push(generateBossUniqueItem(enemyLevel, floor));
+  // One guaranteed rare+ item from regular loot table
   drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
-  drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
-  // Chance for third epic+ item
-  if (Math.random() < 0.6) {
+  // 40% chance for third epic+ item
+  if (Math.random() < 0.4) {
     drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'epic'));
   }
   return drops;
@@ -726,8 +787,8 @@ export function generateMimicLoot(enemyLevel: number, floor: number, zoneHeat: n
   const drops: Partial<Item>[] = [];
   // One guaranteed magic+ item
   drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'magic'));
-  // 35% chance for second rare+ item
-  if (Math.random() < 0.35) {
+  // Reduced to 25% chance for second rare+ item
+  if (Math.random() < 0.25) {
     drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
   }
   return drops;
