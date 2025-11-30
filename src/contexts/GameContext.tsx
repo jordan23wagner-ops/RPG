@@ -87,6 +87,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   // Flag indicating current combat originated from a world enemy (not a room)
   const inWorldCombatRef = useRef<boolean>(false);
   const previousExitLadderPosRef = useRef<{ x: number; y: number } | null>(null);
+  const initializedFloorRef = useRef<number | null>(null);
   const resetAffixStats = () => {
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
@@ -339,6 +340,10 @@ try {
   };
 
   useEffect(() => {
+    // Only initialize each floor once to prevent regenerating enemies
+    if (initializedFloorRef.current === floor) return;
+    initializedFloorRef.current = floor;
+    
     initFloorIfNeeded();
     // Generate world enemies and ladder position per floor
     const WORLD_WIDTH = 4000;
