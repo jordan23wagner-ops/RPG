@@ -166,22 +166,144 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 15;
     ctx.shadowOffsetY = 8;
-
-    // Head
+    // Simple humanoid silhouette
     ctx.beginPath();
     ctx.arc(x, y - 15, 20, 0, Math.PI * 2);
     ctx.fill();
-
-    // Body
     ctx.fillStyle = isPlayer ? '#6366f1' : '#ef4444';
     ctx.fillRect(x - 20, y + 5, 40, 35);
-
-    // Legs
     ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
     ctx.fillRect(x - 25, y + 5, 12, 30);
     ctx.fillRect(x + 13, y + 5, 12, 30);
-
     ctx.shadowColor = 'transparent';
+  };
+
+  // Visual profiles for enemies by rarity / type
+  const getEnemyVisual = (enemy: Enemy) => {
+    const base = {
+      shape: 'circle', // circle | hex | crystal | chest | crown | brute
+      baseColor: '#dc2626',
+      accent: '#fbbf24',
+      auraColor: 'rgba(255,0,0,0.35)',
+      size: 26,
+    } as { shape: string; baseColor: string; accent: string; auraColor: string; size: number };
+    switch (enemy.rarity) {
+      case 'rare':
+        Object.assign(base, { baseColor: '#3b82f6', accent: '#93c5fd', auraColor: 'rgba(59,130,246,0.30)', shape: 'hex', size: 28 });
+        break;
+      case 'elite':
+        Object.assign(base, { baseColor: '#f59e0b', accent: '#fcd34d', auraColor: 'rgba(245,158,11,0.30)', shape: 'crystal', size: 30 });
+        break;
+      case 'boss':
+        Object.assign(base, { baseColor: '#7e22ce', accent: '#c084fc', auraColor: 'rgba(126,34,206,0.45)', shape: 'crown', size: 40 });
+        break;
+      default:
+        break;
+    }
+    // Special room types influence style (mimic -> chest)
+    if (/mimic/i.test(enemy.name)) {
+      Object.assign(base, { shape: 'chest', baseColor: '#8b5a2b', accent: '#d97706', auraColor: 'rgba(217,119,6,0.25)', size: 30 });
+    }
+    return base;
+  };
+
+  const drawEnemy = (ctx: CanvasRenderingContext2D, enemy: Enemy, x: number, y: number, time: number) => {
+    const v = getEnemyVisual(enemy);
+    // Pulsing aura
+    const pulse = (Math.sin(time / 500) + 1) / 2; // 0..1
+    const auraRadius = v.size + 18 + pulse * 6;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, auraRadius, 0, Math.PI * 2);
+    ctx.fillStyle = v.auraColor.replace(/0\.\d+\)/, `${(0.15 + pulse * 0.35).toFixed(2)})`);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = v.baseColor;
+    switch (v.shape) {
+      case 'hex': {
+        const r = v.size;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = Math.PI / 3 * i + Math.PI / 6;
+          const px = x + r * Math.cos(angle);
+          const py = y + r * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case 'crystal': {
+        const r = v.size;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r * 0.6, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r * 0.6, y);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case 'crown': {
+        const w = v.size * 1.6;
+        const h = v.size * 1.0;
+        ctx.beginPath();
+        ctx.rect(x - w / 2, y - h / 2, w, h);
+        ctx.fill();
+        ctx.fillStyle = v.accent;
+        for (let i = 0; i < 5; i++) {
+          const spikeX = x - w / 2 + (i + 0.5) * (w / 5);
+          const spikeY = y - h / 2 - h * 0.4;
+          ctx.beginPath();
+          ctx.moveTo(spikeX, spikeY);
+          ctx.lineTo(spikeX - 8, y - h / 2);
+          ctx.lineTo(spikeX + 8, y - h / 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        break;
+      }
+      case 'chest': {
+        const w = v.size * 1.6;
+        const h = v.size * 1.0;
+        ctx.beginPath();
+        ctx.rect(x - w / 2, y - h / 2, w, h);
+        ctx.fill();
+        ctx.fillStyle = v.accent;
+        ctx.fillRect(x - w / 2, y - h / 2, w, h * 0.25);
+        ctx.fillStyle = '#00000055';
+        ctx.fillRect(x - w / 2 + w * 0.3, y - h / 2 + h * 0.35, w * 0.4, h * 0.25);
+        break;
+      }
+      case 'brute': {
+        const r = v.size;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = v.accent;
+        ctx.fillRect(x - r * 0.6, y - r * 0.4, r * 1.2, r * 0.3);
+        break;
+      }
+      default: { // circle
+        ctx.beginPath();
+        ctx.arc(x, y, v.size, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+    }
+    ctx.restore();
+
+    // Accent ring
+    ctx.beginPath();
+    ctx.strokeStyle = v.accent;
+    ctx.lineWidth = 3;
+    ctx.arc(x, y, v.size + 4, 0, Math.PI * 2);
+    ctx.stroke();
   };
 
   // Torch drawing helper removed
@@ -340,7 +462,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       // Enemy + health bar
       if (enemy && enemy.health > 0) {
-        drawCharacter(ctx, enemyPos.x - camX, enemyPos.y - camY, false);
+        drawEnemy(ctx, enemy, enemyPos.x - camX, enemyPos.y - camY, Date.now());
 
         ctx.font = 'bold 18px Arial';
         let rarityColor = '#ef4444';
