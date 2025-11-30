@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
-import TownView from './TownView.tsx';
+import TownScene from './TownScene.tsx';
 import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
@@ -309,7 +309,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           {mode === 'dungeon' ? (
             <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
           ) : (
-            <TownView onEnterDungeon={() => setMode('dungeon')} onOpenShop={() => setShopOpen(true)} />
+            <TownScene onEnterDungeon={() => setMode('dungeon')} onOpenShop={() => setShopOpen(true)} />
           )}
         </div>
 
