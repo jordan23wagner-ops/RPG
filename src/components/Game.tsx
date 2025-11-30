@@ -1,4 +1,5 @@
 import { Inventory } from './Inventory';
+import { FloorMap } from './FloorMap';
 import { useState, useCallback, useEffect } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
 import { DungeonView } from './DungeonView';
@@ -142,8 +143,49 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
 
       {/* Main row: backpack (left) - dungeon (center) - gear (right) */}
       <div className="flex justify-center gap-4 mt-4 max-w-7xl mx-auto">
-        {/* Left: Backpack */}
+        {/* Left: Character + Backpack */}
         <div className="flex-shrink-0 w-80 bg-gray-900 border-2 border-yellow-600 rounded-lg p-4">
+          {/* Character Stats */}
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-yellow-500 mb-2">{character.name}</h3>
+            <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+              <div className="bg-gray-800 rounded p-1.5">
+                <div className="text-gray-400">STR</div>
+                <div className="font-bold text-white">{character.strength}</div>
+              </div>
+              <div className="bg-gray-800 rounded p-1.5">
+                <div className="text-gray-400">DEX</div>
+                <div className="font-bold text-white">{character.dexterity}</div>
+              </div>
+              <div className="bg-gray-800 rounded p-1.5">
+                <div className="text-gray-400">INT</div>
+                <div className="font-bold text-white">{character.intelligence}</div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-300">HP</span>
+                <span className="text-red-400">{character.health}/{character.max_health}</span>
+              </div>
+              <div className="w-full bg-gray-800 rounded h-1.5 overflow-hidden">
+                <div className="bg-red-600 h-full" style={{ width: `${Math.max(0, Math.min(100, (character.health/character.max_health)*100))}%` }} />
+              </div>
+              <div className="flex justify-between text-xs pt-1">
+                <span className="text-gray-300">Mana</span>
+                <span className="text-blue-400">{character.mana}/{character.max_mana}</span>
+              </div>
+              <div className="w-full bg-gray-800 rounded h-1.5 overflow-hidden">
+                <div className="bg-blue-600 h-full" style={{ width: `${Math.max(0, Math.min(100, (character.mana/character.max_mana)*100))}%` }} />
+              </div>
+              <div className="flex justify-between text-xs pt-1">
+                <span className="text-gray-300">XP</span>
+                <span className="text-green-400">{character.experience}/{character.level*100}</span>
+              </div>
+              <div className="w-full bg-gray-800 rounded h-1.5 overflow-hidden">
+                <div className="bg-green-600 h-full" style={{ width: `${Math.max(0, Math.min(100, (character.experience/(character.level*100))*100))}%` }} />
+              </div>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mb-4">
             <Package className="w-5 h-5 text-yellow-500" />
             <h3 className="text-lg font-bold text-yellow-500">Backpack</h3>
@@ -217,9 +259,12 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
         </div>
 
-        {/* Center: Dungeon Canvas */}
+        {/* Center: Dungeon Canvas + Floor Map */}
         <div className="flex-shrink-0">
           <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
+          <div className="mt-4">
+            <FloorMap />
+          </div>
         </div>
 
         {/* Right: Equipped Gear Grid */}

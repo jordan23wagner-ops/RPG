@@ -296,25 +296,29 @@ try {
     if (!room.explored) {
       room.explored = true;
     }
-    // If combat room and not cleared, spawn appropriate enemy variant
-    if (!room.cleared) {
-      if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
-        // Mimic surprise trap on first exploration before spawning enemy
-        if (room.type === 'mimic' && character) {
+    // Spawn enemies: if room is combat, spawn variant. After cleared, allow respawns except for boss rooms.
+    if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
+      // Prevent boss respawn once cleared
+      if (room.type === 'boss' && room.cleared) {
+        setCurrentEnemy(null);
+      } else {
+        // Mimic surprise trap only on first exploration before spawn
+        if (!room.cleared && room.type === 'mimic' && character) {
           const trapPct = 0.2; // 20% max health
           const trapDamage = Math.floor(character.max_health * trapPct);
-          // Do not kill player outright
           const newHealth = Math.max(1, character.health - trapDamage);
           updateCharacter({ health: newHealth });
           console.log(`[Trap] Mimic chest bit you for ${trapDamage} HP!`);
         }
-        const variantEnemy = generateEnemyVariant(room.type as any, floor, character?.level || 1, zoneHeat);
+        // If room was cleared, downgrade respawn to regular enemy to avoid farming special types
+        const spawnType = room.cleared && room.type !== 'boss' ? 'enemy' : (room.type as any);
+        const variantEnemy = generateEnemyVariant(spawnType, floor, character?.level || 1, zoneHeat);
         setCurrentEnemy(variantEnemy);
-      } else if (room.type === 'empty') {
-        setCurrentEnemy(null);
-      } else if (room.type === 'ladder') {
-        setCurrentEnemy(null);
       }
+    } else if (room.type === 'empty') {
+      setCurrentEnemy(null);
+    } else if (room.type === 'ladder') {
+      setCurrentEnemy(null);
     }
     // Force re-render map update
     setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
