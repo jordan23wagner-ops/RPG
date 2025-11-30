@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase';
 import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
 import { generateEnemyVariant } from '../utils/gameLogic';
 import {
-  generateEnemy,
   generateLoot,
   getEquipmentSlot,
   computeSetBonuses,
@@ -150,7 +149,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
         const char = chars[0] as Character;
         setCharacter(char);
         await loadItems(char.id);
-        generateNewEnemy(char.level);
+        // World enemies spawned via floor useEffect
       } else {
         setLoading(false);
       }
@@ -210,7 +209,7 @@ try {
 
       const char = data as Character;
       setCharacter(char);
-      generateNewEnemy(1);
+      // World enemies spawned via floor useEffect
 
       // starter weapon
       await supabase.from('items').insert([
@@ -231,11 +230,6 @@ try {
     } catch (err) {
       console.error('Error creating character:', err);
     }
-  };
-
-  const generateNewEnemy = (playerLevel: number) => {
-    const enemy = generateEnemy(floor, playerLevel, zoneHeat);
-    setCurrentEnemy(enemy);
   };
 
   // --------------- Floor Generation / Exploration ---------------
@@ -625,7 +619,8 @@ try {
             health: character.max_health,
             gold: Math.floor(character.gold * 0.5),
           });
-          generateNewEnemy(character.level);
+          // Don't spawn new enemy; player can explore world to find more
+          setCurrentEnemy(null);
         } else {
           updateCharacter({ health: newHealth });
         }
