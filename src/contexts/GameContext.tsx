@@ -49,6 +49,8 @@ interface GameContextType {
   attack: () => Promise<void>;
   usePotion: (itemId: string) => Promise<void>;
   equipItem: (itemId: string) => Promise<void>;
+  equipAll: () => Promise<void>;
+  unequipAll: () => Promise<void>;
   allocateStatPoint: (stat: 'strength' | 'dexterity' | 'intelligence') => Promise<void>;
   nextFloor: () => void;
   exploreRoom: (roomId: string) => void;
@@ -61,6 +63,24 @@ interface GameContextType {
   affixStats: { total: number; withAffixes: number; percentage: number };
   resetAffixStats: () => void;
 }
+  // Debug/dev: Equip all and unequip all items
+  const equipAll = async () => {
+    if (!character) return;
+    const unequippedIds = items.filter(i => !i.equipped && i.type !== 'potion').map(i => i.id);
+    if (unequippedIds.length > 0) {
+      await supabase.from('items').update({ equipped: true }).in('id', unequippedIds);
+      await loadItems(character.id);
+    }
+  };
+
+  const unequipAll = async () => {
+    if (!character) return;
+    const equippedIds = items.filter(i => i.equipped && i.type !== 'potion').map(i => i.id);
+    if (equippedIds.length > 0) {
+      await supabase.from('items').update({ equipped: false }).in('id', equippedIds);
+      await loadItems(character.id);
+    }
+  };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -125,63 +145,6 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
     loadCharacter();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const loadItems = async (characterId: string) => {
-    const { data, error } = await supabase
-      .from('items')
-      .select('*')
-      .eq('character_id', characterId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error loading items:', error);
-      return;
-    }
-
-    if (data) {
-      setItems(data as Item[]);
-    }
-  };
-
-  const loadCharacter = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data: chars, error } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error('Error fetching character:', error);
-        setLoading(false);
-        return;
-      }
-
-      if (chars && chars.length > 0) {
-        const char = chars[0] as Character;
-        setCharacter(char);
-        await loadItems(char.id);
-        // World enemies spawned via floor useEffect
-      } else {
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('Error loading character:', err);
-      setLoading(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const createCharacter = async (name: string) => {
     try {

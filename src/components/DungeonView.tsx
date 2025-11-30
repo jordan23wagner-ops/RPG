@@ -1,5 +1,6 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
+import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
@@ -15,7 +16,7 @@ interface DungeonViewProps {
 }
 
 export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, zoneHeat }: DungeonViewProps) {
-  const { enemiesInWorld, killedEnemyIds, killedWorldEnemiesRef, entryLadderPos, exitLadderPos, onEngageEnemy } = useGame();
+  const { enemiesInWorld, killedEnemyIds, killedWorldEnemiesRef, entryLadderPos, exitLadderPos, onEngageEnemy, items } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
@@ -181,26 +182,106 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
   // ---------- drawing helpers ----------
 
+  // --- Modular drawing helpers ---
+  const drawHead = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+    ctx.fillStyle = '#fcd7b6'; // skin
+    ctx.fillRect(x - 4, y - 18, 8, 8);
+    // Helmet overlay
+    if (equipped.helmet) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.helmet.color;
+      ctx.fillRect(x - 4, y - 18, 8, 5);
+    }
+    // Hair
+    ctx.fillStyle = '#7c4700';
+    ctx.fillRect(x - 4, y - 18, 8, 4);
+    // Eyes
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x - 2, y - 15, 2, 2);
+    ctx.fillRect(x + 1, y - 15, 2, 2);
+    // Mouth
+    ctx.fillStyle = '#a94442';
+    ctx.fillRect(x - 1, y - 11, 2, 1);
+  };
+
+  const drawBody = (ctx: CanvasRenderingContext2D, x: number, y: number, isPlayer: boolean, equipped: Record<string, boolean>) => {
+    const shirt = isPlayer ? '#4f46e5' : '#dc2626';
+    ctx.fillStyle = shirt;
+    ctx.fillRect(x - 4, y - 10, 8, 10);
+    // Chest overlay
+    if (equipped.chest) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.chest.color;
+      ctx.fillRect(x - 4, y - 10, 8, 10);
+    }
+  };
+
+  const drawArms = (ctx: CanvasRenderingContext2D, x: number, y: number, isPlayer: boolean, equipped: Record<string, boolean>) => {
+    const shirt = isPlayer ? '#4f46e5' : '#dc2626';
+    ctx.fillStyle = shirt;
+    ctx.fillRect(x - 7, y - 10, 3, 9); // Left arm
+    ctx.fillRect(x + 4, y - 10, 3, 9); // Right arm
+    // Gloves overlay
+    if (equipped.gloves) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.gloves.color;
+      ctx.fillRect(x - 7, y - 1, 3, 3); // Left glove
+      ctx.fillRect(x + 4, y - 1, 3, 3); // Right glove
+    }
+  };
+
+  const drawLegs = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+    ctx.fillStyle = '#22223b';
+    ctx.fillRect(x - 4, y, 3, 8); // Left leg
+    ctx.fillRect(x + 1, y, 3, 8); // Right leg
+    // Legs overlay
+    if (equipped.legs) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.legs.color;
+      ctx.fillRect(x - 4, y, 3, 8);
+      ctx.fillRect(x + 1, y, 3, 8);
+    }
+  };
+
+  const drawBoots = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+    if (equipped.boots) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.boots.color;
+      ctx.fillRect(x - 4, y + 8, 3, 3);
+      ctx.fillRect(x + 1, y + 8, 3, 3);
+    } else {
+      ctx.fillStyle = '#444444';
+      ctx.fillRect(x - 4, y + 8, 3, 3);
+      ctx.fillRect(x + 1, y + 8, 3, 3);
+    }
+  };
+
+  const drawEquipmentOverlay = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+    // Weapon (right hand)
+    if (equipped.weapon) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.weapon.color;
+      ctx.fillRect(x + 6, y - 2, 2, 12);
+      ctx.fillStyle = '#f3f4f6';
+      ctx.fillRect(x + 6, y - 2, 2, 3);
+    }
+    // Shield (left hand)
+    if (equipped.shield) {
+      ctx.fillStyle = EQUIPMENT_VISUALS.shield.color;
+      ctx.beginPath();
+      ctx.ellipse(x - 8, y - 2, 3, 6, 0, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    // Add more overlays for amulet, ring, etc. as needed
+  };
+
   const drawCharacter = (
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
     isPlayer: boolean,
+    equipped: Record<string, boolean>,
   ) => {
-    ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
-    ctx.shadowColor = 'rgba(0,0,0,0.7)';
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetY = 8;
-    // Simple humanoid silhouette
-    ctx.beginPath();
-    ctx.arc(x, y - 15, 20, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = isPlayer ? '#6366f1' : '#ef4444';
-    ctx.fillRect(x - 20, y + 5, 40, 35);
-    ctx.fillStyle = isPlayer ? '#4f46e5' : '#dc2626';
-    ctx.fillRect(x - 25, y + 5, 12, 30);
-    ctx.fillRect(x + 13, y + 5, 12, 30);
-    ctx.shadowColor = 'transparent';
+    drawEquipmentOverlay(ctx, x, y, equipped); // weapon/shield first
+    drawHead(ctx, x, y, equipped);
+    drawBody(ctx, x, y, isPlayer, equipped);
+    drawArms(ctx, x, y, isPlayer, equipped);
+    drawLegs(ctx, x, y, equipped);
+    drawBoots(ctx, x, y, equipped);
   };
 
   // Visual profiles for enemies by rarity / type
@@ -506,7 +587,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       drawLadder(exitLadderPos, 'Ladder', true);
 
       // Player (apply camera offset)
-      drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true);
+      const equippedMap: Record<string, boolean> = {};
+      if (character) {
+        for (const slot of Object.keys(EQUIPMENT_VISUALS)) {
+          equippedMap[slot] = items.some(i => i.equipped && (ITEM_TYPE_TO_SLOT[i.type] === slot || i.type === slot));
+        }
+      }
+      drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true, equippedMap);
 
       // Enemy + health bar
       if (enemy && enemy.health > 0) {
