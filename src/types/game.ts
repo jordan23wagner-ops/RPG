@@ -18,6 +18,7 @@ export interface Character {
   speed: number;
   crit_chance: number;
   crit_damage: number;
+  stat_points: number;
   gold: number;
   created_at: string;
   updated_at: string;

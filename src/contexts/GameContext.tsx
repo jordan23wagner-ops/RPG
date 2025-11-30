@@ -45,6 +45,7 @@ interface GameContextType {
   attack: () => Promise<void>;
   usePotion: (itemId: string) => Promise<void>;
   equipItem: (itemId: string) => Promise<void>;
+  allocateStatPoint: (stat: 'strength' | 'dexterity' | 'intelligence') => Promise<void>;
   nextFloor: () => void;
   exploreRoom: (roomId: string) => void;
   onEngageEnemy: (enemyWorldId: string) => void;
@@ -202,6 +203,7 @@ try {
             speed: 5,
             crit_chance: 5,
             crit_damage: 150,
+            stat_points: 0,
             gold: 0,
           },
         ])
@@ -505,12 +507,7 @@ try {
         updates.health = character.max_health + 10;
         updates.max_mana = character.max_mana + 5;
         updates.mana = character.max_mana + 5;
-        updates.strength = character.strength + 2;
-        updates.dexterity = character.dexterity + 2;
-        updates.intelligence = character.intelligence + 2;
-        updates.speed = (character.speed || 5) + 1;
-        updates.crit_chance = (character.crit_chance || 5) + 0.5;
-        updates.crit_damage = (character.crit_damage || 150) + 5;
+        updates.stat_points = (character.stat_points || 0) + 3;
       }
 
       await updateCharacter(updates);
@@ -862,6 +859,36 @@ try {
     }
   };
 
+  const allocateStatPoint = async (stat: 'strength' | 'dexterity' | 'intelligence') => {
+    if (!character || (character.stat_points || 0) < 1) return;
+
+    const updates: Partial<Character> = {
+      stat_points: (character.stat_points || 0) - 1,
+    };
+
+    // Allocate 1 point to chosen stat
+    updates[stat] = character[stat] + 1;
+
+    // Secondary stat bonuses based on allocation
+    if (stat === 'strength') {
+      // STR increases health and crit damage slightly
+      updates.max_health = character.max_health + 5;
+      updates.health = Math.min(character.health + 5, (updates.max_health as number));
+      updates.crit_damage = (character.crit_damage || 150) + 2;
+    } else if (stat === 'dexterity') {
+      // DEX increases speed and crit chance
+      updates.speed = (character.speed || 5) + 0.5;
+      updates.crit_chance = (character.crit_chance || 5) + 0.3;
+    } else if (stat === 'intelligence') {
+      // INT increases mana and crit chance
+      updates.max_mana = character.max_mana + 3;
+      updates.mana = Math.min(character.mana + 3, (updates.max_mana as number));
+      updates.crit_chance = (character.crit_chance || 5) + 0.2;
+    }
+
+    await updateCharacter(updates);
+  };
+
   return (
     <GameContext.Provider
       value={{
@@ -892,6 +919,7 @@ try {
         sellItem,
         sellAllItems,
         buyPotion,
+        allocateStatPoint,
         notifyDrop,
       }}
     >
