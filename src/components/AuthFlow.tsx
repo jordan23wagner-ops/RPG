@@ -40,6 +40,11 @@ export function AuthFlow({ onAuth }: AuthFlowProps) {
     }
   };
 
+  const handleQuickPlay = () => {
+    // Redirect to character creation with autoStart flag
+    window.location.href = '/?quickstart=1';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-900 border-4 border-yellow-600 rounded-lg p-8 max-w-md w-full shadow-2xl">
@@ -102,6 +107,15 @@ export function AuthFlow({ onAuth }: AuthFlowProps) {
             {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        <div className="mt-4">
+          <button
+            onClick={handleQuickPlay}
+            className="w-full bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 text-white font-bold py-4 rounded-lg transition-all shadow-lg hover:shadow-yellow-500/50"
+          >
+            Quick Play (Guest)
+          </button>
+        </div>
 
         <div className="mt-6 text-center">
           <button
