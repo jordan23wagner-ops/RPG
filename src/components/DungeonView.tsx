@@ -1,5 +1,6 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
+import { getCachedEnemySprite, ensureEnemySprite, preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 import { useGame } from '../contexts/GameContext';
@@ -340,6 +341,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       const enemyPos = enemyPosRef.current;
       const enemy = enemyRef.current;
       const currentFloor = floorRef.current;
+      const nowTime = Date.now();
 
       // Update camera to center on player (clamped to world bounds)
       const camX = Math.max(0, Math.min(WORLD_WIDTH - CANVAS_WIDTH, playerPos.x - CANVAS_WIDTH / 2));
@@ -462,7 +464,25 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
       // Enemy + health bar
       if (enemy && enemy.health > 0) {
-        drawEnemy(ctx, enemy, enemyPos.x - camX, enemyPos.y - camY, Date.now());
+        // Attempt sprite draw first
+        const sprite = getCachedEnemySprite(enemy);
+        const ex = enemyPos.x - camX;
+        // Idle bob animation (sprite or procedural) amplitude 8px
+        const bob = Math.sin(nowTime / 450 + enemy.id.length) * 8;
+        const ey = enemyPos.y - camY + bob;
+        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+          const baseSize = 64; // logical sprite size
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.6)';
+          ctx.shadowBlur = 12;
+          ctx.drawImage(sprite, ex - baseSize / 2, ey - baseSize / 2, baseSize, baseSize);
+          ctx.restore();
+        } else {
+          // Fallback to procedural visuals while sprite loads
+          drawEnemy(ctx, enemy, ex, ey, nowTime);
+          // Kick off async load (non-blocking)
+          ensureEnemySprite(enemy).then(() => { /* next frame will use sprite */ });
+        }
 
         ctx.font = 'bold 18px Arial';
         let rarityColor = '#ef4444';
@@ -472,21 +492,21 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
 
         ctx.fillStyle = rarityColor;
         ctx.textAlign = 'center';
-        ctx.fillText(enemy.name, enemyPos.x - camX, enemyPos.y - camY - 60);
+        ctx.fillText(enemy.name, enemyPos.x - camX, enemyPos.y - camY - 60 + bob);
 
         const healthPercent = (enemy.health / enemy.max_health) * 100;
         ctx.fillStyle = '#1f2937';
-        ctx.fillRect(enemyPos.x - camX - 60, enemyPos.y - camY - 35, 120, 10);
+        ctx.fillRect(enemyPos.x - camX - 60, enemyPos.y - camY - 35 + bob, 120, 10);
         ctx.fillStyle = healthPercent > 30 ? '#22c55e' : '#ef4444';
         ctx.fillRect(
           enemyPos.x - camX - 60,
-          enemyPos.y - camY - 35,
+          enemyPos.y - camY - 35 + bob,
           (healthPercent / 100) * 120,
           10,
         );
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2;
-        ctx.strokeRect(enemyPos.x - camX - 60, enemyPos.y - camY - 35, 120, 10);
+        ctx.strokeRect(enemyPos.x - camX - 60, enemyPos.y - camY - 35 + bob, 120, 10);
 
         const distX = playerPos.x - enemyPos.x;
         const distY = playerPos.y - enemyPos.y;
@@ -631,6 +651,15 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
+
+  // Preload enemy rarity sprites when floor changes or new world enemies appear
+  useEffect(() => {
+    const rarities = new Set<string>();
+    enemiesInWorld?.forEach((e: any) => rarities.add(/mimic/i.test(e.name) ? 'mimic' : e.rarity));
+    // Always include core rarities to smooth first encounters
+    ['common','rare','elite','boss','mimic'].forEach(r => rarities.add(r));
+    preloadEnemySprites(Array.from(rarities));
+  }, [floor, enemiesInWorld]);
 
   // ---------- Player movement loop ----------
 
