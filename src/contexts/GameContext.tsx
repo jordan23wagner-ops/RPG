@@ -418,7 +418,9 @@ try {
       console.log(`[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`);
     }
     // Set currentEnemy and remove from world list
+    // Include id so downstream canvas logic (animation seed, sprite cache) does not crash
     setCurrentEnemy({
+      id: enemyWorldId,
       name: found.name,
       level: found.level,
       damage: found.damage,

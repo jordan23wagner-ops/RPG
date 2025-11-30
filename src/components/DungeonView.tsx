@@ -467,8 +467,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         // Attempt sprite draw first
         const sprite = getCachedEnemySprite(enemy);
         const ex = enemyPos.x - camX;
-        // Idle bob animation (sprite or procedural) amplitude 8px
-        const bob = Math.sin(nowTime / 450 + enemy.id.length) * 8;
+        // Idle bob animation (safe seed even if id missing)
+        const seed = typeof (enemy as any).id === 'string' ? (enemy as any).id.length : (enemy.name?.length || 0);
+        const bob = Math.sin(nowTime / 450 + seed) * 8;
         const ey = enemyPos.y - camY + bob;
         if (sprite && sprite.complete && sprite.naturalWidth > 0) {
           const baseSize = 64; // logical sprite size
