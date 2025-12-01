@@ -15,8 +15,23 @@ interface DungeonViewProps {
   zoneHeat?: number;
 }
 
-export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, zoneHeat }: DungeonViewProps) {
-  const { enemiesInWorld, killedEnemyIds, killedWorldEnemiesRef, entryLadderPos, exitLadderPos, onEngageEnemy, items } = useGame();
+export function DungeonView({
+  enemy,
+  floor,
+  onAttack,
+  damageNumbers,
+  character,
+  zoneHeat,
+}: DungeonViewProps) {
+  const {
+    enemiesInWorld,
+    killedEnemyIds,
+    killedWorldEnemiesRef,
+    entryLadderPos,
+    exitLadderPos,
+    onEngageEnemy,
+    items,
+  } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
@@ -27,7 +42,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // Floor theme palette helper
   const getFloorTheme = (f: number) => {
     const themes = [
-      { // dungeon
+      {
+        // dungeon
         name: 'dungeon',
         bg: '#1a1a2e',
         tileFill: '#16213e',
@@ -39,7 +55,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         minimapWorld: '#0f172a',
         minimapViewport: '#fbbf24',
       },
-      { // lava / volcano
+      {
+        // lava / volcano
         name: 'lava',
         bg: '#2b1d1b',
         tileFill: '#3b241f',
@@ -51,7 +68,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         minimapWorld: '#1c1412',
         minimapViewport: '#fb923c',
       },
-      { // ice / snow
+      {
+        // ice / snow
         name: 'ice',
         bg: '#0b1b2b',
         tileFill: '#133b5c',
@@ -63,7 +81,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         minimapWorld: '#0a1826',
         minimapViewport: '#60a5fa',
       },
-      { // jungle
+      {
+        // jungle
         name: 'jungle',
         bg: '#0d1f12',
         tileFill: '#163d22',
@@ -148,7 +167,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   useEffect(() => {
     // Track current enemy engagement status
     if (enemy) {
-      currentlyEngagedIdRef.current = (enemy as any).id || null;
+      currentlyEngagedIdRef.current = enemy.id || null;
     } else {
       currentlyEngagedIdRef.current = null;
     }
@@ -171,9 +190,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // BUT: Don't reset for world enemies (their position is set by auto-engage)
   useEffect(() => {
     if (!enemy) return;
-    
+
     // World enemies have IDs like "floor1-pos37-5", room enemies don't
-    const isWorldEnemy = typeof (enemy as any).id === 'string' && (enemy as any).id.startsWith('floor');
+    const isWorldEnemy = typeof enemy.id === 'string' && enemy.id.startsWith('floor');
     if (isWorldEnemy) return; // Position already set by auto-engage
 
     enemyPosRef.current = {
@@ -185,7 +204,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // ---------- drawing helpers ----------
 
   // --- Modular drawing helpers ---
-  const drawHead = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+  const drawHead = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    equipped: Record<string, boolean>,
+  ) => {
     ctx.fillStyle = '#fcd7b6'; // skin
     ctx.fillRect(x - 4, y - 18, 8, 8);
     // Helmet overlay
@@ -205,7 +229,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     ctx.fillRect(x - 1, y - 11, 2, 1);
   };
 
-  const drawBody = (ctx: CanvasRenderingContext2D, x: number, y: number, isPlayer: boolean, equipped: Record<string, boolean>) => {
+  const drawBody = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    isPlayer: boolean,
+    equipped: Record<string, boolean>,
+  ) => {
     const shirt = isPlayer ? '#4f46e5' : '#dc2626';
     ctx.fillStyle = shirt;
     ctx.fillRect(x - 4, y - 10, 8, 10);
@@ -216,7 +246,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     }
   };
 
-  const drawArms = (ctx: CanvasRenderingContext2D, x: number, y: number, isPlayer: boolean, equipped: Record<string, boolean>) => {
+  const drawArms = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    isPlayer: boolean,
+    equipped: Record<string, boolean>,
+  ) => {
     const shirt = isPlayer ? '#4f46e5' : '#dc2626';
     ctx.fillStyle = shirt;
     ctx.fillRect(x - 7, y - 10, 3, 9); // Left arm
@@ -229,7 +265,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     }
   };
 
-  const drawLegs = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+  const drawLegs = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    equipped: Record<string, boolean>,
+  ) => {
     ctx.fillStyle = '#22223b';
     ctx.fillRect(x - 4, y, 3, 8); // Left leg
     ctx.fillRect(x + 1, y, 3, 8); // Right leg
@@ -241,7 +282,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     }
   };
 
-  const drawBoots = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+  const drawBoots = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    equipped: Record<string, boolean>,
+  ) => {
     if (equipped.boots) {
       ctx.fillStyle = EQUIPMENT_VISUALS.boots.color;
       ctx.fillRect(x - 4, y + 8, 3, 3);
@@ -253,7 +299,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     }
   };
 
-  const drawEquipmentOverlay = (ctx: CanvasRenderingContext2D, x: number, y: number, equipped: Record<string, boolean>) => {
+  const drawEquipmentOverlay = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    equipped: Record<string, boolean>,
+  ) => {
     // Weapon (right hand)
     if (equipped.weapon) {
       ctx.fillStyle = EQUIPMENT_VISUALS.weapon.color;
@@ -297,25 +348,55 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     } as { shape: string; baseColor: string; accent: string; auraColor: string; size: number };
     switch (enemy.rarity) {
       case 'rare':
-        Object.assign(base, { baseColor: '#3b82f6', accent: '#93c5fd', auraColor: 'rgba(59,130,246,0.30)', shape: 'hex', size: 36 });
+        Object.assign(base, {
+          baseColor: '#3b82f6',
+          accent: '#93c5fd',
+          auraColor: 'rgba(59,130,246,0.30)',
+          shape: 'hex',
+          size: 36,
+        });
         break;
       case 'elite':
-        Object.assign(base, { baseColor: '#f59e0b', accent: '#fcd34d', auraColor: 'rgba(245,158,11,0.30)', shape: 'crystal', size: 40 });
+        Object.assign(base, {
+          baseColor: '#f59e0b',
+          accent: '#fcd34d',
+          auraColor: 'rgba(245,158,11,0.30)',
+          shape: 'crystal',
+          size: 40,
+        });
         break;
       case 'boss':
-        Object.assign(base, { baseColor: '#7e22ce', accent: '#c084fc', auraColor: 'rgba(126,34,206,0.45)', shape: 'crown', size: 48 });
+        Object.assign(base, {
+          baseColor: '#7e22ce',
+          accent: '#c084fc',
+          auraColor: 'rgba(126,34,206,0.45)',
+          shape: 'crown',
+          size: 48,
+        });
         break;
       default:
         break;
     }
     // Special room types influence style (mimic -> chest)
     if (/mimic/i.test(enemy.name)) {
-      Object.assign(base, { shape: 'chest', baseColor: '#8b5a2b', accent: '#d97706', auraColor: 'rgba(217,119,6,0.25)', size: 38 });
+      Object.assign(base, {
+        shape: 'chest',
+        baseColor: '#8b5a2b',
+        accent: '#d97706',
+        auraColor: 'rgba(217,119,6,0.25)',
+        size: 38,
+      });
     }
     return base;
   };
 
-  const drawEnemy = (ctx: CanvasRenderingContext2D, enemy: Enemy, x: number, y: number, time: number) => {
+  const drawEnemy = (
+    ctx: CanvasRenderingContext2D,
+    enemy: Enemy,
+    x: number,
+    y: number,
+    time: number,
+  ) => {
     const v = getEnemyVisual(enemy);
     // Pulsing aura
     const pulse = (Math.sin(time / 500) + 1) / 2; // 0..1
@@ -337,10 +418,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const r = v.size;
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
-          const angle = Math.PI / 3 * i + Math.PI / 6;
+          const angle = (Math.PI / 3) * i + Math.PI / 6;
           const px = x + r * Math.cos(angle);
           const py = y + r * Math.sin(angle);
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
         }
         ctx.closePath();
         ctx.fill();
@@ -397,7 +479,8 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         ctx.fillRect(x - r * 0.6, y - r * 0.4, r * 1.2, r * 0.3);
         break;
       }
-      default: { // circle
+      default: {
+        // circle
         ctx.beginPath();
         ctx.arc(x, y, v.size, 0, Math.PI * 2);
         ctx.fill();
@@ -451,8 +534,14 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       const nowTime = Date.now();
 
       // Update camera to center on player (clamped to world bounds)
-      const camX = Math.max(0, Math.min(WORLD_WIDTH - CANVAS_WIDTH, playerPos.x - CANVAS_WIDTH / 2));
-      const camY = Math.max(0, Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, playerPos.y - CANVAS_HEIGHT / 2));
+      const camX = Math.max(
+        0,
+        Math.min(WORLD_WIDTH - CANVAS_WIDTH, playerPos.x - CANVAS_WIDTH / 2),
+      );
+      const camY = Math.max(
+        0,
+        Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, playerPos.y - CANVAS_HEIGHT / 2),
+      );
       cameraRef.current = { x: camX, y: camY };
 
       // Background themed
@@ -478,7 +567,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           ctx.fillStyle = theme.tileFill;
           // Temporarily adjust stone stroke via context
           const prevStroke = ctx.strokeStyle;
-          ctx.strokeStyle = theme.tileStroke as any;
+          ctx.strokeStyle = theme.tileStroke;
           drawStone(ctx, screenX, screenY, 60, 80);
           ctx.strokeStyle = prevStroke;
         }
@@ -490,20 +579,23 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
         // Filter out killed enemies and currently engaged enemy using ref for immediate updates
         const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
-        const visibleEnemies = enemiesInWorld.filter((e: Enemy & { id: string; x: number; y: number }) => 
-          !killedSet.has(e.id) && e.id !== currentlyEngagedIdRef.current
+        const visibleEnemies = enemiesInWorld.filter(
+          (e: Enemy & { id: string; x: number; y: number }) =>
+            !killedSet.has(e.id) && e.id !== currentlyEngagedIdRef.current,
         );
-        
+
         if (killedEnemyIds.size > 0) {
-          console.log(`[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`);
+          console.log(
+            `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
+          );
         }
-        
+
         // Track if we've engaged an enemy this frame
         let engagedThisFrame = false;
-        
+
         for (const ew of visibleEnemies) {
           if (engagedThisFrame) break; // Only engage one enemy per frame
-          
+
           const sx = ew.x - camX;
           const sy = ew.y - camY;
           if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) continue;
@@ -521,7 +613,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           if (currentlyEngagedIdRef.current !== null) continue;
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
-          const d = Math.sqrt(dx*dx + dy*dy);
+          const d = Math.sqrt(dx * dx + dy * dy);
           if (d < 140) {
             console.log(`[AutoEngage] Attempting to engage ${ew.id} at distance ${d.toFixed(0)}px`);
             // Set enemy position to world enemy position for combat
@@ -535,13 +627,17 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       }
 
       // Draw entry (non-interactive) and exit (interactive) ladders
-      const drawLadder = (worldPos: {x:number;y:number} | null, label: string, interactive: boolean) => {
+      const drawLadder = (
+        worldPos: { x: number; y: number } | null,
+        label: string,
+        interactive: boolean,
+      ) => {
         if (!worldPos) return;
         const lx = worldPos.x - camX;
         const ly = worldPos.y - camY;
         ctx.fillStyle = interactive ? '#065f46' : '#374151';
         ctx.fillRect(lx - 8, ly - 20, 16, 40);
-        ctx.strokeStyle = theme.hudAccent as any;
+        ctx.strokeStyle = theme.hudAccent;
         ctx.lineWidth = 2;
         ctx.strokeRect(lx - 8, ly - 20, 16, 40);
         ctx.font = '11px Arial';
@@ -551,7 +647,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         if (!interactive) return;
         const dxL = playerPos.x - worldPos.x;
         const dyL = playerPos.y - worldPos.y;
-        const dL = Math.sqrt(dxL*dxL + dyL*dyL);
+        const dL = Math.sqrt(dxL * dxL + dyL * dyL);
         if (dL < 160) ladderDiscoveredRef.current = true;
         if (dL < 140) {
           ctx.font = 'bold 14px Arial';
@@ -564,7 +660,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
           const centerY = CANVAS_HEIGHT / 2;
           const dirX = lx - centerX;
           const dirY = ly - centerY;
-          const len = Math.max(1, Math.sqrt(dirX*dirX + dirY*dirY));
+          const len = Math.max(1, Math.sqrt(dirX * dirX + dirY * dirY));
           const nx = dirX / len;
           const ny = dirY / len;
           let ax = centerX + nx * (Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) / 2 - 30);
@@ -589,12 +685,12 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       drawLadder(exitLadderPos, 'Ladder', true);
 
       // Draw Town Gate (interactive)
-      const drawTownGate = (worldPos: {x:number;y:number}) => {
+      const drawTownGate = (worldPos: { x: number; y: number }) => {
         const gx = worldPos.x - camX;
         const gy = worldPos.y - camY;
         ctx.fillStyle = '#1f2937';
         ctx.fillRect(gx - 14, gy - 28, 28, 56);
-        ctx.strokeStyle = theme.hudAccent as any;
+        ctx.strokeStyle = theme.hudAccent;
         ctx.lineWidth = 2;
         ctx.strokeRect(gx - 14, gy - 28, 28, 56);
         // Arch
@@ -609,7 +705,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         // Hint when close
         const dx = playerPos.x - worldPos.x;
         const dy = playerPos.y - worldPos.y;
-        const d = Math.sqrt(dx*dx + dy*dy);
+        const d = Math.sqrt(dx * dx + dy * dy);
         if (d < 150) {
           ctx.font = 'bold 14px Arial';
           ctx.fillStyle = theme.hudAccent;
@@ -622,7 +718,9 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       const equippedMap: Record<string, boolean> = {};
       if (character) {
         for (const slot of Object.keys(EQUIPMENT_VISUALS)) {
-          equippedMap[slot] = items.some(i => i.equipped && (ITEM_TYPE_TO_SLOT[i.type] === slot || i.type === slot));
+          equippedMap[slot] = items.some(
+            (i) => i.equipped && (ITEM_TYPE_TO_SLOT[i.type] === slot || i.type === slot),
+          );
         }
       }
       drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true, equippedMap);
@@ -631,13 +729,13 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       if (enemy && enemy.health > 0) {
         const ex = enemyPos.x - camX;
         // Idle bob animation (safe seed even if id missing)
-        const seed = typeof (enemy as any).id === 'string' ? (enemy as any).id.length : (enemy.name?.length || 0);
+        const seed = typeof enemy.id === 'string' ? enemy.id.length : enemy.name?.length || 0;
         const bob = Math.sin(nowTime / 450 + seed) * 8;
         const ey = enemyPos.y - camY + bob;
-        
+
         // Always draw procedural fallback first (sprites are 404 right now)
         drawEnemy(ctx, enemy, ex, ey, nowTime);
-        
+
         // Optionally try sprite overlay if available (currently disabled due to missing assets)
         // const sprite = getCachedEnemySprite(enemy);
         // if (sprite && sprite.complete && sprite.naturalWidth > 0) {
@@ -710,7 +808,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       // Background panel
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
-      ctx.strokeStyle = theme.hudAccent as any;
+      ctx.strokeStyle = theme.hudAccent;
       ctx.lineWidth = 1;
       ctx.strokeRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
       ctx.font = '12px Arial';
@@ -726,7 +824,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       ctx.font = '10px Arial';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.fillText(`Heat ${Math.round(heatPercent)}%`, groupX + groupWidth / 2, heatY + barHeight - 2);
+      ctx.fillText(
+        `Heat ${Math.round(heatPercent)}%`,
+        groupX + groupWidth / 2,
+        heatY + barHeight - 2,
+      );
       // Cooldown bar
       const now = Date.now();
       const remaining = Math.max(0, nextAttackTimeRef.current - now);
@@ -739,7 +841,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
       ctx.font = '10px Arial';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.fillText(remaining > 0 ? 'Cooling...' : 'Ready', groupX + groupWidth / 2, cdY + barHeight - 2);
+      ctx.fillText(
+        remaining > 0 ? 'Cooling...' : 'Ready',
+        groupX + groupWidth / 2,
+        cdY + barHeight - 2,
+      );
       // Attack hint
       ctx.font = '11px Arial';
       ctx.fillStyle = theme.hudAccent;
@@ -754,7 +860,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         // Panel background
         ctx.fillStyle = theme.minimapPanel;
         ctx.fillRect(miniX - 6, miniY - 6, miniW + 12, miniH + 12);
-        ctx.strokeStyle = theme.minimapViewport as any;
+        ctx.strokeStyle = theme.minimapViewport;
         ctx.lineWidth = 1;
         ctx.strokeRect(miniX - 6, miniY - 6, miniW + 12, miniH + 12);
         // World area
@@ -767,7 +873,7 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
         const vpH = (CANVAS_HEIGHT / WORLD_HEIGHT) * miniH;
         const vpX = miniX + (cameraRef.current.x / WORLD_WIDTH) * miniW;
         const vpY = miniY + (cameraRef.current.y / WORLD_HEIGHT) * miniH;
-        ctx.strokeStyle = theme.minimapViewport as any;
+        ctx.strokeStyle = theme.minimapViewport;
         ctx.lineWidth = 2;
         ctx.strokeRect(vpX, vpY, vpW, vpH);
         // Player dot
@@ -829,9 +935,11 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
   // Preload enemy rarity sprites when floor changes or new world enemies appear
   useEffect(() => {
     const rarities = new Set<string>();
-    enemiesInWorld?.forEach((e: any) => rarities.add(/mimic/i.test(e.name) ? 'mimic' : e.rarity));
+    enemiesInWorld?.forEach((e: Enemy & { id: string; x: number; y: number }) =>
+      rarities.add(/mimic/i.test(e.name) ? 'mimic' : e.rarity),
+    );
     // Always include core rarities to smooth first encounters
-    ['common','rare','elite','boss','mimic'].forEach(r => rarities.add(r));
+    ['common', 'rare', 'elite', 'boss', 'mimic'].forEach((r) => rarities.add(r));
     preloadEnemySprites(Array.from(rarities));
   }, [floor, enemiesInWorld]);
 
@@ -912,111 +1020,111 @@ export function DungeonView({ enemy, floor, onAttack, damageNumbers, character, 
     };
   }, []);
 
-// ---------- Keyboard handlers ----------
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    // Track movement keys
-    keysPressed.current[e.key] = true;
+  // ---------- Keyboard handlers ----------
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Track movement keys
+      keysPressed.current[e.key] = true;
 
-    // Handle attacks separately
-    if (e.code === 'Space') {
-      // ❗ Ignore key-repeat when holding Space
-      if (e.repeat) return;
+      // Handle attacks separately
+      if (e.code === 'Space') {
+        // ❗ Ignore key-repeat when holding Space
+        if (e.repeat) return;
 
-      const now = Date.now();
-      // Only attack if cooldown has elapsed
-      if (now < nextAttackTimeRef.current) return;
+        const now = Date.now();
+        // Only attack if cooldown has elapsed
+        if (now < nextAttackTimeRef.current) return;
 
-      e.preventDefault();
+        e.preventDefault();
 
-      const enemy = enemyRef.current;
-      if (!enemy || enemy.health <= 0) return;
+        const enemy = enemyRef.current;
+        if (!enemy || enemy.health <= 0) return;
 
-      const playerPos = playerPosRef.current;
-      const enemyPos = enemyPosRef.current;
+        const playerPos = playerPosRef.current;
+        const enemyPos = enemyPosRef.current;
 
-      const distX = playerPos.x - enemyPos.x;
-      const distY = playerPos.y - enemyPos.y;
-      const distance = Math.sqrt(distX * distX + distY * distY);
+        const distX = playerPos.x - enemyPos.x;
+        const distY = playerPos.y - enemyPos.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
 
-      // Only attack if you're actually in melee range
-      if (distance < ATTACK_RANGE) {
-        nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
-        onAttackRef.current();
-      }
-
-      // Don’t do anything else for Space
-      return;
-    }
-
-    // Toggle minimap with 'm' or 'M'
-    if (e.key === 'm' || e.key === 'M') {
-      minimapEnabledRef.current = !minimapEnabledRef.current;
-      return;
-    }
-
-    // Descend ladder with 'E' when near EXIT ladder only (not entry)
-    if (e.key === 'e' || e.key === 'E') {
-      const playerPos = playerPosRef.current;
-      // First: if near Town Gate, return to town
-      {
-        const dxT = playerPos.x - TOWN_GATE_POS.x;
-        const dyT = playerPos.y - TOWN_GATE_POS.y;
-        const dT = Math.sqrt(dxT*dxT + dyT*dyT);
-        if (dT < 140) {
-          const evt = new CustomEvent('return-to-town');
-          window.dispatchEvent(evt);
-          return;
+        // Only attack if you're actually in melee range
+        if (distance < ATTACK_RANGE) {
+          nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
+          onAttackRef.current();
         }
+
+        // Don’t do anything else for Space
+        return;
       }
-      if (exitLadderPos) {
-        const dxL = playerPos.x - exitLadderPos.x;
-        const dyL = playerPos.y - exitLadderPos.y;
-        const dL = Math.sqrt(dxL*dxL + dyL*dyL);
-        // Only descend if near exit ladder AND far from entry ladder (prevent instant re-descent)
-        if (dL < 140) {
-          // Extra check: if near entry ladder too, ignore (player just spawned)
-          if (entryLadderPos) {
-            const dxE = playerPos.x - entryLadderPos.x;
-            const dyE = playerPos.y - entryLadderPos.y;
-            const dE = Math.sqrt(dxE*dxE + dyE*dyE);
-            if (dE < 80) return; // Too close to entry, ignore E press
+
+      // Toggle minimap with 'm' or 'M'
+      if (e.key === 'm' || e.key === 'M') {
+        minimapEnabledRef.current = !minimapEnabledRef.current;
+        return;
+      }
+
+      // Descend ladder with 'E' when near EXIT ladder only (not entry)
+      if (e.key === 'e' || e.key === 'E') {
+        const playerPos = playerPosRef.current;
+        // First: if near Town Gate, return to town
+        {
+          const dxT = playerPos.x - TOWN_GATE_POS.x;
+          const dyT = playerPos.y - TOWN_GATE_POS.y;
+          const dT = Math.sqrt(dxT * dxT + dyT * dyT);
+          if (dT < 140) {
+            const evt = new CustomEvent('return-to-town');
+            window.dispatchEvent(evt);
+            return;
           }
-          const evt = new CustomEvent('dungeon-descend');
-          window.dispatchEvent(evt);
         }
+        if (exitLadderPos) {
+          const dxL = playerPos.x - exitLadderPos.x;
+          const dyL = playerPos.y - exitLadderPos.y;
+          const dL = Math.sqrt(dxL * dxL + dyL * dyL);
+          // Only descend if near exit ladder AND far from entry ladder (prevent instant re-descent)
+          if (dL < 140) {
+            // Extra check: if near entry ladder too, ignore (player just spawned)
+            if (entryLadderPos) {
+              const dxE = playerPos.x - entryLadderPos.x;
+              const dyE = playerPos.y - entryLadderPos.y;
+              const dE = Math.sqrt(dxE * dxE + dyE * dyE);
+              if (dE < 80) return; // Too close to entry, ignore E press
+            }
+            const evt = new CustomEvent('dungeon-descend');
+            window.dispatchEvent(evt);
+          }
+        }
+        return;
       }
-      return;
-    }
 
-    // Return to town via hotkey 'T'
-    if (e.key === 't' || e.key === 'T') {
-      const evt = new CustomEvent('return-to-town');
-      window.dispatchEvent(evt);
-      return;
-    }
-  };
+      // Return to town via hotkey 'T'
+      if (e.key === 't' || e.key === 'T') {
+        const evt = new CustomEvent('return-to-town');
+        window.dispatchEvent(evt);
+        return;
+      }
+    };
 
-  const handleKeyUp = (e: KeyboardEvent) => {
-    keysPressed.current[e.key] = false;
-  };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysPressed.current[e.key] = false;
+    };
 
-  window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
-  return () => {
-    window.removeEventListener('keydown', handleKeyDown);
-    window.removeEventListener('keyup', handleKeyUp);
-  };
-}, []);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
-// ---------- Component render ----------
-return (
-  <canvas
-    ref={canvasRef}
-    width={CANVAS_WIDTH}
-    height={CANVAS_HEIGHT}
-    className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-[1000px] h-[600px]"
-  />
-);
+  // ---------- Component render ----------
+  return (
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
+      className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-[1000px] h-[600px]"
+    />
+  );
 }

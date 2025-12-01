@@ -1,20 +1,8 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useRef,
-  ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
 import { generateEnemyVariant } from '../utils/gameLogic';
-import {
-  generateLoot,
-  getEquipmentSlot,
-  computeSetBonuses,
-  isTwoHanded,
-} from '../utils/gameLogic';
+import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '../utils/gameLogic';
 
 // Debug flag for verbose world enemy lifecycle logging
 const DEBUG_WORLD_ENEMIES = true;
@@ -71,14 +59,22 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-export function GameProvider({ children, notifyDrop }: { children: ReactNode; notifyDrop?: (rarity: string, itemName: string) => void }) {
+export function GameProvider({
+  children,
+  notifyDrop,
+}: {
+  children: ReactNode;
+  notifyDrop?: (rarity: string, itemName: string) => void;
+}) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [currentEnemy, setCurrentEnemy] = useState<Enemy | null>(null);
   const [floor, setFloor] = useState(1);
   const [floorMap, setFloorMap] = useState<FloorMap | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
-  const [enemiesInWorld, setEnemiesInWorld] = useState<Array<Enemy & { id: string; x: number; y: number }>>([]);
+  const [enemiesInWorld, setEnemiesInWorld] = useState<
+    Array<Enemy & { id: string; x: number; y: number }>
+  >([]);
   const [killedEnemyIds, setKilledEnemyIds] = useState<Set<string>>(new Set());
   const [entryLadderPos, setEntryLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [exitLadderPos, setExitLadderPos] = useState<{ x: number; y: number } | null>(null);
@@ -89,7 +85,10 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [merchantInventory, setMerchantInventory] = useState<Partial<Item>[]>([]);
   const lastMerchantBucketRef = useRef<number>(-1);
   // Affix drop statistics tracking (in-memory)
-  const affixStatsRef = useRef<{ total: number; withAffixes: number }>({ total: 0, withAffixes: 0 });
+  const affixStatsRef = useRef<{ total: number; withAffixes: number }>({
+    total: 0,
+    withAffixes: 0,
+  });
   // Track killed world enemies per floor to prevent respawning
   const killedWorldEnemiesRef = useRef<Map<number, Set<string>>>(new Map());
   // Track the last engaged world enemy id to mark as killed on death
@@ -102,11 +101,12 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
   // No waves: encounters are single per room; respawns only for non-boss rooms
-  
+
   const toggleRarityFilter = (rarity: string) => {
     setRarityFilter((prev: Set<string>) => {
       const newFilter = new Set(prev);
-      if (newFilter.has(rarity)) newFilter.delete(rarity); else newFilter.add(rarity);
+      if (newFilter.has(rarity)) newFilter.delete(rarity);
+      else newFilter.add(rarity);
       return newFilter;
     });
   };
@@ -132,7 +132,9 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   async function loadCharacter() {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       let char: Character | null = null;
 
       if (user) {
@@ -142,7 +144,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
           .eq('user_id', user.id)
           .limit(1)
           .maybeSingle();
-        if (error && error.code !== 'PGRST116') { // ignore no rows
+        if (error && error.code !== 'PGRST116') {
+          // ignore no rows
           throw error;
         }
         if (data) char = data as Character;
@@ -150,7 +153,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
 
       // Guest fallback using localStorage
       if (!char) {
-        const guestId = typeof window !== 'undefined' ? localStorage.getItem('guest_character_id') : null;
+        const guestId =
+          typeof window !== 'undefined' ? localStorage.getItem('guest_character_id') : null;
         if (guestId) {
           const { data, error } = await supabase
             .from('characters')
@@ -225,22 +229,28 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   // Debug/dev: Equip all and unequip all items (now correctly scoped inside provider)
   const equipAll = async () => {
     if (!character) return;
-    const unequippedIds = items.filter(i => !i.equipped && i.type !== 'potion').map(i => i.id);
+    const unequippedIds = items.filter((i) => !i.equipped && i.type !== 'potion').map((i) => i.id);
     if (unequippedIds.length > 0) {
-      await supabase.from('items').update({ equipped: true } as never).in('id', unequippedIds);
+      await supabase
+        .from('items')
+        .update({ equipped: true } as never)
+        .in('id', unequippedIds);
       await loadItems(character.id);
     }
   };
 
   const unequipAll = async () => {
     if (!character) return;
-    const equippedIds = items.filter(i => i.equipped && i.type !== 'potion').map(i => i.id);
+    const equippedIds = items.filter((i) => i.equipped && i.type !== 'potion').map((i) => i.id);
     if (equippedIds.length > 0) {
-      await supabase.from('items').update({ equipped: false } as never).in('id', equippedIds);
+      await supabase
+        .from('items')
+        .update({ equipped: false } as never)
+        .in('id', equippedIds);
       await loadItems(character.id);
     }
   };
-  
+
   const increaseZoneHeat = (amount: number = 5) => {
     setZoneHeat((prev: number) => Math.min(100, (prev || 0) + amount));
   };
@@ -278,32 +288,33 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
       }
     };
     void updateInventory();
-    const interval = setInterval(() => { void updateInventory(); }, 60 * 1000); // check every minute
+    const interval = setInterval(() => {
+      void updateInventory();
+    }, 60 * 1000); // check every minute
     return () => clearInterval(interval);
   }, [character, floor]);
 
   const createCharacter = async (name: string) => {
     try {
       // Try to get the user, but don’t require it
-let userId: string | null = null;
+      let userId: string | null = null;
 
-try {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  if (user) {
-    userId = user.id;
-  } else {
-    console.warn('No authenticated user — creating guest character');
-  }
-} catch (e) {
-  console.warn('Failed to fetch user — creating guest character', e);
-}
+        if (user) {
+          userId = user.id;
+        } else {
+          console.warn('No authenticated user — creating guest character');
+        }
+      } catch (e) {
+        console.warn('Failed to fetch user — creating guest character', e);
+      }
 
-// IMPORTANT: no more "Not authenticated" error
-// if (!user) throw new Error('Not authenticated');  <-- REMOVE THIS
-
+      // IMPORTANT: no more "Not authenticated" error
+      // if (!user) throw new Error('Not authenticated');  <-- REMOVE THIS
 
       const { data, error } = await supabase
         .from('characters')
@@ -380,10 +391,12 @@ try {
 
       rooms.push({ id, index: i, type, explored: i === 0, cleared: false });
     }
-  // Place ladder in a random non-start room, not adjacent to spawn (index 0)
-  const forbiddenIndices = new Set<number>([0, 1, 3]); // avoid right and down from spawn
-  const candidates: number[] = Array.from({ length: roomCount }, (_, i) => i).filter(i => !forbiddenIndices.has(i));
-  const ladderIndex = candidates[Math.floor(Math.random() * candidates.length)];
+    // Place ladder in a random non-start room, not adjacent to spawn (index 0)
+    const forbiddenIndices = new Set<number>([0, 1, 3]); // avoid right and down from spawn
+    const candidates: number[] = Array.from({ length: roomCount }, (_, i) => i).filter(
+      (i) => !forbiddenIndices.has(i),
+    );
+    const ladderIndex = candidates[Math.floor(Math.random() * candidates.length)];
     // Boss floor: ensure one dedicated boss room distinct from ladder & start
     if (isBossFloor) {
       let bossIndex = Math.floor(Math.random() * roomCount);
@@ -396,13 +409,20 @@ try {
     }
 
     // Ensure a reasonable number of combat rooms (min 5, max 10)
-    const isCombat = (t: RoomEventType) => ['enemy','rareEnemy','miniBoss','mimic','boss'].includes(t);
-    let combatIndices = rooms.map((r, idx) => ({ idx, r })).filter(({ r }) => isCombat(r.type)).map(({ idx }) => idx);
+    const isCombat = (t: RoomEventType) =>
+      ['enemy', 'rareEnemy', 'miniBoss', 'mimic', 'boss'].includes(t);
+    let combatIndices = rooms
+      .map((r, idx) => ({ idx, r }))
+      .filter(({ r }) => isCombat(r.type))
+      .map(({ idx }) => idx);
     const minCombat = 5;
     const maxCombat = 10;
     // Add enemies if below minimum
     if (combatIndices.length < minCombat) {
-      const empties = rooms.map((r, idx) => ({ idx, r })).filter(({ r }) => r.type === 'empty').map(({ idx }) => idx);
+      const empties = rooms
+        .map((r, idx) => ({ idx, r }))
+        .filter(({ r }) => r.type === 'empty')
+        .map(({ idx }) => idx);
       while (combatIndices.length < minCombat && empties.length > 0) {
         const pick = empties.splice(Math.floor(Math.random() * empties.length), 1)[0];
         if (pick !== 0 && pick !== ladderIndex) {
@@ -413,13 +433,14 @@ try {
     }
     // Reduce enemies if above maximum (prefer turning plain enemy to empty)
     if (combatIndices.length > maxCombat) {
-      const removable = rooms.map((r, idx) => ({ idx, r }))
+      const removable = rooms
+        .map((r, idx) => ({ idx, r }))
         .filter(({ r, idx }) => r.type === 'enemy' && idx !== ladderIndex && idx !== 0)
         .map(({ idx }) => idx);
       while (combatIndices.length > maxCombat && removable.length > 0) {
         const pick = removable.splice(Math.floor(Math.random() * removable.length), 1)[0];
         rooms[pick].type = 'empty';
-        combatIndices = combatIndices.filter(i => i !== pick);
+        combatIndices = combatIndices.filter((i) => i !== pick);
       }
     }
 
@@ -451,13 +472,14 @@ try {
       console.log(`[WorldGen] Initializing floor ${floor} for the first time`);
     }
     initializedFloorRef.current = floor;
-    
+
     initFloorIfNeeded();
     // Generate world enemies and ladder position per floor
     const WORLD_WIDTH = 4000;
     const WORLD_HEIGHT = 3000;
     const spawn = { x: 400, y: 450 };
-    const dist = (a: {x:number;y:number}, b: {x:number;y:number}) => Math.hypot(a.x-b.x, a.y-b.y);
+    const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
     const minDistFromSpawn = 300;
     const count = Math.floor(Math.random() * 6) + 5; // 5..10
     let miniBosses = 0;
@@ -477,16 +499,16 @@ try {
     for (let i = 0; i < count; i++) {
       // Generate deterministic position based on floor and index
       const seed = floor * 1000 + i;
-      let pos = { 
-        x: Math.floor(seededRandom(seed) * WORLD_WIDTH), 
-        y: Math.floor(seededRandom(seed + 500) * WORLD_HEIGHT) 
+      let pos = {
+        x: Math.floor(seededRandom(seed) * WORLD_WIDTH),
+        y: Math.floor(seededRandom(seed + 500) * WORLD_HEIGHT),
       };
       // Keep away from spawn
       let guard = 0;
       while (dist(pos, spawn) < minDistFromSpawn && guard < 50) {
-        pos = { 
-          x: Math.floor(seededRandom(seed + guard * 10) * WORLD_WIDTH), 
-          y: Math.floor(seededRandom(seed + guard * 10 + 500) * WORLD_HEIGHT) 
+        pos = {
+          x: Math.floor(seededRandom(seed + guard * 10) * WORLD_WIDTH),
+          y: Math.floor(seededRandom(seed + guard * 10 + 500) * WORLD_HEIGHT),
         };
         guard++;
       }
@@ -494,8 +516,10 @@ try {
       const roll = seededRandom(seed + 1000);
       let type: RoomEventType = 'enemy';
       if (roll < 0.05) type = 'mimic';
-      else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) { type = 'miniBoss'; miniBosses++; }
-      else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
+      else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) {
+        type = 'miniBoss';
+        miniBosses++;
+      } else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
       // Use sequential ID that's truly unique per floor
       const enemyId = `floor${floor}-enemy${i}`;
@@ -510,7 +534,9 @@ try {
     }
     setEnemiesInWorld(arr);
     if (DEBUG_WORLD_ENEMIES) {
-      console.log(`[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}; enemyIds=${arr.map(e => e.id).join(', ')}`);
+      console.log(
+        `[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}; enemyIds=${arr.map((e) => e.id).join(', ')}`,
+      );
     }
     // Entry ladder: previous floor's exit (if any) or none on floor 1
     if (previousExitLadderPosRef.current && floor > 1) {
@@ -521,19 +547,28 @@ try {
       setEntryLadderPos(spawn);
     }
     // Exit ladder must be far from entry (or spawn if no entry)
-    const reference = (previousExitLadderPosRef.current && floor > 1) ? previousExitLadderPosRef.current : spawn;
-    let exitLadder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+    const reference =
+      previousExitLadderPosRef.current && floor > 1 ? previousExitLadderPosRef.current : spawn;
+    let exitLadder = {
+      x: Math.floor(Math.random() * WORLD_WIDTH),
+      y: Math.floor(Math.random() * WORLD_HEIGHT),
+    };
     let guardL = 0;
     const MIN_DIST_FROM_ENTRY = 600;
     while (dist(exitLadder, reference) < MIN_DIST_FROM_ENTRY && guardL < 150) {
-      exitLadder = { x: Math.floor(Math.random() * WORLD_WIDTH), y: Math.floor(Math.random() * WORLD_HEIGHT) };
+      exitLadder = {
+        x: Math.floor(Math.random() * WORLD_WIDTH),
+        y: Math.floor(Math.random() * WORLD_HEIGHT),
+      };
       guardL++;
     }
     setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor]);
   const onEngageEnemy = (enemyWorldId: string) => {
-    const found = enemiesInWorld.find((e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId);
+    const found = enemiesInWorld.find(
+      (e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId,
+    );
     if (!found) return;
     // Mark this enemy as killed for current floor
     const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
@@ -542,7 +577,9 @@ try {
     killedWorldEnemiesRef.current.set(floor, killedSet);
     inWorldCombatRef.current = true;
     if (DEBUG_WORLD_ENEMIES) {
-      console.log(`[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`);
+      console.log(
+        `[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`,
+      );
     }
     // Set currentEnemy and remove from world list
     // Include id so downstream canvas logic (animation seed, sprite cache) does not crash
@@ -573,7 +610,7 @@ try {
       room.explored = true;
     }
     // Single encounter per room; no respawns after cleared
-    if (['enemy','rareEnemy','miniBoss','mimic','boss'].includes(room.type)) {
+    if (['enemy', 'rareEnemy', 'miniBoss', 'mimic', 'boss'].includes(room.type)) {
       if (room.cleared) {
         // Already cleared: no enemy
         setCurrentEnemy(null);
@@ -586,7 +623,12 @@ try {
           updateCharacter({ health: newHealth });
           console.log(`[Trap] Mimic chest bit you for ${trapDamage} HP!`);
         }
-        const variantEnemy = generateEnemyVariant(room.type as any, floor, character?.level || 1, zoneHeat);
+        const variantEnemy = generateEnemyVariant(
+          room.type as RoomEventType,
+          floor,
+          character?.level || 1,
+          zoneHeat,
+        );
         setCurrentEnemy(variantEnemy);
       }
     } else if (room.type === 'empty') {
@@ -664,16 +706,20 @@ try {
       affixStatBonus[a.stat] = (affixStatBonus[a.stat] || 0) + a.value;
     }
 
-    const effectiveStrength = character.strength + setBonuses.strength + (affixStatBonus.strength || 0);
-    const elementalFlat = (affixStatBonus.fire_damage || 0) + (affixStatBonus.ice_damage || 0) + (affixStatBonus.lightning_damage || 0);
+    const effectiveStrength =
+      character.strength + setBonuses.strength + (affixStatBonus.strength || 0);
+    const elementalFlat =
+      (affixStatBonus.fire_damage || 0) +
+      (affixStatBonus.ice_damage || 0) +
+      (affixStatBonus.lightning_damage || 0);
     const baseDamage = effectiveStrength * 0.5 + weaponDamage + elementalFlat;
-    
+
     // Apply crit mechanics: base 5% crit chance, 150% crit damage
     const critChance = ((character.crit_chance || 5) + (affixStatBonus.crit_chance || 0)) / 100;
     const critDamage = ((character.crit_damage || 150) + (affixStatBonus.crit_damage || 0)) / 100;
     const isCrit = Math.random() < critChance;
     const critMultiplier = isCrit ? critDamage : 1.0;
-    
+
     const playerDamage = Math.floor(
       (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier,
     );
@@ -735,55 +781,64 @@ try {
         lootDrops = generateMimicLoot(currentEnemy.level, floor, zoneHeat);
       } else {
         // Standard single roll
-        const single = generateLoot(
-          currentEnemy.level,
-          floor,
-          currentEnemy.rarity,
-          zoneHeat,
-        );
+        const single = generateLoot(currentEnemy.level, floor, currentEnemy.rarity, zoneHeat);
         if (single) lootDrops = [single];
       }
 
       // Filter drops & provide fallback if empty
-      lootDrops = lootDrops.filter(ld => ld.rarity && !rarityFilter.has(ld.rarity));
+      lootDrops = lootDrops.filter((ld) => ld.rarity && !rarityFilter.has(ld.rarity));
       if (lootDrops.length === 0) {
-        lootDrops = [{
-          name: 'Tarnished Trinket',
-          type: 'melee_armor',
-          rarity: 'common',
-          armor: 1,
-          value: 5,
-          equipped: false,
-          required_level: 1,
-        }];
+        lootDrops = [
+          {
+            name: 'Tarnished Trinket',
+            type: 'melee_armor',
+            rarity: 'common',
+            armor: 1,
+            value: 5,
+            equipped: false,
+            required_level: 1,
+          },
+        ];
       }
 
       // Affix stats logging
       affixStatsRef.current.total += lootDrops.length;
-      affixStatsRef.current.withAffixes += lootDrops.filter(d => (d as any).affixes && (d as any).affixes.length > 0).length;
+      affixStatsRef.current.withAffixes += lootDrops.filter((d) => {
+        const itemWithAffixes = d as Partial<Item> & { affixes?: Affix[] };
+        return itemWithAffixes.affixes && itemWithAffixes.affixes.length > 0;
+      }).length;
       if (affixStatsRef.current.total % 20 === 0) {
         const pct = (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100;
-        console.log(`[AffixStats] ${affixStatsRef.current.withAffixes}/${affixStatsRef.current.total} items (${pct.toFixed(1)}% with affixes)`);
+        console.log(
+          `[AffixStats] ${affixStatsRef.current.withAffixes}/${affixStatsRef.current.total} items (${pct.toFixed(1)}% with affixes)`,
+        );
       }
 
       // Insert all drops
-      const rows = lootDrops.map(ld => ({
-        character_id: character.id,
-        name: ld.name,
-        type: ld.type,
-        rarity: ld.rarity,
-        damage: ld.damage,
-        armor: ld.armor,
-        value: ld.value,
-        equipped: ld.equipped,
-        required_level: (ld as any).required_level,
-        required_stats: (ld as any).required_stats,
-        affixes: (ld as any).affixes || [],
-      }));
+      const rows = lootDrops.map((ld) => {
+        const itemWithMeta = ld as Partial<Item> & {
+          required_level?: number;
+          required_stats?: Item['required_stats'];
+          affixes?: Affix[];
+        };
+        return {
+          character_id: character.id,
+          name: ld.name,
+          type: ld.type,
+          rarity: ld.rarity,
+          damage: ld.damage,
+          armor: ld.armor,
+          value: ld.value,
+          equipped: ld.equipped,
+          required_level: itemWithMeta.required_level,
+          required_stats: itemWithMeta.required_stats,
+          affixes: itemWithMeta.affixes || [],
+        };
+      });
 
       if (notifyDrop) {
-        lootDrops.forEach(ld => {
-          if (['epic','legendary','mythic','radiant','set'].includes(ld.rarity || '')) {
+        lootDrops.forEach((ld) => {
+          if (['epic', 'legendary', 'mythic', 'radiant', 'set'].includes(ld.rarity || '')) {
             console.log(`[Drop] ${ld.rarity}: ${ld.name}`);
             notifyDrop(ld.rarity!, ld.name || 'Unknown Item');
           }
@@ -803,25 +858,36 @@ try {
       if (!inserted && insertError) {
         const errorObj = insertError as { message?: string };
         const msg = String(errorObj.message || insertError);
-        if (msg.includes("affixes") && msg.includes("column")) {
-          const fallbackRows = rows.map(r => {
-            const { affixes, ...rest } = r as any;
+        if (msg.includes('affixes') && msg.includes('column')) {
+          const fallbackRows = rows.map((r) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { affixes, ...rest } = r;
             return rest;
           });
-          const { error: fallbackError } = await supabase.from('items').insert(fallbackRows as never[]);
+          const { error: fallbackError } = await supabase
+            .from('items')
+            .insert(fallbackRows as never[]);
           if (fallbackError) {
-            console.error('[DB Error] Fallback insert failed:', fallbackError.message, { fallbackRows });
+            console.error('[DB Error] Fallback insert failed:', fallbackError.message, {
+              fallbackRows,
+            });
           } else {
-            console.warn('[DB] Affixes column missing — inserted items without affixes. Consider running the migration to add affixes jsonb.');
-            console.log(`[Inventory] Added ${fallbackRows.length} item(s): ${fallbackRows.map(r => r.name).join(', ')}`);
+            console.warn(
+              '[DB] Affixes column missing — inserted items without affixes. Consider running the migration to add affixes jsonb.',
+            );
+            console.log(
+              `[Inventory] Added ${fallbackRows.length} item(s): ${fallbackRows.map((r) => r.name).join(', ')}`,
+            );
             await loadItems(character.id);
           }
         } else {
-          const errorMessage = (errorObj.message || String(insertError));
+          const errorMessage = errorObj.message || String(insertError);
           console.error('[DB Error] Failed to insert loot batch:', errorMessage, { rows });
         }
       } else {
-        console.log(`[Inventory] Added ${rows.length} item(s): ${rows.map(r => r.name).join(', ')}`);
+        console.log(
+          `[Inventory] Added ${rows.length} item(s): ${rows.map((r) => r.name).join(', ')}`,
+        );
         await loadItems(character.id);
       }
 
@@ -856,7 +922,9 @@ try {
           console.log(`[Kill] Updating killedEnemyIds state:`, Array.from(newKilledIds));
           lastEngagedWorldEnemyIdRef.current = null;
           if (DEBUG_WORLD_ENEMIES) {
-            console.log(`[Kill] World enemy ${lastId} marked killed; killedCount=${killedSet.size}`);
+            console.log(
+              `[Kill] World enemy ${lastId} marked killed; killedCount=${killedSet.size}`,
+            );
           }
         }
         inWorldCombatRef.current = false;
@@ -869,9 +937,7 @@ try {
 
         // Recompute set bonuses for defense. Armor bonuses from sets reduce
         // damage taken. Damage bonuses from sets do not apply here.
-        const enemyDamage = Math.floor(
-          currentEnemy.damage + Math.random() * 5,
-        );
+        const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
         const totalArmor = items
           .filter((i: Item) => i.equipped && i.armor)
           .reduce((sum: number, i: Item) => sum + (i.armor || 0), 0);
@@ -909,10 +975,7 @@ try {
     if (!potion) return;
 
     const healAmount = 50;
-    const newHealth = Math.min(
-      character.max_health,
-      character.health + healAmount,
-    );
+    const newHealth = Math.min(character.max_health, character.health + healAmount);
 
     await updateCharacter({ health: newHealth });
 
@@ -946,12 +1009,12 @@ try {
         // Check requirements (level 5+)
         const reqLevel = item.required_level || item.requiredLevel;
         const reqStats = item.required_stats || item.requiredStats;
-        
+
         if (reqLevel && character.level < reqLevel) {
           console.warn(`Cannot equip: requires level ${reqLevel}`);
           return;
         }
-        
+
         if (reqStats) {
           if (reqStats.strength && character.strength < reqStats.strength) {
             console.warn(`Cannot equip: requires ${reqStats.strength} strength`);
@@ -966,10 +1029,17 @@ try {
             return;
           }
         }
-        
+
         // Enforce 2H rules: if equipping off-hand while a 2H weapon is equipped, block
         if (slot === 'amulet') {
-          const twoHandedEquipped = items.some((i: Item) => i.equipped && (i.type === 'melee_weapon' || i.type === 'ranged_weapon' || i.type === 'mage_weapon') && isTwoHanded(i as Item));
+          const twoHandedEquipped = items.some(
+            (i: Item) =>
+              i.equipped &&
+              (i.type === 'melee_weapon' ||
+                i.type === 'ranged_weapon' ||
+                i.type === 'mage_weapon') &&
+              isTwoHanded(i as Item),
+          );
           if (twoHandedEquipped) {
             console.warn('Cannot equip off-hand while a two-handed weapon is equipped');
             return;
@@ -977,9 +1047,17 @@ try {
         }
 
         // If equipping a 2H weapon, unequip any off-hand items
-        if ((item.type === 'melee_weapon' || item.type === 'ranged_weapon' || item.type === 'mage_weapon') && isTwoHanded(item as Item)) {
+        if (
+          (item.type === 'melee_weapon' ||
+            item.type === 'ranged_weapon' ||
+            item.type === 'mage_weapon') &&
+          isTwoHanded(item as Item)
+        ) {
           const offhandIds = items
-            .filter((equippedItem: Item) => equippedItem.equipped && getEquipmentSlot(equippedItem) === 'amulet')
+            .filter(
+              (equippedItem: Item) =>
+                equippedItem.equipped && getEquipmentSlot(equippedItem) === 'amulet',
+            )
             .map((i: Item) => i.id);
           if (offhandIds.length > 0) {
             await supabase
@@ -992,7 +1070,7 @@ try {
         // Special handling for rings: allow two rings by checking if ring1 is taken
         if (item.type === 'ring' && slot === 'ring1') {
           const ring1Equipped = items.some(
-            (i: Item) => i.equipped && getEquipmentSlot(i) === 'ring1'
+            (i: Item) => i.equipped && getEquipmentSlot(i) === 'ring1',
           );
           if (ring1Equipped) {
             // Try ring2 instead
@@ -1096,10 +1174,7 @@ try {
 
     if (sellable.length === 0) return;
 
-    const totalValue = sellable.reduce(
-      (sum: number, i: Item) => sum + (i.value || 0),
-      0,
-    );
+    const totalValue = sellable.reduce((sum: number, i: Item) => sum + (i.value || 0), 0);
     const ids = sellable.map((i: Item) => i.id);
 
     await updateCharacter({ gold: character.gold + totalValue });
@@ -1143,14 +1218,34 @@ try {
 
   const buyMerchantItem = async (merchantItemId: string) => {
     if (!character) return;
-    const item = merchantInventory.find(i => (i as Partial<Item> & { id?: string }).id === merchantItemId);
+    const item = merchantInventory.find(
+      (i) => (i as Partial<Item> & { id?: string }).id === merchantItemId,
+    );
     if (!item) return;
     const cost = item.value || 0;
     if (character.gold < cost) return;
     // Deduct gold
     await updateCharacter({ gold: character.gold - cost });
     // Insert into DB
-    const row: any = {
+    interface ItemInsertRow {
+      character_id: string;
+      name: string | undefined;
+      type: Item['type'] | undefined;
+      rarity: Item['rarity'] | undefined;
+      damage: number | undefined;
+      armor: number | undefined;
+      value: number | undefined;
+      equipped: boolean;
+      required_level: number | undefined;
+      required_stats: Item['required_stats'] | undefined;
+      affixes: Affix[] | undefined;
+    }
+    const itemWithMeta = item as Partial<Item> & {
+      required_level?: number;
+      required_stats?: Item['required_stats'];
+      affixes?: Affix[];
+    };
+    const row: ItemInsertRow = {
       character_id: character.id,
       name: item.name,
       type: item.type,
@@ -1159,9 +1254,9 @@ try {
       armor: item.armor,
       value: item.value,
       equipped: false,
-      required_level: (item as any).required_level,
-      required_stats: (item as any).required_stats,
-      affixes: (item as any).affixes || [],
+      required_level: itemWithMeta.required_level,
+      required_stats: itemWithMeta.required_stats,
+      affixes: itemWithMeta.affixes || [],
     };
     const { error } = await supabase.from('items').insert([row as never]);
     if (error) {
@@ -1170,7 +1265,9 @@ try {
     }
     await loadItems(character.id);
     // Remove purchased item and keep slot empty until next rotation
-    setMerchantInventory(prev => prev.filter(i => (i as Partial<Item> & { id?: string }).id !== merchantItemId));
+    setMerchantInventory((prev) =>
+      prev.filter((i) => (i as Partial<Item> & { id?: string }).id !== merchantItemId),
+    );
   };
 
   const allocateStatPoint = async (stat: 'strength' | 'dexterity' | 'intelligence') => {
@@ -1187,7 +1284,7 @@ try {
     if (stat === 'strength') {
       // STR increases health and crit damage slightly
       updates.max_health = character.max_health + 5;
-      updates.health = Math.min(character.health + 5, (updates.max_health as number));
+      updates.health = Math.min(character.health + 5, updates.max_health as number);
       updates.crit_damage = (character.crit_damage || 150) + 2;
     } else if (stat === 'dexterity') {
       // DEX increases speed and crit chance
@@ -1196,7 +1293,7 @@ try {
     } else if (stat === 'intelligence') {
       // INT increases mana and crit chance
       updates.max_mana = character.max_mana + 3;
-      updates.mana = Math.min(character.mana + 3, (updates.max_mana as number));
+      updates.mana = Math.min(character.mana + 3, updates.max_mana as number);
       updates.crit_chance = (character.crit_chance || 5) + 0.2;
     }
 
@@ -1246,7 +1343,10 @@ try {
         affixStats: {
           total: affixStatsRef.current.total,
           withAffixes: affixStatsRef.current.withAffixes,
-          percentage: affixStatsRef.current.total === 0 ? 0 : (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100,
+          percentage:
+            affixStatsRef.current.total === 0
+              ? 0
+              : (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100,
         },
         resetAffixStats,
       }}
