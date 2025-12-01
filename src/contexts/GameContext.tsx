@@ -764,10 +764,12 @@ export function GameProvider({
       let finalExp = rawExp;
       let leveled = false;
 
-      if (rawExp >= expForNextLevel) {
+      // Support multiple level-ups at once and only fire the
+      // notification when we actually cross at least one threshold.
+      while (finalExp >= expForNextLevel) {
         leveled = true;
-        newLevel = character.level + 1;
-        finalExp = rawExp - expForNextLevel;
+        finalExp -= expForNextLevel;
+        newLevel += 1;
       }
 
       console.log(
@@ -780,12 +782,13 @@ export function GameProvider({
       };
 
       if (leveled) {
+        const levelUps = newLevel - character.level;
         updates.level = newLevel;
-        updates.max_health = character.max_health + 10;
-        updates.health = character.max_health + 10;
-        updates.max_mana = character.max_mana + 5;
-        updates.mana = character.max_mana + 5;
-        updates.stat_points = (character.stat_points || 0) + 3;
+        updates.max_health = character.max_health + 10 * levelUps;
+        updates.health = character.max_health + 10 * levelUps;
+        updates.max_mana = character.max_mana + 5 * levelUps;
+        updates.mana = character.max_mana + 5 * levelUps;
+        updates.stat_points = (character.stat_points || 0) + 3 * levelUps;
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('level-up', {

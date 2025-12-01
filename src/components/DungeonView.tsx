@@ -337,11 +337,20 @@ export function DungeonView({
     drawBoots(ctx, x, y, equipped);
   };
 
-  type EnemyArchetype = 'skeleton' | 'necromancer' | 'zombie' | 'brute' | 'spirit' | 'mimic' | 'generic';
+  type EnemyArchetype =
+    | 'skeleton'
+    | 'necromancer'
+    | 'zombie'
+    | 'brute'
+    | 'spirit'
+    | 'mimic'
+    | 'shadow_beast'
+    | 'generic';
 
   const getEnemyArchetype = (enemy: Enemy): EnemyArchetype => {
     const n = enemy.name.toLowerCase();
     if (n.includes('mimic')) return 'mimic';
+    if (n.includes('shadow beast')) return 'shadow_beast';
     if (n.includes('skeleton')) return 'skeleton';
     if (n.includes('zombie') || n.includes('fallen')) return 'zombie';
     if (n.includes('necromancer') || n.includes('cultist')) return 'necromancer';
@@ -508,6 +517,29 @@ export function DungeonView({
         ctx.fillStyle = '#000000';
         ctx.fillRect(x - 5, y - 6, 4, 2);
         ctx.fillRect(x + 1, y - 6, 4, 2);
+        break;
+      }
+      case 'shadow_beast': {
+        // Hunched dark brute silhouette: low, wide body with small head and long arms
+        ctx.fillStyle = coreColor;
+        // Torso / bulk
+        ctx.fillRect(x - 10, y - 10, 20, 14);
+        // Hunched back
+        ctx.fillRect(x - 8, y - 18, 16, 8);
+        // Small head tucked forward
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(x - 4, y - 20, 8, 5);
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 2, y - 19, 3, 2);
+        ctx.fillRect(x + 0, y - 18, 3, 2);
+        // Long arms reaching down
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 12, y - 8, 4, 14);
+        ctx.fillRect(x + 8, y - 8, 4, 14);
+        // Clawed hands
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 13, y + 5, 6, 3);
+        ctx.fillRect(x + 7, y + 5, 6, 3);
         break;
       }
       default: {
@@ -796,7 +828,10 @@ export function DungeonView({
           const worldY = r * tileSize + 40;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
-          // Themed chunky tiles, slightly darker outside the ritual chamber
+          // Themed chunky tiles; avoid drawing over the central rug area
+          const inRug = worldX > rugX && worldX < rugX + rugWidth && worldY > rugY && worldY < rugY + rugHeight;
+          if (inRug) continue;
+
           const inChamber =
             worldX > rugX - 80 &&
             worldX < rugX + rugWidth + 80 &&
