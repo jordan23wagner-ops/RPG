@@ -186,15 +186,14 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
         Math.hypot(a.x - b.x, a.y - b.y);
       const nearMerchant = dist(player, MERCHANT_POS) < 120;
-      const nearOrb = dist(player, ORB_POS) < 120;
-      const nearGate = dist(player, EVIL_ORB_POS) < 160;
+      const nearOrb = dist(player, ORB_POS) < 140;
+      const nearGate = dist(player, EVIL_ORB_POS) < 90;
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
       if (nearMerchant)
         ctx.fillText('Press E to trade', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY + 40);
       if (nearOrb) ctx.fillText('Press E to refresh', ORB_POS.x - camX, ORB_POS.y - camY + 40);
-      if (nearGate) ctx.fillText('Press E to enter', GATE_POS.x - camX, GATE_POS.y - camY + 46);
       if (nearGate)
         ctx.fillText('Press E to commune', EVIL_ORB_POS.x - camX, EVIL_ORB_POS.y - camY + 60);
 
@@ -240,20 +239,20 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
           radius: number;
           handler: () => void;
         }> = [
-          { kind: 'merchant', pos: MERCHANT_POS, radius: 120, handler: () => onOpenShop() },
           {
             kind: 'refresh',
             pos: ORB_POS,
-            radius: 110,
+            radius: 140,
             handler: () => {
               if (character)
                 void updateCharacter({ health: character.max_health, mana: character.max_mana });
             },
           },
+          { kind: 'merchant', pos: MERCHANT_POS, radius: 120, handler: () => onOpenShop() },
           {
             kind: 'dungeon',
             pos: EVIL_ORB_POS,
-            radius: 120,
+            radius: 90,
             handler: () => onRequestDungeonEntry(),
           },
         ];
