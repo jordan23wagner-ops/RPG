@@ -231,39 +231,34 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
         const p = playerPosRef.current;
         const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
           Math.hypot(a.x - b.x, a.y - b.y);
+        const REFRESH_RADIUS = 140;
+        const DUNGEON_RADIUS = 90;
+        const MERCHANT_RADIUS = 120;
 
-        // Compute distances to each interactable
+        const refreshDistance = dist(p, ORB_POS);
+
+        // Absolute rule: if within refresh radius, ONLY refresh (never enter dungeon)
+        if (refreshDistance <= REFRESH_RADIUS) {
+          if (character) {
+            e.preventDefault();
+            e.stopPropagation();
+            void updateCharacter({ health: character.max_health, mana: character.max_mana });
+          }
+          return;
+        }
+
+        // Otherwise, choose between merchant and dungeon by nearest within their radii
         const interactions: Array<{
-          kind: 'merchant' | 'refresh' | 'dungeon';
+          kind: 'merchant' | 'dungeon';
           pos: { x: number; y: number };
           radius: number;
           handler: () => void;
         }> = [
-          {
-            kind: 'refresh',
-            pos: ORB_POS,
-            radius: 140,
-            handler: () => {
-              if (character)
-                void updateCharacter({ health: character.max_health, mana: character.max_mana });
-            },
-          },
-          { kind: 'merchant', pos: MERCHANT_POS, radius: 120, handler: () => onOpenShop() },
-          {
-            kind: 'dungeon',
-            pos: EVIL_ORB_POS,
-            radius: 90,
-            handler: () => onRequestDungeonEntry(),
-          },
+          { kind: 'merchant', pos: MERCHANT_POS, radius: MERCHANT_RADIUS, handler: () => onOpenShop() },
+          { kind: 'dungeon', pos: EVIL_ORB_POS, radius: DUNGEON_RADIUS, handler: () => onRequestDungeonEntry() },
         ];
 
-        // Pick the nearest within its radius to avoid accidental overlap
-        let nearest: {
-          kind: 'merchant' | 'refresh' | 'dungeon';
-          pos: { x: number; y: number };
-          radius: number;
-          handler: () => void;
-        } | null = null;
+        let nearest: (typeof interactions)[number] | null = null;
         let nearestDist = Infinity;
         for (const it of interactions) {
           const d = dist(p, it.pos);

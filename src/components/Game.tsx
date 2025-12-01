@@ -7,7 +7,7 @@ import TownScene from './TownScene.tsx';
 import Tooltip from './Tooltip';
 import { Shop } from './Shop';
 import { CreateCharacter } from './CreateCharacter';
-import { LogOut, FlaskConical, Package, Sword } from 'lucide-react';
+import { LogOut, FlaskConical, Package, Sword, Coins } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NotificationBar } from './NotificationBar';
 import { SettingsPanel } from './SettingsPanel';
@@ -226,7 +226,12 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
             <Tooltip text={"Zone Heat mechanics:\n• Kills add Heat: Normal +3, Rare +8, Elite +15, Boss +30.\n• Heat decays 1 every 15s.\n• Heat scales enemy difficulty (up to +100% at 100 heat) and increases loot quality: higher chances for rare/epic/legendary and slightly higher set-drop chance. High risk, high reward."} />
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Gold display */}
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-900/80 border border-yellow-700/60 shadow-sm">
+            <Coins className="w-4 h-4 text-yellow-400" />
+            <span className="text-xs font-semibold text-yellow-300">{character.gold}</span>
+          </div>
           {mode === 'dungeon' ? (
             <button
               onClick={() => setMode('town')}

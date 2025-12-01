@@ -901,7 +901,7 @@ export function DungeonView({
         }
       }
 
-      // Draw damage numbers
+      // Draw damage numbers (crits larger + different color)
       const currentTime = Date.now();
       damageNumbersRef.current.forEach((dmg: DamageNumber) => {
         const age = currentTime - dmg.createdAt;
@@ -909,12 +909,19 @@ export function DungeonView({
         const opacity = Math.max(0, 1 - progress);
         const yOffset = progress * 50; // Move up over time
 
-        ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = `rgba(255, 100, 100, ${opacity})`;
+        const isCrit = !!dmg.isCrit;
+        const fontSize = isCrit ? 30 : 22;
+        const color = isCrit
+          ? `rgba(255, 215, 0, ${opacity})` // gold for crits
+          : `rgba(255, 100, 100, ${opacity})`;
+
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.fillStyle = color;
         ctx.textAlign = 'center';
         ctx.shadowColor = `rgba(0, 0, 0, ${opacity * 0.8})`;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = isCrit ? 14 : 10;
         ctx.shadowOffsetY = 3;
+
         // Convert world-space damage positions to screen-space using camera
         ctx.fillText(`-${dmg.damage}`, dmg.x - camX, dmg.y - camY - yOffset);
         ctx.shadowColor = 'transparent';

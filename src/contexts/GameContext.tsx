@@ -10,6 +10,7 @@ const DEBUG_WORLD_ENEMIES = true;
 export interface DamageNumber {
   id: string;
   damage: number;
+  isCrit?: boolean;
   x: number;
   y: number;
   createdAt: number;
@@ -374,9 +375,17 @@ export function GameProvider({
   const generateFloorMap = (floorNumber: number): FloorMap => {
     const roomCount = 9; // simple 3x3 conceptual map
     const rooms: FloorRoom[] = [];
-    const mimicChance = 0.05; // fixed 5% mimic chance
-    const miniBossChance = Math.min(0.01 + Math.floor(floorNumber / 5) * 0.01, 0.08); // up to 8%
-    const rareEnemyChance = Math.min(0.15 + floorNumber * 0.01, 0.35); // scales with depth
+
+    // Rarity-weighted room events: early floors are mostly normal enemies,
+    // deeper floors gradually increase mimics, mini-bosses and rare enemies.
+    const depth = Math.max(0, floorNumber - 1);
+    const depthNorm = Math.min(depth, 30) / 30; // 0..1 by ~floor 31
+
+    const mimicChance = Math.min(0.02 + floorNumber * 0.002, 0.06); // ~2% -> 6%
+    const miniBossChance = Math.min(0.0 + Math.floor(floorNumber / 5) * 0.015, 0.09); // ramps each 5 floors
+    const rareEnemyBase = 0.08 + Math.min(floorNumber, 10) * 0.006; // early ramp
+    const rareEnemyBonus = Math.max(0, floorNumber - 10) * 0.008; // extra after floor 10
+    const rareEnemyChance = Math.min(rareEnemyBase + rareEnemyBonus, 0.45); // cap at 45%
     const isBossFloor = floorNumber % 10 === 0;
 
     for (let i = 0; i < roomCount; i++) {
@@ -640,9 +649,9 @@ export function GameProvider({
     setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
   };
 
-  const addDamageNumber = (damage: number, x: number, y: number) => {
+  const addDamageNumber = (damage: number, x: number, y: number, isCrit?: boolean) => {
     const id = `damage-${Date.now()}-${Math.random()}`;
-    const newDamage: DamageNumber = { id, damage, x, y, createdAt: Date.now() };
+    const newDamage: DamageNumber = { id, damage, x, y, createdAt: Date.now(), isCrit };
     setDamageNumbers((prev: DamageNumber[]) => [...prev, newDamage]);
     // Auto-remove after 1.5 seconds
     setTimeout(() => {
@@ -728,8 +737,13 @@ export function GameProvider({
     const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
     setCurrentEnemy(enemyAfterHit);
 
-    // Add damage number at enemy position
-    addDamageNumber(playerDamage, 600, 220);
+    // Add damage number near enemy world position (fallback to center if unknown)
+    const enemyWorld = enemiesInWorld.find(
+      (e: Enemy & { id: string; x: number; y: number }) => e.id === currentEnemy.id,
+    );
+    const dmgX = enemyWorld ? enemyWorld.x : 600;
+    const dmgY = enemyWorld ? enemyWorld.y : 220;
+    addDamageNumber(playerDamage, dmgX, dmgY, isCrit);
 
     // Enemy died
     if (newEnemyHealth <= 0) {
