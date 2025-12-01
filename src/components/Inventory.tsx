@@ -12,7 +12,7 @@ import {
 interface InventoryProps {
   items: Item[];
   onEquip: (itemId: string) => void;
-  onUsePotion: (itemId: string) => void;
+  onConsumePotion: (itemId: string) => void;
 }
 
 // UI-only slots (Diablo-style layout)
@@ -83,7 +83,7 @@ const SLOT_LAYOUT: Record<EquipmentUISlotId, string> = {
   trinket: 'row-start-5 col-start-3',
 };
 
-export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
+export function Inventory({ items, onEquip, onConsumePotion }: InventoryProps) {
   const getItemIcon = (type: string) => {
     switch (type) {
       case 'weapon':
@@ -278,7 +278,7 @@ export function Inventory({ items, onEquip, onUsePotion }: InventoryProps) {
 
                 {item.type === 'potion' ? (
                   <button
-                    onClick={() => onUsePotion(item.id)}
+                    onClick={() => onConsumePotion(item.id)}
                     className="px-2 py-0.5 bg-green-600 hover:bg-green-700 text-white text-[11px] rounded transition-colors"
                   >
                     Use

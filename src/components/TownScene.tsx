@@ -6,8 +6,7 @@ interface TownSceneProps {
   onOpenShop: () => void;
 }
 
-export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps) {
-  export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSceneProps) {
+export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { character, updateCharacter } = useGame();
 
@@ -257,7 +256,6 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
     window.addEventListener('keydown', handleDown);
     window.addEventListener('keyup', handleUp);
     return () => { window.removeEventListener('keydown', handleDown); window.removeEventListener('keyup', handleUp); };
-  }, [character, onEnterDungeon, onOpenShop, updateCharacter]);
   }, [character, onRequestDungeonEntry, onOpenShop, updateCharacter]);
 
   return (

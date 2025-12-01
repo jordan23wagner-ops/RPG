@@ -1,6 +1,7 @@
 // import { Inventory } from './Inventory';
 import { useState, useCallback, useEffect } from 'react';
 import { GameProvider, useGame } from '../contexts/GameContext';
+import { Item } from '../types/game';
 import { DungeonView } from './DungeonView';
 import TownScene from './TownScene.tsx';
 import Tooltip from './Tooltip';
@@ -121,13 +122,13 @@ function FloorSelectOverlay({ currentFloor, maxUnlocked, onSelect, onClose }: { 
 
 function GameContent({ notification, setNotification, shopOpen, setShopOpen, autoStart }: {
   notification: { message: string; color: string } | null;
-  setNotification: (n: any) => void;
+  setNotification: (n: { message: string; color: string } | null) => void;
   shopOpen: boolean;
   setShopOpen: (open: boolean) => void;
   autoStart: boolean;
 }) {
   // Local tooltip hover state (was previously in parent; moved here to prevent ReferenceError)
-  const [hoveredItem, setHoveredItem] = useState<any | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<Item | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{x:number;y:number}>({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipTimer, setTooltipTimer] = useState<number | null>(null);
@@ -144,7 +145,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     zoneHeat,
     createCharacter,
     attack,
-    usePotion,
+    consumePotion,
     equipItem,
     sellItem,
     buyPotion,
@@ -204,7 +205,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   }
 
   // Quick access potion info for the bottom bar
-  const potionItems = items.filter((i: any) => i.type === 'potion');
+  const potionItems = items.filter((i: Item) => i.type === 'potion');
   const potionCount = potionItems.length;
   const firstPotion = potionItems[0];
 
@@ -304,11 +305,11 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
           <div className="mb-2 text-[11px] text-gray-300 flex justify-between"><span>Floor {floor}</span><span>Max {character.max_floor || 1}</span></div>
           <div className="h-72 overflow-y-auto border border-gray-700 rounded-md p-1.5 bg-gray-950/50 space-y-1">
-            {items.filter((i: any) => !i.equipped && i.type !== 'potion').length === 0 ? (
+            {items.filter((i: Item) => !i.equipped && i.type !== 'potion').length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">No items</div>
             ) : (
               items
-                .filter((i: any) => !i.equipped && i.type !== 'potion')
+                .filter((i: Item) => !i.equipped && i.type !== 'potion')
                 .reverse()
                 .map(item => (
                   <div
@@ -370,7 +371,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
             <button
               type="button"
               disabled={!firstPotion}
-              onClick={() => { if (firstPotion) void usePotion(firstPotion.id); }}
+              onClick={() => { if (firstPotion) void consumePotion(firstPotion.id); }}
               className={`ml-auto px-2 py-0.5 rounded text-[11px] font-medium ${firstPotion ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
             >
               {firstPotion ? `Use (${potionCount})` : 'None'}
@@ -395,8 +396,8 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
           <div className="bg-gray-950 border border-gray-700 rounded p-2">
             {(() => {
-              const equippedBySlot: Record<string, any> = {};
-              items.filter((i: any) => i.equipped).forEach(item => {
+              const equippedBySlot: Record<string, Item> = {};
+              items.filter((i: Item) => i.equipped).forEach(item => {
                 const slot = (() => {
                   if (item.type === 'weapon' || item.type === 'melee_weapon' || item.type === 'ranged_weapon' || item.type === 'mage_weapon') return 'weapon';
                   if (item.type === 'helmet') return 'helmet';

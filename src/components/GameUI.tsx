@@ -3,7 +3,6 @@ import {
   Zap,
   TrendingUp,
   Coins,
-  ArrowDown,
   Sparkles,
   ShoppingBag,
 } from 'lucide-react';
@@ -21,7 +20,7 @@ interface GameUIProps {
   items: Item[];
   floor: number;
   onEquip: (itemId: string) => void;
-  onUsePotion: (itemId: string) => void;
+  onConsumePotion: (itemId: string) => void;
   onNextFloor: () => void;
   enemyDefeated: boolean;
   onOpenShop: () => void;
@@ -31,11 +30,8 @@ interface GameUIProps {
 export function GameUI({
   character,
   items,
-  floor,
   onEquip,
-  onUsePotion,
-  onNextFloor,
-  enemyDefeated,
+  onConsumePotion,
   onOpenShop,
   onSellAll,
 }: GameUIProps) {
@@ -210,7 +206,7 @@ export function GameUI({
                   <div className="text-gray-500 text-xs">+50 HP</div>
                 </div>
                 <button
-                  onClick={() => onUsePotion(group.sampleId)}
+                  onClick={() => onConsumePotion(group.sampleId)}
                   className="px-1.5 py-0.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded flex-shrink-0"
                 >
                   Use

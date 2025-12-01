@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   createContext,
   useContext,
@@ -50,7 +49,7 @@ interface GameContextType {
   createCharacter: (name: string) => Promise<void>;
   loadCharacter: () => Promise<void>;
   attack: () => Promise<void>;
-  usePotion: (itemId: string) => Promise<void>;
+  consumePotion: (itemId: string) => Promise<void>;
   equipItem: (itemId: string) => Promise<void>;
   equipAll: () => Promise<void>;
   unequipAll: () => Promise<void>;
@@ -125,7 +124,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
         return;
       }
       setItems((data || []) as Item[]);
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Unexpected error loading items:', e);
     }
   }
@@ -188,7 +187,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
         };
         const { data: created, error: createErr } = await supabase
           .from('characters')
-          .insert([baseChar])
+          .insert([baseChar as never])
           .select()
           .single();
         if (createErr) throw createErr;
@@ -215,8 +214,9 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
 
       setCharacter(char);
       await loadItems(char.id);
-    } catch (e: any) {
-      console.error('Error loading character:', e?.message || e);
+    } catch (e: unknown) {
+      const error = e as { message?: string };
+      console.error('Error loading character:', error?.message || e);
     } finally {
       setLoading(false);
     }
@@ -227,7 +227,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
     if (!character) return;
     const unequippedIds = items.filter(i => !i.equipped && i.type !== 'potion').map(i => i.id);
     if (unequippedIds.length > 0) {
-      await supabase.from('items').update({ equipped: true }).in('id', unequippedIds);
+      await supabase.from('items').update({ equipped: true } as never).in('id', unequippedIds);
       await loadItems(character.id);
     }
   };
@@ -236,7 +236,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
     if (!character) return;
     const equippedIds = items.filter(i => i.equipped && i.type !== 'potion').map(i => i.id);
     if (equippedIds.length > 0) {
-      await supabase.from('items').update({ equipped: false }).in('id', equippedIds);
+      await supabase.from('items').update({ equipped: false } as never).in('id', equippedIds);
       await loadItems(character.id);
     }
   };
@@ -268,17 +268,17 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   // Merchant inventory rotation every 15 minutes (time bucket deterministic)
   useEffect(() => {
     if (!character) return;
-    const updateInventory = () => {
+    const updateInventory = async () => {
       const bucket = Math.floor(Date.now() / (15 * 60 * 1000));
       if (bucket !== lastMerchantBucketRef.current) {
         lastMerchantBucketRef.current = bucket;
-        const { generateMerchantInventory } = require('../utils/gameLogic');
+        const { generateMerchantInventory } = await import('../utils/gameLogic');
         const inv = generateMerchantInventory(character.level, floor);
         setMerchantInventory(inv);
       }
     };
-    updateInventory();
-    const interval = setInterval(updateInventory, 60 * 1000); // check every minute
+    void updateInventory();
+    const interval = setInterval(() => { void updateInventory(); }, 60 * 1000); // check every minute
     return () => clearInterval(interval);
   }, [character, floor]);
 
@@ -353,7 +353,7 @@ try {
       ]);
 
       await loadItems(char.id);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error creating character:', err);
     }
   };
@@ -621,7 +621,7 @@ try {
 
     const { error } = await supabase
       .from('characters')
-      .update(updates)
+      .update(updates as never)
       .eq('id', character.id);
 
     if (error) {
@@ -745,7 +745,7 @@ try {
       }
 
       // Filter drops & provide fallback if empty
-      lootDrops = lootDrops.filter(ld => !rarityFilter.has(ld.rarity));
+      lootDrops = lootDrops.filter(ld => ld.rarity && !rarityFilter.has(ld.rarity));
       if (lootDrops.length === 0) {
         lootDrops = [{
           name: 'Tarnished Trinket',
@@ -791,23 +791,24 @@ try {
       }
 
       // Insert all drops with affixes; if "affixes" column missing, retry without affixes
-      let insertError = null as any;
+      let insertError: unknown = null;
       let inserted = false;
       try {
-        const { error } = await supabase.from('items').insert(rows);
+        const { error } = await supabase.from('items').insert(rows as never[]);
         insertError = error;
         inserted = !error;
-      } catch (e: any) {
+      } catch (e: unknown) {
         insertError = e;
       }
       if (!inserted && insertError) {
-        const msg = String(insertError.message || insertError);
+        const errorObj = insertError as { message?: string };
+        const msg = String(errorObj.message || insertError);
         if (msg.includes("affixes") && msg.includes("column")) {
           const fallbackRows = rows.map(r => {
             const { affixes, ...rest } = r as any;
             return rest;
           });
-          const { error: fallbackError } = await supabase.from('items').insert(fallbackRows);
+          const { error: fallbackError } = await supabase.from('items').insert(fallbackRows as never[]);
           if (fallbackError) {
             console.error('[DB Error] Fallback insert failed:', fallbackError.message, { fallbackRows });
           } else {
@@ -816,7 +817,8 @@ try {
             await loadItems(character.id);
           }
         } else {
-          console.error('[DB Error] Failed to insert loot batch:', insertError.message || insertError, { rows });
+          const errorMessage = (errorObj.message || String(insertError));
+          console.error('[DB Error] Failed to insert loot batch:', errorMessage, { rows });
         }
       } else {
         console.log(`[Inventory] Added ${rows.length} item(s): ${rows.map(r => r.name).join(', ')}`);
@@ -896,7 +898,7 @@ try {
 
   // --------------- Items / Potions / Shop ---------------
 
-  const usePotion = async (itemId: string) => {
+  const consumePotion = async (itemId: string) => {
     if (!character) return;
 
     // Enforce potion cooldown
@@ -938,7 +940,7 @@ try {
         // Toggle off
         await supabase
           .from('items')
-          .update({ equipped: false })
+          .update({ equipped: false } as never)
           .eq('id', itemId);
       } else {
         // Check requirements (level 5+)
@@ -982,7 +984,7 @@ try {
           if (offhandIds.length > 0) {
             await supabase
               .from('items')
-              .update({ equipped: false })
+              .update({ equipped: false } as never)
               .in('id', offhandIds);
           }
         }
@@ -1016,13 +1018,13 @@ try {
         if (conflictingIds.length > 0) {
           await supabase
             .from('items')
-            .update({ equipped: false })
+            .update({ equipped: false } as never)
             .in('id', conflictingIds);
         }
 
         await supabase
           .from('items')
-          .update({ equipped: true })
+          .update({ equipped: true } as never)
           .eq('id', itemId);
       }
     } catch (err) {
@@ -1141,7 +1143,7 @@ try {
 
   const buyMerchantItem = async (merchantItemId: string) => {
     if (!character) return;
-    const item = merchantInventory.find(i => (i as any).id === merchantItemId);
+    const item = merchantInventory.find(i => (i as Partial<Item> & { id?: string }).id === merchantItemId);
     if (!item) return;
     const cost = item.value || 0;
     if (character.gold < cost) return;
@@ -1161,14 +1163,14 @@ try {
       required_stats: (item as any).required_stats,
       affixes: (item as any).affixes || [],
     };
-    const { error } = await supabase.from('items').insert([row]);
+    const { error } = await supabase.from('items').insert([row as never]);
     if (error) {
       console.error('Error purchasing merchant item:', error.message);
       return;
     }
     await loadItems(character.id);
     // Remove purchased item and keep slot empty until next rotation
-    setMerchantInventory(prev => prev.filter(i => (i as any).id !== merchantItemId));
+    setMerchantInventory(prev => prev.filter(i => (i as Partial<Item> & { id?: string }).id !== merchantItemId));
   };
 
   const allocateStatPoint = async (stat: 'strength' | 'dexterity' | 'intelligence') => {
@@ -1227,7 +1229,7 @@ try {
         equipAll,
         unequipAll,
         attack,
-        usePotion,
+        consumePotion,
         equipItem,
         nextFloor,
         setFloorDirect,
