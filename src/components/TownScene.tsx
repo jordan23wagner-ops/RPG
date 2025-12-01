@@ -365,8 +365,9 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
         const p = playerPosRef.current;
         const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
           Math.hypot(a.x - b.x, a.y - b.y);
-        const REFRESH_RADIUS = 140;
-        const DUNGEON_RADIUS = 90;
+        // Keep interaction zones clearly separated to avoid overlap.
+        const REFRESH_RADIUS = 150; // generous bubble around refresh orb
+        const DUNGEON_RADIUS = 80; // slightly tighter so it never overlaps refresh zone
         const MERCHANT_RADIUS = 120;
 
         const refreshDistance = dist(p, ORB_POS);
@@ -381,7 +382,10 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
           return;
         }
 
-        // Otherwise, choose between merchant and dungeon by nearest within their radii
+        // Otherwise, choose between merchant and dungeon by nearest within their radii.
+        // If the player is still closer to the refresh orb than the dungeon orb,
+        // we intentionally do NOTHING to avoid accidental dungeon teleports when
+        // skirting the edge of the circles.
         const interactions: Array<{
           kind: 'merchant' | 'dungeon';
           pos: { x: number; y: number };
@@ -399,6 +403,16 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
           if (d <= it.radius && d < nearestDist) {
             nearest = it;
             nearestDist = d;
+          }
+        }
+
+        // Extra safety: if the dungeon would be chosen but the player is
+        // actually closer to the refresh orb than the dungeon orb, do nothing.
+        if (nearest?.kind === 'dungeon') {
+          const dungeonDist = dist(p, EVIL_ORB_POS);
+          const refreshDist = dist(p, ORB_POS);
+          if (refreshDist < dungeonDist + 40) {
+            return;
           }
         }
 
