@@ -23,7 +23,6 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
 
   const MERCHANT_POS = { x: 520, y: 680 };
   const ORB_POS = { x: 900, y: 660 };
-  const GATE_POS = { x: 1400, y: 720 };
   const EVIL_ORB_POS = { x: 1400, y: 720 };
 
   // Render loop
@@ -99,23 +98,7 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       ctx.restore();
     };
 
-    const drawTree = (x: number, y: number, scale: number = 1) => {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(scale, scale);
-      ctx.fillStyle = '#4b3715';
-      ctx.fillRect(-4, 0, 8, 18);
-      ctx.beginPath();
-      ctx.fillStyle = '#166534';
-      ctx.arc(0, -4, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.fillStyle = '#22c55e';
-      ctx.arc(-5, -8, 8, 0, Math.PI * 2);
-      ctx.arc(6, -10, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
+    // Note: tree drawing helper kept for future town decorations.
 
     const drawLampPost = (x: number, y: number, t: number) => {
       ctx.save();
@@ -225,10 +208,11 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       );
       cameraRef.current = { x: camX, y: camY };
 
-      // ground
-      ctx.fillStyle = '#0f172a';
+      // ground base
+      ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      // plaza tiles
+
+      // tiled stone ground with slightly darker outer band
       const tile = 80;
       const cols = Math.ceil(WORLD_WIDTH / tile);
       const rows = Math.ceil(WORLD_HEIGHT / tile);
@@ -242,10 +226,55 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
           const wy = r * tile;
           const sx = wx - camX;
           const sy = wy - camY;
-          ctx.fillStyle = (r + c) % 2 === 0 ? '#172554' : '#1e293b';
+          const distFromCenter = Math.hypot(wx - 700, wy - 650);
+          const inCore = distFromCenter < 420;
+          const baseLight = (r + c) % 2 === 0 ? '#111827' : '#0f172a';
+          const baseMid = (r + c) % 2 === 0 ? '#1f2937' : '#111827';
+          ctx.fillStyle = inCore ? baseMid : baseLight;
           ctx.fillRect(sx, sy, tile - 2, tile - 2);
         }
       }
+
+      // central bright plaza around fountain
+      const plazaX = 600 - camX;
+      const plazaY = 620 - camY;
+      ctx.save();
+      ctx.translate(plazaX, plazaY);
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.65)';
+      ctx.ellipse(0, 8, 220, 120, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
+      ctx.lineWidth = 4;
+      ctx.ellipse(0, 8, 220, 120, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // stone paths: home → inn, inn → plaza, plaza → merchant, plaza → dungeon
+      const drawPath = (ax: number, ay: number, bx: number, by: number) => {
+        const sx = ax - camX;
+        const sy = ay - camY;
+        const ex = bx - camX;
+        const ey = by - camY;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(30,64,175,0.9)';
+        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        const midX = (sx + ex) / 2;
+        ctx.quadraticCurveTo(midX, sy - 60, ex, ey);
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      // Spawn “home” approx near bottom-left quadrant
+      drawPath(320, 780, 320, 650); // home → inn vertical
+      drawPath(320, 650, 360, 640); // small jog
+      drawPath(360, 640, 520, 640); // inn → plaza
+      drawPath(600, 620, MERCHANT_POS.x, MERCHANT_POS.y + 20); // plaza → merchant
+      drawPath(600, 620, EVIL_ORB_POS.x - 40, EVIL_ORB_POS.y); // plaza → dungeon
 
       // Buildings (background scenery)
       drawBuilding(260 - camX, 520 - camY, 200, 130, 'Restless Lantern Inn', 'inn');
@@ -256,24 +285,45 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       drawCrates(430 - camX, 732 - camY);
       drawCrates(610 - camX, 738 - camY);
       drawFountain(600 - camX, 620 - camY, now);
+
+      // Lamps flanking plaza
       drawLampPost(360 - camX, 560 - camY, now);
       drawLampPost(840 - camX, 560 - camY, now);
+
+      // Merchant and label
       drawNPC(MERCHANT_POS.x - camX, MERCHANT_POS.y - camY);
       ctx.fillStyle = '#fbbf24';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('Shopkeeper', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY - 24);
 
-      // Orb of Refreshment
-      drawOrb(ORB_POS.x - camX, ORB_POS.y - camY, now);
-      ctx.fillStyle = '#67e8f9';
-      ctx.fillText('Orb of Refreshment', ORB_POS.x - camX, ORB_POS.y - camY - 26);
+      // Orb of Refreshment + ground light
+      const refreshScreenX = ORB_POS.x - camX;
+      const refreshScreenY = ORB_POS.y - camY;
+      ctx.save();
+      ctx.translate(refreshScreenX, refreshScreenY + 8);
+      const bluePulse = 0.45 + Math.sin(now / 420) * 0.15;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 70, 34, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(56, 189, 248, ${0.35 * bluePulse})`;
+      ctx.fill();
+      ctx.restore();
+      drawOrb(refreshScreenX, refreshScreenY, now);
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillText('Orb of Refreshment', refreshScreenX, refreshScreenY - 26);
 
       // Dungeon gate
-      // Evil dungeon entrance orb
+      // Evil dungeon entrance orb + corrupted ground
       const orbX = EVIL_ORB_POS.x - camX;
       const orbY = EVIL_ORB_POS.y - camY;
       const timePulse = Math.sin(now / 600);
+      ctx.save();
+      ctx.translate(orbX, orbY + 6);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 90, 40, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(76, 5, 120, 0.35)';
+      ctx.fill();
+      ctx.restore();
       // Outer dark aura
       ctx.save();
       ctx.beginPath();
@@ -301,8 +351,27 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       ctx.textAlign = 'center';
       ctx.fillText('Dungeon Orb', orbX, orbY - 60);
 
-      // Player
+      // Simple drifting corruption sparks around dungeon orb
+      ctx.save();
+      ctx.fillStyle = '#f9a8ff';
+      for (let i = 0; i < 5; i++) {
+        const angle = ((now / 800) + i * 1.25) % (Math.PI * 2);
+        const radius = 34 + (i % 2) * 8;
+        const sx = orbX + Math.cos(angle) * radius;
+        const sy = orbY - 8 + Math.sin(angle) * (radius * 0.5);
+        ctx.globalAlpha = 0.35 + (i % 2) * 0.2;
+        ctx.fillRect(Math.round(sx), Math.round(sy), 2, 2);
+      }
+      ctx.restore();
+
+      // Player + soft shadow
       const drawPlayer = (x: number, y: number) => {
+        ctx.save();
+        ctx.fillStyle = 'rgba(15,23,42,0.7)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 4, 10, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
         ctx.fillStyle = '#fcd7b6';
         ctx.fillRect(x - 4, y - 18, 8, 8);
         ctx.fillStyle = '#4f46e5';

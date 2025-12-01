@@ -379,7 +379,6 @@ export function GameProvider({
     // Rarity-weighted room events: early floors are mostly normal enemies,
     // deeper floors gradually increase mimics, mini-bosses and rare enemies.
     const depth = Math.max(0, floorNumber - 1);
-    const depthNorm = Math.min(depth, 30) / 30; // 0..1 by ~floor 31
 
     const mimicChance = Math.min(0.02 + floorNumber * 0.002, 0.06); // ~2% -> 6%
     const miniBossChance = Math.min(0.0 + Math.floor(floorNumber / 5) * 0.015, 0.09); // ramps each 5 floors
@@ -813,21 +812,9 @@ export function GameProvider({
         if (single) lootDrops = [single];
       }
 
-      // Filter drops & provide fallback if empty
+      // Filter drops by rarity preferences; if this results in none,
+      // the enemy simply drops nothing (gold/XP only).
       lootDrops = lootDrops.filter((ld) => ld.rarity && !rarityFilter.has(ld.rarity));
-      if (lootDrops.length === 0) {
-        lootDrops = [
-          {
-            name: 'Tarnished Trinket',
-            type: 'melee_armor',
-            rarity: 'common',
-            armor: 1,
-            value: 5,
-            equipped: false,
-            required_level: 1,
-          },
-        ];
-      }
 
       // Affix stats logging
       affixStatsRef.current.total += lootDrops.length;
