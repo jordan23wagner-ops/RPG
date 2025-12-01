@@ -273,7 +273,10 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         <div className="flex-shrink-0 w-64 bg-gray-900 border-2 border-yellow-600 rounded-md p-2">
           {/* Character Stats */}
           <div className="mb-3">
-            <h3 className="text-base font-bold text-yellow-500 mb-1 leading-tight truncate">{character.name}</h3>
+            <h3 className="text-base font-bold text-yellow-500 mb-1 leading-tight truncate flex items-baseline gap-2">
+              <span>{character.name}</span>
+              <span className="text-xs font-semibold text-gray-300">Lv {character.level}</span>
+            </h3>
             <div className="grid grid-cols-3 gap-1 text-[11px] mb-1">
               <div className="bg-gray-800 rounded p-1.5">
                 <div className="text-gray-400">STR</div>

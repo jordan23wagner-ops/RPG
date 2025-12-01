@@ -398,75 +398,99 @@ export function generateEnemyVariant(
 
 // ----------------- LOOT GENERATION (NEW SYSTEM) -----------------
 
-// Enemy loot rarity weights for combat drops.
-// NOTE: common & magic remain merchant-only; enemies drop rare+ only.
-// These are conservative *base* weights for low floor / low heat –
-// early floors should see rare items as a ~5% event, with higher
-// tiers much rarer. Floor depth and zoneHeat will modestly increase
-// the relative weights of higher tiers.
+// Enemy loot rarity tiers. We keep common/magic reserved for merchants
+// and chest-like sources; combat drops are rare+ only.
 const BASE_RARITY_WEIGHTS = {
-  common: 0,
-  magic: 0,
-  rare: 3.5,
-  epic: 1.5,
-  legendary: 0.3,
-  mythic: 0.08,
-  set: 0.05,
-  radiant: 0.02,
+  rare: 1,
+  epic: 0.4,
+  legendary: 0.08,
+  mythic: 0.02,
+  set: 0.015,
+  radiant: 0.008,
 };
 
-type RarityKey = keyof typeof BASE_RARITY_WEIGHTS;
+type RarityKey = keyof typeof BASE_RARITY_WEIGHTS | 'common' | 'magic';
 
+/**
+ * Rarity selection tuned so that:
+ * - Normal enemies: rare drop ≈5% on low floors
+ * - Rare enemies: ≈10%
+ * - Elite enemies: ≈15%
+ * - Mini-bosses: ≈25% (treated as "elite" rarity for odds)
+ *
+ * Higher tiers (epic, legendary, mythic, set, radiant) are strictly
+ * rarer than rare and scale modestly with depth and zone heat.
+ */
 function pickRarity(
-  enemyRarity: RarityKey,
+  enemyRarity: 'normal' | 'rare' | 'elite' | 'boss',
   zoneHeat: number = 0,
   floor: number = 1,
 ): RarityKey {
+  // Effective "rare+" drop chance baseline per enemy rarity.
+  let baseRareChance = 0.05; // normal
+  if (enemyRarity === 'rare') baseRareChance = 0.1;
+  else if (enemyRarity === 'elite') baseRareChance = 0.15;
+  else if (enemyRarity === 'boss') baseRareChance = 0.25; // treat bosses/mini-bosses as 25%+
+
+  // Scale slightly with depth (up to +50% at very deep floors)
+  const depth = Math.max(0, floor - 1);
+  const depthNorm = Math.min(depth, 40) / 40; // 0..1
+  const depthMultiplier = 1 + depthNorm * 0.5;
+
+  // Zone heat 0..100 gives up to +50% more chance
+  const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
+  const heatMultiplier = 1 + heatBoost * 0.5;
+
+  let rarePlusChance = baseRareChance * depthMultiplier * heatMultiplier;
+  // Never exceed 60% so items remain special
+  rarePlusChance = Math.min(0.6, rarePlusChance);
+
+  if (Math.random() >= rarePlusChance) {
+    // No item or lower-tier handled by caller; we return 'common' as a sentinel
+    return 'common';
+  }
+
+  // Within a successful rare+ roll, split across high tiers.
+  // These are relative weights and DO NOT affect overall drop chance.
   const weights = { ...BASE_RARITY_WEIGHTS };
 
-  // Depth factor: early floors keep very low high-tier chances.
-  const depth = Math.max(0, floor - 1);
-  const depthNorm = Math.min(depth, 40) / 40; // 0..1 by ~floor 41
-
-  // Small bumps based on enemy rarity (still within rare+ range)
+  // Enemy rarity biases toward higher tiers without breaking ordering
   if (enemyRarity === 'rare') {
-    weights.epic += 1.5;
-  } else if (enemyRarity === 'epic') {
-    weights.epic += 2;
-    weights.legendary += 0.8;
-  } else if (enemyRarity === 'legendary') {
-    weights.epic += 3;
-    weights.legendary += 1.5;
-    weights.mythic += 0.4;
+    weights.epic += 0.2;
+  } else if (enemyRarity === 'elite') {
+    weights.epic += 0.4;
+    weights.legendary += 0.1;
+  } else if (enemyRarity === 'boss') {
+    weights.epic += 0.8;
+    weights.legendary += 0.25;
+    weights.mythic += 0.05;
+    weights.set += 0.03;
   }
 
-  // Apply depth-based scaling – modest until higher floors
+  // Depth pushes slightly toward top tiers
   if (depthNorm > 0) {
     const d = depthNorm;
-    weights.rare *= 1 + d * 0.15; // up to +15%
-    weights.epic *= 1 + d * 0.6; // up to +60%
-    weights.legendary *= 1 + d * 1.0; // up to 2x at deep floors
-    weights.mythic *= 1 + d * 1.5;
-    weights.set *= 1 + d * 1.2;
-    weights.radiant *= 1 + d * 1.8;
+    weights.epic *= 1 + d * 0.4;
+    weights.legendary *= 1 + d * 0.7;
+    weights.mythic *= 1 + d * 1.0;
+    weights.set *= 1 + d * 0.9;
+    weights.radiant *= 1 + d * 1.2;
   }
 
-  // Apply zone heat boost to favor higher rarities. zoneHeat 0..100
-  const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
+  // Heat boosts jackpots a bit more
   if (heatBoost > 0) {
-    // Keep boosts modest so jackpot tiers stay rare
-    weights.rare *= 1 + heatBoost * 0.25;
-    weights.epic *= 1 + heatBoost * 0.5;
-    weights.legendary *= 1 + heatBoost * 0.9;
-    weights.mythic *= 1 + heatBoost * 1.2;
-    weights.set *= 1 + heatBoost * 1.1;
-    weights.radiant *= 1 + heatBoost * 1.4;
+    const h = heatBoost;
+    weights.epic *= 1 + h * 0.6;
+    weights.legendary *= 1 + h * 1.0;
+    weights.mythic *= 1 + h * 1.4;
+    weights.set *= 1 + h * 1.3;
+    weights.radiant *= 1 + h * 1.6;
   }
 
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
   let roll = Math.random() * total;
 
-  for (const key of Object.keys(weights) as RarityKey[]) {
+  for (const key of Object.keys(weights) as (keyof typeof BASE_RARITY_WEIGHTS)[]) {
     if (roll < weights[key]) return key;
     roll -= weights[key];
   }
@@ -720,7 +744,7 @@ export function generateAffixesForItem(
 export function generateLoot(
   enemyLevel: number,
   floor: number,
-  enemyRarity: RarityKey = 'common',
+  enemyRarity: 'normal' | 'rare' | 'elite' | 'boss' = 'normal',
   zoneHeat: number = 0,
 ): Partial<Item> | null {
   // Base no-drop chance & gold guarantee:
@@ -750,6 +774,11 @@ export function generateLoot(
   }
 
   const rarity = pickRarity(enemyRarity, zoneHeat, floor);
+  if (rarity === 'common' || rarity === 'magic') {
+    // Sentinel from pickRarity meaning "no rare+ item"; caller already
+    // passed the no-drop roll above, so treat this as "no item".
+    return null;
+  }
   const theme = getFloorThemeByFloor(floor);
   // Bias weapon vs armor by theme
   let weaponChance = 0.6;

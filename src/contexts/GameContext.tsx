@@ -380,11 +380,11 @@ export function GameProvider({
     // deeper floors gradually increase mimics, mini-bosses and rare enemies.
     const depth = Math.max(0, floorNumber - 1);
 
-    const mimicChance = Math.min(0.02 + floorNumber * 0.002, 0.06); // ~2% -> 6%
-    const miniBossChance = Math.min(0.0 + Math.floor(floorNumber / 5) * 0.015, 0.09); // ramps each 5 floors
-    const rareEnemyBase = 0.08 + Math.min(floorNumber, 10) * 0.006; // early ramp
+    const mimicChance = Math.min(0.01 + floorNumber * 0.0015, 0.05); // slightly rarer, ~1% -> 5%
+    const miniBossChance = Math.min(0.0 + Math.floor(floorNumber / 5) * 0.01, 0.06); // slower ramp, max 6%
+    const rareEnemyBase = 0.04 + Math.min(floorNumber, 10) * 0.004; // start lower so floor1 is modest
     const rareEnemyBonus = Math.max(0, floorNumber - 10) * 0.008; // extra after floor 10
-    const rareEnemyChance = Math.min(rareEnemyBase + rareEnemyBonus, 0.45); // cap at 45%
+    const rareEnemyChance = Math.min(rareEnemyBase + rareEnemyBonus, 0.35); // cap at 35%
     const isBossFloor = floorNumber % 10 === 0;
 
     for (let i = 0; i < roomCount; i++) {
@@ -523,11 +523,19 @@ export function GameProvider({
       // Pick enemy type with deterministic roll
       const roll = seededRandom(seed + 1000);
       let type: RoomEventType = 'enemy';
-      if (roll < 0.05) type = 'mimic';
-      else if (roll < 0.05 + 0.08 && miniBosses < MAX_MINI_BOSSES) {
+      // World enemy mix: keep specials quite rare on early floors.
+      // Floor 1: ~1% mimics, ~2% mini-bosses max, ~10% rares.
+      // Deeper floors slowly ramp these up but with hard caps.
+      const isLowFloor = floor <= 3;
+      const mimicThreshold = isLowFloor ? 0.01 : 0.03; // up to 3%
+      const miniBossSpread = isLowFloor ? 0.02 : 0.05; // extra window for mini-bosses
+      const rareSpread = isLowFloor ? 0.10 : 0.22; // extra window for rare enemies
+
+      if (roll < mimicThreshold) type = 'mimic';
+      else if (roll < mimicThreshold + miniBossSpread && miniBosses < MAX_MINI_BOSSES) {
         type = 'miniBoss';
         miniBosses++;
-      } else if (roll < 0.05 + 0.08 + 0.25) type = 'rareEnemy';
+      } else if (roll < mimicThreshold + miniBossSpread + rareSpread) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
       // Use sequential ID that's truly unique per floor
       const enemyId = `floor${floor}-enemy${i}`;

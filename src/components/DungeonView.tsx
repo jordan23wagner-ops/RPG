@@ -874,10 +874,20 @@ export function DungeonView({
           const sx = ew.x - camX;
           const sy = ew.y - camY;
           if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) continue;
-          ctx.fillStyle = '#7f1d1d';
+
+          // Use same archetype-driven sprite as combat, but smaller and without aura
+          const markerEnemy = { ...ew, health: Math.max(1, ew.health) } as Enemy;
+          const vMarker = getEnemyVisual(markerEnemy);
+          const markerSize = Math.max(10, vMarker.size - 8);
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 6;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = vMarker.coreColor;
           ctx.beginPath();
-          ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+          ctx.arc(sx, sy, markerSize, 0, Math.PI * 2);
           ctx.fill();
+          ctx.restore();
           ctx.font = '10px Arial';
           ctx.fillStyle = theme.hudAccent;
           ctx.textAlign = 'center';
