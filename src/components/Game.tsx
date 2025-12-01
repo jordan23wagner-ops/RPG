@@ -135,6 +135,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   const [mode, setMode] = useState<'town' | 'dungeon'>('town');
   const [showFloorSelect, setShowFloorSelect] = useState(false);
   const [milestoneFlash, setMilestoneFlash] = useState(false);
+  const [levelUpFlash, setLevelUpFlash] = useState<{ active: boolean; level?: number } | null>(
+    null,
+  );
   const {
     character,
     items,
@@ -175,11 +178,10 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     return () => window.removeEventListener('return-to-town', toTown as EventListener);
   }, []);
 
-  // If quickstart is on, jump straight to dungeon once character exists
+  // Always spawn in town by default; quickstart no longer auto-jumps
+  // to the dungeon. Players must explicitly enter via UI/orb.
   useEffect(() => {
-    if (autoStart && character) {
-      setMode('dungeon');
-    }
+    // intentionally empty – reserved for future startup behaviors
   }, [autoStart, character]);
 
   // Listen for milestone unlock visual effect
@@ -190,6 +192,17 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     };
     window.addEventListener('milestone-unlocked', handler as EventListener);
     return () => window.removeEventListener('milestone-unlocked', handler as EventListener);
+  }, []);
+
+  // Listen for level-up events from GameContext for a quick celebratory flash
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { level?: number } | undefined;
+      setLevelUpFlash({ active: true, level: detail?.level });
+      setTimeout(() => setLevelUpFlash(null), 2200);
+    };
+    window.addEventListener('level-up', handler as EventListener);
+    return () => window.removeEventListener('level-up', handler as EventListener);
   }, []);
 
   if (loading) {
@@ -541,6 +554,21 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           <div className="relative bg-gradient-to-br from-purple-800 via-red-700 to-yellow-600 px-8 py-6 rounded-lg border-2 border-yellow-400 shadow-2xl animate-fade-in-down">
             <div className="text-2xl font-extrabold text-yellow-300 tracking-wide mb-2">Milestone Unlocked!</div>
             <div className="text-xs text-gray-200">New depth remembered by the Orb.</div>
+          </div>
+        </div>
+      )}
+      {levelUpFlash?.active && (
+        <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-40">
+          <div className="absolute inset-0 bg-black/60 animate-fade-in" />
+          <div className="relative bg-gradient-to-br from-yellow-500 via-orange-500 to-red-600 px-7 py-4 rounded-lg border-2 border-yellow-300 shadow-2xl animate-fade-in-up">
+            <div className="text-2xl font-extrabold text-yellow-100 tracking-wide mb-1 text-center">
+              Level Up!
+            </div>
+            {typeof levelUpFlash.level === 'number' && (
+              <div className="text-xs text-yellow-50 text-center">
+                You reached level {levelUpFlash.level}.
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -366,8 +366,8 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
         const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
           Math.hypot(a.x - b.x, a.y - b.y);
         // Keep interaction zones clearly separated to avoid overlap.
-        const REFRESH_RADIUS = 150; // generous bubble around refresh orb
-        const DUNGEON_RADIUS = 80; // slightly tighter so it never overlaps refresh zone
+        const REFRESH_RADIUS = 160; // generous bubble around refresh orb
+        const DUNGEON_RADIUS = 60; // much tighter so it’s hard to hit from orb side
         const MERCHANT_RADIUS = 120;
 
         const refreshDistance = dist(p, ORB_POS);

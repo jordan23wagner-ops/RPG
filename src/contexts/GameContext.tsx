@@ -763,6 +763,10 @@ export function GameProvider({
         finalExp = rawExp - expForNextLevel;
       }
 
+      console.log(
+        `[XP] Gained ${gainedExp} from ${currentEnemy.name}. Before=${character.experience}/${expForNextLevel}, raw=${rawExp}, final=${finalExp}, leveled=${leveled}`,
+      );
+
       const updates: Partial<Character> = {
         experience: finalExp,
         gold: character.gold + gainedGold,
@@ -775,6 +779,16 @@ export function GameProvider({
         updates.max_mana = character.max_mana + 5;
         updates.mana = character.max_mana + 5;
         updates.stat_points = (character.stat_points || 0) + 3;
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('level-up', {
+              detail: {
+                level: newLevel,
+                gainedExp,
+              },
+            }),
+          );
+        }
       }
 
       await updateCharacter(updates);
