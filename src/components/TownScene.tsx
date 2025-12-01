@@ -90,7 +90,10 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
 
       // Camera center on player
       const camX = Math.max(0, Math.min(WORLD_WIDTH - CANVAS_WIDTH, player.x - CANVAS_WIDTH / 2));
-      const camY = Math.max(0, Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, player.y - CANVAS_HEIGHT / 2));
+      const camY = Math.max(
+        0,
+        Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, player.y - CANVAS_HEIGHT / 2),
+      );
       cameraRef.current = { x: camX, y: camY };
 
       // ground
@@ -180,17 +183,20 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       drawPlayer(player.x - camX, player.y - camY);
 
       // Interaction hints
-      const dist = (a: {x:number;y:number}, b:{x:number;y:number}) => Math.hypot(a.x - b.x, a.y - b.y);
+      const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+        Math.hypot(a.x - b.x, a.y - b.y);
       const nearMerchant = dist(player, MERCHANT_POS) < 120;
       const nearOrb = dist(player, ORB_POS) < 120;
       const nearGate = dist(player, EVIL_ORB_POS) < 160;
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      if (nearMerchant) ctx.fillText('Press E to trade', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY + 40);
+      if (nearMerchant)
+        ctx.fillText('Press E to trade', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY + 40);
       if (nearOrb) ctx.fillText('Press E to refresh', ORB_POS.x - camX, ORB_POS.y - camY + 40);
       if (nearGate) ctx.fillText('Press E to enter', GATE_POS.x - camX, GATE_POS.y - camY + 46);
-  if (nearGate) ctx.fillText('Press E to commune', EVIL_ORB_POS.x - camX, EVIL_ORB_POS.y - camY + 60);
+      if (nearGate)
+        ctx.fillText('Press E to commune', EVIL_ORB_POS.x - camX, EVIL_ORB_POS.y - camY + 60);
 
       raf = requestAnimationFrame(render);
     };
@@ -205,7 +211,8 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
     const move = () => {
       const keys = keysPressed.current;
       const p = playerPosRef.current;
-      let x = p.x, y = p.y;
+      let x = p.x,
+        y = p.y;
       if (keys['ArrowUp'] || keys['w'] || keys['W']) y = Math.max(0, y - MOVE_SPEED);
       if (keys['ArrowDown'] || keys['s'] || keys['S']) y = Math.min(WORLD_HEIGHT, y + MOVE_SPEED);
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) x = Math.max(0, x - MOVE_SPEED);
@@ -223,39 +230,67 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       keysPressed.current[e.key] = true;
       if (e.key === 'e' || e.key === 'E') {
         const p = playerPosRef.current;
-        const d = (a:{x:number;y:number}, b:{x:number;y:number}) => Math.hypot(a.x-b.x, a.y-b.y);
-        
-        // Check merchant first (priority order matters)
-        if (d(p, MERCHANT_POS) < 130) {
-          e.preventDefault();
-          e.stopPropagation();
-          onOpenShop();
-          return;
-        }
-        // Check orb second
-        if (d(p, ORB_POS) < 130) {
-          e.preventDefault();
-          e.stopPropagation();
-          if (character) {
-            void updateCharacter({ health: character.max_health, mana: character.max_mana });
+        const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+          Math.hypot(a.x - b.x, a.y - b.y);
+
+        // Compute distances to each interactable
+        const interactions: Array<{
+          kind: 'merchant' | 'refresh' | 'dungeon';
+          pos: { x: number; y: number };
+          radius: number;
+          handler: () => void;
+        }> = [
+          { kind: 'merchant', pos: MERCHANT_POS, radius: 120, handler: () => onOpenShop() },
+          {
+            kind: 'refresh',
+            pos: ORB_POS,
+            radius: 110,
+            handler: () => {
+              if (character)
+                void updateCharacter({ health: character.max_health, mana: character.max_mana });
+            },
+          },
+          {
+            kind: 'dungeon',
+            pos: EVIL_ORB_POS,
+            radius: 120,
+            handler: () => onRequestDungeonEntry(),
+          },
+        ];
+
+        // Pick the nearest within its radius to avoid accidental overlap
+        let nearest: {
+          kind: 'merchant' | 'refresh' | 'dungeon';
+          pos: { x: number; y: number };
+          radius: number;
+          handler: () => void;
+        } | null = null;
+        let nearestDist = Infinity;
+        for (const it of interactions) {
+          const d = dist(p, it.pos);
+          if (d <= it.radius && d < nearestDist) {
+            nearest = it;
+            nearestDist = d;
           }
-          return;
         }
-        // Check dungeon gate last
-        if (d(p, GATE_POS) < 150) {
+
+        if (nearest) {
           e.preventDefault();
           e.stopPropagation();
-          e.preventDefault();
-          e.stopPropagation();
-          onRequestDungeonEntry();
+          nearest.handler();
           return;
         }
       }
     };
-    const handleUp = (e: KeyboardEvent) => { keysPressed.current[e.key] = false; };
+    const handleUp = (e: KeyboardEvent) => {
+      keysPressed.current[e.key] = false;
+    };
     window.addEventListener('keydown', handleDown);
     window.addEventListener('keyup', handleUp);
-    return () => { window.removeEventListener('keydown', handleDown); window.removeEventListener('keyup', handleUp); };
+    return () => {
+      window.removeEventListener('keydown', handleDown);
+      window.removeEventListener('keyup', handleUp);
+    };
   }, [character, onRequestDungeonEntry, onOpenShop, updateCharacter]);
 
   return (
