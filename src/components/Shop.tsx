@@ -1,4 +1,5 @@
 import { ShoppingBag, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Character, Item } from '../types/game';
 import { getRarityColor, getRarityBgColor, getRarityBorderColor } from '../utils/gameLogic';
 
@@ -15,14 +16,39 @@ interface ShopProps {
 
 const POTION_COST = 75;
 
-export function Shop({ character, items, merchantInventory, onClose, onSellItem, onBuyPotion, onSellAll, onBuyMerchantItem }: ShopProps) {
-  const sellableItems = items.filter(i => !i.equipped);
+export function Shop({
+  character,
+  items,
+  merchantInventory,
+  onClose,
+  onSellItem,
+  onBuyPotion,
+  onSellAll,
+  onBuyMerchantItem,
+}: ShopProps) {
+  const sellableItems = items.filter((i) => !i.equipped);
   const totalSellValue = sellableItems.reduce((sum, item) => sum + item.value, 0);
   const emptySlots = 3 - merchantInventory.length;
-  const bucketMinutes = Math.floor(Date.now() / (15 * 60 * 1000)) * 15;
-  const nextRotation = bucketMinutes + 15;
-  const rotationEtaMs = nextRotation * 60 * 1000 - Date.now();
-  const rotationMinutes = Math.max(0, Math.ceil(rotationEtaMs / 60000));
+
+  // Live countdown timer for next rotation
+  const [timeUntilRotation, setTimeUntilRotation] = useState('');
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const bucketMs = Math.floor(Date.now() / (15 * 60 * 1000)) * (15 * 60 * 1000);
+      const nextRotationMs = bucketMs + 15 * 60 * 1000;
+      const diffMs = Math.max(0, nextRotationMs - Date.now());
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      setTimeUntilRotation(
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+      );
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -32,44 +58,65 @@ export function Shop({ character, items, merchantInventory, onClose, onSellItem,
             <ShoppingBag className="w-6 h-6 text-yellow-500" />
             <h2 className="text-2xl font-bold text-yellow-500">Merchant's Shop</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-800 rounded transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded transition-colors">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="border-r border-gray-700 pr-6">
-            <h3 className="text-lg font-bold text-yellow-500 mb-3">Merchant Wares</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-yellow-500">Merchant Wares</h3>
+              <div className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="opacity-60">Next:</span>
+                <span className="font-mono text-yellow-500 font-semibold">{timeUntilRotation}</span>
+              </div>
+            </div>
             <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
-              {merchantInventory.map(mi => (
-                <div key={(mi as any).id} className={`p-2 rounded border ${getRarityBorderColor(mi.rarity as string)} ${getRarityBgColor(mi.rarity as string)} flex items-center justify-between`}> 
-                  <div className="min-w-0">
-                    <div className={`text-xs font-semibold truncate ${getRarityColor(mi.rarity as string)}`}>{mi.name}</div>
-                    <div className="text-[10px] text-gray-300 lowercase">{mi.rarity}</div>
-                    {(mi.damage || mi.armor) && (
-                      <div className="text-[10px] text-gray-200 mt-0.5">
-                        {mi.damage && `+${mi.damage} dmg`}{mi.damage && mi.armor && ' • '}{mi.armor && `+${mi.armor} arm`}
+              {merchantInventory.map((mi) => {
+                const itemWithId = mi as Partial<Item> & { id?: string };
+                return (
+                  <div
+                    key={itemWithId.id}
+                    className={`p-2 rounded border ${getRarityBorderColor(mi.rarity as string)} ${getRarityBgColor(mi.rarity as string)} flex items-center justify-between`}
+                  >
+                    <div className="min-w-0">
+                      <div
+                        className={`text-xs font-semibold truncate ${getRarityColor(mi.rarity as string)}`}
+                      >
+                        {mi.name}
                       </div>
-                    )}
+                      <div className="text-[10px] text-gray-300 lowercase">{mi.rarity}</div>
+                      {(mi.damage || mi.armor) && (
+                        <div className="text-[10px] text-gray-200 mt-0.5">
+                          {mi.damage && `+${mi.damage} dmg`}
+                          {mi.damage && mi.armor && ' • '}
+                          {mi.armor && `+${mi.armor} arm`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="text-yellow-400 text-[11px] font-bold">{mi.value}g</div>
+                      <button
+                        disabled={character.gold < (mi.value || 0)}
+                        onClick={() => onBuyMerchantItem(itemWithId.id!)}
+                        className={`px-2 py-1 rounded text-[11px] font-medium ${character.gold >= (mi.value || 0) ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                      >
+                        Buy
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="text-yellow-400 text-[11px] font-bold">{mi.value}g</div>
-                    <button
-                      disabled={character.gold < (mi.value || 0)}
-                      onClick={() => onBuyMerchantItem((mi as any).id)}
-                      className={`px-2 py-1 rounded text-[11px] font-medium ${character.gold >= (mi.value || 0) ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-                    >Buy</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {merchantInventory.length === 0 && (
-                <div className="text-gray-400 text-center py-6 text-sm">Inventory empty (rotation pending)</div>
+                <div className="text-gray-400 text-center py-6 text-sm">
+                  Inventory empty (rotation pending)
+                </div>
               )}
               {emptySlots > 0 && merchantInventory.length > 0 && (
-                <div className="text-[10px] text-gray-500 italic">{emptySlots} slot(s) sold. New stock in {rotationMinutes}m.</div>
+                <div className="text-[10px] text-gray-500 italic">
+                  {emptySlots} slot(s) sold. New stock in {rotationMinutes}m.
+                </div>
               )}
             </div>
             <div className="text-[11px] text-gray-300 mb-4 leading-snug">
@@ -106,7 +153,10 @@ export function Shop({ character, items, merchantInventory, onClose, onSellItem,
               )}
             </div>
             <div className="bg-gray-800 rounded p-3 text-sm">
-              <div className="text-gray-300 mb-2">Your Gold: <span className="text-yellow-500 font-bold text-lg">{character.gold}</span></div>
+              <div className="text-gray-300 mb-2">
+                Your Gold:{' '}
+                <span className="text-yellow-500 font-bold text-lg">{character.gold}</span>
+              </div>
             </div>
           </div>
 
@@ -117,18 +167,24 @@ export function Shop({ character, items, merchantInventory, onClose, onSellItem,
             ) : (
               <>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {sellableItems.map(item => (
+                  {sellableItems.map((item) => (
                     <div
                       key={item.id}
                       className={`${getRarityBgColor(item.rarity)} border rounded px-3 py-2 flex items-center justify-between`}
                     >
                       <div>
                         {(() => {
-                          const typeDisplay = item.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                          const typeDisplay = item.type
+                            .replace(/_/g, ' ')
+                            .replace(/\b\w/g, (c) => c.toUpperCase());
                           return (
-                            <div className={`font-semibold text-sm ${getRarityColor(item.rarity)} flex items-center gap-2`}>
+                            <div
+                              className={`font-semibold text-sm ${getRarityColor(item.rarity)} flex items-center gap-2`}
+                            >
                               <span>{item.name}</span>
-                              <span className="text-gray-300 text-[10px] lowercase font-normal">{item.rarity} <span className="capitalize">{typeDisplay}</span></span>
+                              <span className="text-gray-300 text-[10px] lowercase font-normal">
+                                {item.rarity} <span className="capitalize">{typeDisplay}</span>
+                              </span>
                             </div>
                           );
                         })()}
