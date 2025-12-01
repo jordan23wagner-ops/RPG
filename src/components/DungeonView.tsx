@@ -337,57 +337,191 @@ export function DungeonView({
     drawBoots(ctx, x, y, equipped);
   };
 
-  // Visual profiles for enemies by rarity / type
+  type EnemyArchetype = 'skeleton' | 'necromancer' | 'zombie' | 'brute' | 'spirit' | 'mimic' | 'generic';
+
+  const getEnemyArchetype = (enemy: Enemy): EnemyArchetype => {
+    const n = enemy.name.toLowerCase();
+    if (n.includes('mimic')) return 'mimic';
+    if (n.includes('skeleton')) return 'skeleton';
+    if (n.includes('zombie') || n.includes('fallen')) return 'zombie';
+    if (n.includes('necromancer') || n.includes('cultist')) return 'necromancer';
+    if (n.includes('wraith') || n.includes('spirit')) return 'spirit';
+    if (n.includes('demon') || n.includes('brute') || n.includes('warrior')) return 'brute';
+    return 'generic';
+  };
+
   const getEnemyVisual = (enemy: Enemy) => {
-    const base = {
-      shape: 'circle', // circle | hex | crystal | chest | crown | brute
-      baseColor: '#dc2626',
-      accent: '#fbbf24',
-      auraColor: 'rgba(255,0,0,0.35)',
-      size: 32, // Increased from 26 to make all enemies more visible
-    } as { shape: string; baseColor: string; accent: string; auraColor: string; size: number };
-    switch (enemy.rarity) {
-      case 'rare':
-        Object.assign(base, {
-          baseColor: '#3b82f6',
-          accent: '#93c5fd',
-          auraColor: 'rgba(59,130,246,0.30)',
-          shape: 'hex',
-          size: 36,
-        });
+    const archetype = getEnemyArchetype(enemy);
+    let auraColor = 'rgba(248, 250, 252, 0.35)';
+    let accent = '#facc15';
+    let coreColor = '#dc2626';
+    switch (archetype) {
+      case 'skeleton':
+        coreColor = '#e5e7eb';
+        accent = '#f9fafb';
+        auraColor = 'rgba(249, 250, 251, 0.35)';
         break;
-      case 'elite':
-        Object.assign(base, {
-          baseColor: '#f59e0b',
-          accent: '#fcd34d',
-          auraColor: 'rgba(245,158,11,0.30)',
-          shape: 'crystal',
-          size: 40,
-        });
+      case 'necromancer':
+        coreColor = '#111827';
+        accent = '#6366f1';
+        auraColor = 'rgba(129, 140, 248, 0.4)';
         break;
-      case 'boss':
-        Object.assign(base, {
-          baseColor: '#7e22ce',
-          accent: '#c084fc',
-          auraColor: 'rgba(126,34,206,0.45)',
-          shape: 'crown',
-          size: 48,
-        });
+      case 'zombie':
+        coreColor = '#065f46';
+        accent = '#bbf7d0';
+        auraColor = 'rgba(16, 185, 129, 0.4)';
+        break;
+      case 'brute':
+        coreColor = '#7f1d1d';
+        accent = '#f97316';
+        auraColor = 'rgba(248, 113, 113, 0.4)';
+        break;
+      case 'spirit':
+        coreColor = '#0f172a';
+        accent = '#a855f7';
+        auraColor = 'rgba(129, 140, 248, 0.45)';
+        break;
+      case 'mimic':
+        coreColor = '#8b5a2b';
+        accent = '#fbbf24';
+        auraColor = 'rgba(217, 119, 6, 0.4)';
         break;
       default:
         break;
     }
-    // Special room types influence style (mimic -> chest)
-    if (/mimic/i.test(enemy.name)) {
-      Object.assign(base, {
-        shape: 'chest',
-        baseColor: '#8b5a2b',
-        accent: '#d97706',
-        auraColor: 'rgba(217,119,6,0.25)',
-        size: 38,
-      });
+
+    // Rarity adjusts aura strength and sprite size slightly
+    let size = 22;
+    if (enemy.rarity === 'rare') size = 26;
+    else if (enemy.rarity === 'elite') size = 30;
+    else if (enemy.rarity === 'boss') size = 36;
+
+    return { archetype, coreColor, accent, auraColor, size };
+  };
+
+  const drawEnemyBody = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    v: ReturnType<typeof getEnemyVisual>,
+  ) => {
+    const { archetype, coreColor, accent } = v;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+
+    switch (archetype) {
+      case 'skeleton': {
+        // Skull
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 6, y - 18, 12, 8);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 4, y - 15, 3, 3);
+        ctx.fillRect(x + 1, y - 15, 3, 3);
+        // Ribcage
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 5, y - 10, 10, 8);
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(x - 4, y - 8, 8, 1);
+        ctx.fillRect(x - 4, y - 6, 8, 1);
+        // Legs (bones)
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 3, y - 2, 3, 10);
+        ctx.fillRect(x + 0, y - 2, 3, 10);
+        break;
+      }
+      case 'necromancer': {
+        // Robe body
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 7, y - 16, 14, 18);
+        // Hooded head
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 6, y - 24, 12, 10);
+        ctx.fillStyle = '#0b1120';
+        ctx.fillRect(x - 4, y - 20, 8, 6);
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 2, y - 19, 4, 2); // eyes glow
+        // Staff
+        ctx.fillStyle = '#4b5563';
+        ctx.fillRect(x + 7, y - 18, 2, 20);
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(x + 8, y - 20, 3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'zombie': {
+        ctx.fillStyle = '#374151';
+        ctx.fillRect(x - 6, y - 14, 12, 12); // torso
+        ctx.fillStyle = '#047857';
+        ctx.fillRect(x - 5, y - 22, 10, 8); // head
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 3, y - 19, 3, 2);
+        ctx.fillRect(x + 1, y - 18, 2, 2);
+        ctx.fillStyle = '#4b5563';
+        ctx.fillRect(x - 8, y - 12, 4, 9);
+        ctx.fillRect(x + 4, y - 10, 4, 9);
+        break;
+      }
+      case 'brute': {
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 9, y - 16, 18, 18);
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(x - 9, y - 10, 18, 4); // belt
+        ctx.fillStyle = '#fecaca';
+        ctx.fillRect(x - 6, y - 22, 12, 8); // head
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 3, y - 19, 3, 2);
+        ctx.fillRect(x + 1, y - 19, 3, 2);
+        // Shoulder plates
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 11, y - 16, 4, 6);
+        ctx.fillRect(x + 7, y - 16, 4, 6);
+        break;
+      }
+      case 'spirit': {
+        ctx.fillStyle = coreColor;
+        ctx.beginPath();
+        ctx.ellipse(x, y - 10, 10, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 3, y - 14, 2, 3);
+        ctx.fillRect(x + 1, y - 14, 2, 3);
+        ctx.fillStyle = 'rgba(15,23,42,0.9)';
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y);
+        ctx.quadraticCurveTo(x, y + 8, x + 8, y);
+        ctx.lineTo(x + 4, y + 10);
+        ctx.quadraticCurveTo(x, y + 14, x - 4, y + 10);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case 'mimic': {
+        ctx.fillStyle = coreColor;
+        ctx.fillRect(x - 10, y - 10, 20, 16);
+        ctx.fillStyle = '#7c2d12';
+        ctx.fillRect(x - 10, y - 10, 20, 4);
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 3, y - 4, 6, 3); // latch
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x - 5, y - 6, 4, 2);
+        ctx.fillRect(x + 1, y - 6, 4, 2);
+        break;
+      }
+      default: {
+        ctx.fillStyle = coreColor;
+        ctx.beginPath();
+        ctx.arc(x, y - 6, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 2, y - 10, 4, 3);
+        break;
+      }
     }
-    return base;
+
+    ctx.restore();
   };
 
   const drawEnemy = (
@@ -404,90 +538,12 @@ export function DungeonView({
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y, auraRadius, 0, Math.PI * 2);
-    ctx.fillStyle = v.auraColor.replace(/0\.\d+\)/, `${(0.15 + pulse * 0.35).toFixed(2)})`);
+    ctx.fillStyle = v.auraColor.replace(/0\.\d+\)/, `${(0.18 + pulse * 0.4).toFixed(2)})`);
     ctx.fill();
     ctx.restore();
 
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 6;
-    ctx.fillStyle = v.baseColor;
-    switch (v.shape) {
-      case 'hex': {
-        const r = v.size;
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const angle = (Math.PI / 3) * i + Math.PI / 6;
-          const px = x + r * Math.cos(angle);
-          const py = y + r * Math.sin(angle);
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        break;
-      }
-      case 'crystal': {
-        const r = v.size;
-        ctx.beginPath();
-        ctx.moveTo(x, y - r);
-        ctx.lineTo(x + r * 0.6, y);
-        ctx.lineTo(x, y + r);
-        ctx.lineTo(x - r * 0.6, y);
-        ctx.closePath();
-        ctx.fill();
-        break;
-      }
-      case 'crown': {
-        const w = v.size * 1.6;
-        const h = v.size * 1.0;
-        ctx.beginPath();
-        ctx.rect(x - w / 2, y - h / 2, w, h);
-        ctx.fill();
-        ctx.fillStyle = v.accent;
-        for (let i = 0; i < 5; i++) {
-          const spikeX = x - w / 2 + (i + 0.5) * (w / 5);
-          const spikeY = y - h / 2 - h * 0.4;
-          ctx.beginPath();
-          ctx.moveTo(spikeX, spikeY);
-          ctx.lineTo(spikeX - 8, y - h / 2);
-          ctx.lineTo(spikeX + 8, y - h / 2);
-          ctx.closePath();
-          ctx.fill();
-        }
-        break;
-      }
-      case 'chest': {
-        const w = v.size * 1.6;
-        const h = v.size * 1.0;
-        ctx.beginPath();
-        ctx.rect(x - w / 2, y - h / 2, w, h);
-        ctx.fill();
-        ctx.fillStyle = v.accent;
-        ctx.fillRect(x - w / 2, y - h / 2, w, h * 0.25);
-        ctx.fillStyle = '#00000055';
-        ctx.fillRect(x - w / 2 + w * 0.3, y - h / 2 + h * 0.35, w * 0.4, h * 0.25);
-        break;
-      }
-      case 'brute': {
-        const r = v.size;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = v.accent;
-        ctx.fillRect(x - r * 0.6, y - r * 0.4, r * 1.2, r * 0.3);
-        break;
-      }
-      default: {
-        // circle
-        ctx.beginPath();
-        ctx.arc(x, y, v.size, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-      }
-    }
-    ctx.restore();
+    // Archetype-specific small sprite inside the aura
+    drawEnemyBody(ctx, x, y, v);
 
     // Accent ring
     ctx.beginPath();
@@ -505,12 +561,27 @@ export function DungeonView({
     y: number,
     width: number,
     height: number,
+    themeBaseColor: string,
+    themeStrokeColor: string,
   ) => {
-    ctx.fillStyle = '#3a3a3a';
+    const base = themeBaseColor;
+    const stroke = themeStrokeColor;
+
+    // Thick chunky border
+    ctx.fillStyle = base;
     ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 4;
     ctx.strokeRect(x, y, width, height);
+
+    // Simple bevel highlight on top/left for depth
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 1, y + height - 2);
+    ctx.lineTo(x + 1, y + 1);
+    ctx.lineTo(x + width - 2, y + 1);
+    ctx.stroke();
   };
 
   // Ambient dungeon props
@@ -619,6 +690,98 @@ export function DungeonView({
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // ---- Central ritual chamber (carpet + altar) in world space ----
+      const centerX = WORLD_WIDTH / 2;
+      const centerY = WORLD_HEIGHT / 2;
+      const rugWidth = 520;
+      const rugHeight = 360;
+      const rugX = centerX - rugWidth / 2;
+      const rugY = centerY - rugHeight / 2;
+
+      // Convert center chamber to screen space once per frame
+      const rugScreenX = rugX - camX;
+      const rugScreenY = rugY - camY;
+
+      // Dark stone platform under rug
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(rugScreenX - 40, rugScreenY - 40, rugWidth + 80, rugHeight + 80);
+
+      // Outer border stones for chamber (chunky walls)
+      ctx.strokeStyle = '#020617';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(rugScreenX - 42, rugScreenY - 42, rugWidth + 84, rugHeight + 84);
+
+      // Main carpet body
+      ctx.fillStyle = '#7f1d1d';
+      ctx.fillRect(rugScreenX, rugScreenY, rugWidth, rugHeight);
+
+      // Inner glowing border
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(rugScreenX + 12, rugScreenY + 12, rugWidth - 24, rugHeight - 24);
+
+      // Subtle cross pattern on rug
+      ctx.strokeStyle = 'rgba(248, 250, 252, 0.12)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(rugScreenX + rugWidth / 2, rugScreenY + 18);
+      ctx.lineTo(rugScreenX + rugWidth / 2, rugScreenY + rugHeight - 18);
+      ctx.moveTo(rugScreenX + 18, rugScreenY + rugHeight / 2);
+      ctx.lineTo(rugScreenX + rugWidth - 18, rugScreenY + rugHeight / 2);
+      ctx.stroke();
+
+      // Altar block at top of rug
+      const altarWidth = 180;
+      const altarHeight = 80;
+      const altarX = rugScreenX + rugWidth / 2 - altarWidth / 2;
+      const altarY = rugScreenY + 38;
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(altarX, altarY, altarWidth, altarHeight);
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(altarX, altarY, altarWidth, altarHeight);
+
+      // Small glowing circle on altar center (summoning focus)
+      ctx.save();
+      ctx.shadowColor = 'rgba(248, 250, 252, 0.55)';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(altarX + altarWidth / 2, altarY + altarHeight / 2, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Side statues flanking the altar
+      const statueOffsetX = 140;
+      const statueY = altarY + altarHeight + 24;
+      const drawStatue = (sx: number) => {
+        ctx.save();
+        ctx.fillStyle = '#4b5563';
+        ctx.fillRect(sx - 10, statueY - 52, 20, 40);
+        ctx.fillRect(sx - 7, statueY - 70, 14, 18); // head
+        ctx.fillStyle = '#9ca3af';
+        ctx.fillRect(sx - 3, statueY - 65, 6, 3); // eyes glow
+        ctx.restore();
+      };
+      drawStatue(rugScreenX + rugWidth / 2 - statueOffsetX);
+      drawStatue(rugScreenX + rugWidth / 2 + statueOffsetX);
+
+      // Bone piles at bottom corners
+      const drawBones = (bx: number, by: number) => {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(249, 250, 251, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bx - 10, by);
+        ctx.lineTo(bx + 10, by + 4);
+        ctx.moveTo(bx - 11, by + 5);
+        ctx.lineTo(bx + 9, by + 1);
+        ctx.stroke();
+        ctx.restore();
+      };
+      drawBones(rugScreenX + 40, rugScreenY + rugHeight - 36);
+      drawBones(rugScreenX + rugWidth - 40, rugScreenY + rugHeight - 48);
+
       // Stones tiled across the world; render only those within camera view
       const tileSize = 100;
       const cols = Math.ceil(WORLD_WIDTH / tileSize);
@@ -633,13 +796,17 @@ export function DungeonView({
           const worldY = r * tileSize + 40;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
-          // Themed tiles
-          ctx.fillStyle = theme.tileFill;
-          // Temporarily adjust stone stroke via context
-          const prevStroke = ctx.strokeStyle;
-          ctx.strokeStyle = theme.tileStroke;
-          drawStone(ctx, screenX, screenY, 60, 80);
-          ctx.strokeStyle = prevStroke;
+          // Themed chunky tiles, slightly darker outside the ritual chamber
+          const inChamber =
+            worldX > rugX - 80 &&
+            worldX < rugX + rugWidth + 80 &&
+            worldY > rugY - 80 &&
+            worldY < rugY + rugHeight + 80;
+
+          const baseColor = inChamber ? '#111827' : theme.tileFill;
+          const strokeColor = inChamber ? '#020617' : theme.tileStroke;
+
+          drawStone(ctx, screenX, screenY, 76, 86, baseColor, strokeColor);
 
           // Deterministic pseudo-random per tile for ambient props
           const seed = floorRef.current * 73856093 ^ (r * 19349663) ^ (c * 83492791);
