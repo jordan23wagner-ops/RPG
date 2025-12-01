@@ -292,10 +292,16 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
 
       // Merchant and label
       drawNPC(MERCHANT_POS.x - camX, MERCHANT_POS.y - camY);
-      ctx.fillStyle = '#fbbf24';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('Shopkeeper', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY - 24);
+      // subtle outline for readability
+      const drawLabel = (text: string, x: number, y: number) => {
+        ctx.fillStyle = 'rgba(15,23,42,0.85)';
+        ctx.fillText(text, x + 1, y + 1);
+        ctx.fillStyle = '#fefce8';
+        ctx.fillText(text, x, y);
+      };
+      drawLabel('Shopkeeper', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY - 24);
 
       // Orb of Refreshment + ground light
       const refreshScreenX = ORB_POS.x - camX;
@@ -309,8 +315,7 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       ctx.fill();
       ctx.restore();
       drawOrb(refreshScreenX, refreshScreenY, now);
-      ctx.fillStyle = '#e0f2fe';
-      ctx.fillText('Orb of Refreshment', refreshScreenX, refreshScreenY - 26);
+      drawLabel('Orb of Refreshment', refreshScreenX, refreshScreenY - 26);
 
       // Dungeon gate
       // Evil dungeon entrance orb + corrupted ground
@@ -346,10 +351,9 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       ctx.fillStyle = '#6a0dad';
       ctx.fill();
       ctx.restore();
-      ctx.fillStyle = '#c084fc';
       ctx.font = '13px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('Dungeon Orb', orbX, orbY - 60);
+      drawLabel('Dungeon Orb', orbX, orbY - 60);
 
       // Simple drifting corruption sparks around dungeon orb
       ctx.save();
@@ -391,14 +395,20 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       const nearMerchant = dist(player, MERCHANT_POS) < 120;
       const nearOrb = dist(player, ORB_POS) < 140;
       const nearGate = dist(player, EVIL_ORB_POS) < 90;
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 14px Arial';
+      ctx.font = 'bold 15px Arial';
       ctx.textAlign = 'center';
+      const drawHint = (text: string, x: number, y: number) => {
+        ctx.fillStyle = 'rgba(15,23,42,0.95)';
+        ctx.fillText(text, x + 1, y + 1);
+        ctx.fillStyle = '#fef9c3';
+        ctx.fillText(text, x, y);
+      };
       if (nearMerchant)
-        ctx.fillText('Press E to trade', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY + 40);
-      if (nearOrb) ctx.fillText('Press E to refresh', ORB_POS.x - camX, ORB_POS.y - camY + 40);
+        drawHint('Press E to trade', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY + 42);
+      if (nearOrb)
+        drawHint('Press E to refresh', ORB_POS.x - camX, ORB_POS.y - camY + 42);
       if (nearGate)
-        ctx.fillText('Press E to commune', EVIL_ORB_POS.x - camX, EVIL_ORB_POS.y - camY + 60);
+        drawHint('Press E to commune', EVIL_ORB_POS.x - camX, EVIL_ORB_POS.y - camY + 62);
 
       raf = requestAnimationFrame(render);
     };

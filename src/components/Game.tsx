@@ -240,11 +240,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Gold display */}
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-900/80 border border-yellow-700/60 shadow-sm">
-            <Coins className="w-4 h-4 text-yellow-400" />
-            <span className="text-xs font-semibold text-yellow-300">{character.gold}</span>
-          </div>
           {mode === 'dungeon' ? (
             <button
               onClick={() => setMode('town')}
@@ -317,9 +312,15 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 mb-2">
-            <Package className="w-4 h-4 text-yellow-500" />
-            <h3 className="text-sm font-semibold text-yellow-500">Backpack</h3>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1">
+              <Package className="w-4 h-4 text-yellow-500" />
+              <h3 className="text-sm font-semibold text-yellow-500">Backpack</h3>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-gray-900/90 border border-yellow-700/70">
+              <Coins className="w-3.5 h-3.5 text-yellow-300" />
+              <span className="text-[11px] font-semibold text-yellow-200">{character.gold}</span>
+            </div>
           </div>
           <div className="mb-2 text-[11px] text-gray-300 flex justify-between"><span>Floor {floor}</span><span>Max {character.max_floor || 1}</span></div>
           <div className="h-72 overflow-y-auto border border-gray-700 rounded-md p-1.5 bg-gray-950/50 space-y-1">
