@@ -282,7 +282,7 @@ export function GameProvider({
       const bucket = Math.floor(Date.now() / (15 * 60 * 1000));
       if (bucket !== lastMerchantBucketRef.current) {
         lastMerchantBucketRef.current = bucket;
-        const { generateMerchantInventory } = await import('../utils/gameLogic');
+        const { generateMerchantInventory } = await import('../utils/lootLogic');
         const inv = generateMerchantInventory(character.level, floor);
         setMerchantInventory(inv);
       }
@@ -773,11 +773,11 @@ export function GameProvider({
       let lootDrops: Partial<Item>[] = [];
       if (isBossRoom) {
         // Boss: multiple guaranteed rare+ drops
-        const { generateBossLoot } = await import('../utils/gameLogic');
+        const { generateBossLoot } = await import('../utils/lootLogic');
         lootDrops = generateBossLoot(currentEnemy.level, floor, zoneHeat);
       } else if (isMimicRoom) {
         // Mimic: magic+ guaranteed, chance second drop
-        const { generateMimicLoot } = await import('../utils/gameLogic');
+        const { generateMimicLoot } = await import('../utils/lootLogic');
         lootDrops = generateMimicLoot(currentEnemy.level, floor, zoneHeat);
       } else {
         // Standard single roll
