@@ -2,11 +2,12 @@ import { useEffect, useRef } from 'react';
 import { useGame } from '../contexts/GameContext';
 
 interface TownSceneProps {
-  onEnterDungeon: () => void;
+  onRequestDungeonEntry: () => void; // opens floor selection UI
   onOpenShop: () => void;
 }
 
 export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps) {
+  export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { character, updateCharacter } = useGame();
 
@@ -24,6 +25,7 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
   const MERCHANT_POS = { x: 520, y: 680 };
   const ORB_POS = { x: 900, y: 660 };
   const GATE_POS = { x: 1400, y: 720 };
+  const EVIL_ORB_POS = { x: 1400, y: 720 };
 
   // Render loop
   useEffect(() => {
@@ -132,16 +134,36 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
       ctx.fillText('Orb of Refreshment', ORB_POS.x - camX, ORB_POS.y - camY - 26);
 
       // Dungeon gate
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(GATE_POS.x - 18 - camX, GATE_POS.y - 40 - camY, 36, 80);
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(GATE_POS.x - 18 - camX, GATE_POS.y - 40 - camY, 36, 80);
+      // Evil dungeon entrance orb
+      const orbX = EVIL_ORB_POS.x - camX;
+      const orbY = EVIL_ORB_POS.y - camY;
+      const timePulse = Math.sin(now / 600);
+      // Outer dark aura
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(GATE_POS.x - camX, GATE_POS.y - 40 - camY, 18, Math.PI, 0);
+      ctx.arc(orbX, orbY, 70 + timePulse * 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(88,0,120,0.25)';
+      ctx.fill();
+      // Middle swirling ring
+      ctx.strokeStyle = 'rgba(180,0,255,0.6)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, 42 + timePulse * 3, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillText('Dungeon Gate', GATE_POS.x - camX, GATE_POS.y - camY - 52);
+      // Core
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, 26 + timePulse * 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#2d0a3d';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, 18 + timePulse * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#6a0dad';
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#c084fc';
+      ctx.font = '13px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Dungeon Orb', orbX, orbY - 60);
 
       // Player
       const drawPlayer = (x: number, y: number) => {
@@ -162,13 +184,14 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
       const dist = (a: {x:number;y:number}, b:{x:number;y:number}) => Math.hypot(a.x - b.x, a.y - b.y);
       const nearMerchant = dist(player, MERCHANT_POS) < 120;
       const nearOrb = dist(player, ORB_POS) < 120;
-      const nearGate = dist(player, GATE_POS) < 140;
+      const nearGate = dist(player, EVIL_ORB_POS) < 160;
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
       if (nearMerchant) ctx.fillText('Press E to trade', MERCHANT_POS.x - camX, MERCHANT_POS.y - camY + 40);
       if (nearOrb) ctx.fillText('Press E to refresh', ORB_POS.x - camX, ORB_POS.y - camY + 40);
       if (nearGate) ctx.fillText('Press E to enter', GATE_POS.x - camX, GATE_POS.y - camY + 46);
+  if (nearGate) ctx.fillText('Press E to commune', EVIL_ORB_POS.x - camX, EVIL_ORB_POS.y - camY + 60);
 
       raf = requestAnimationFrame(render);
     };
@@ -223,7 +246,9 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
         if (d(p, GATE_POS) < 150) {
           e.preventDefault();
           e.stopPropagation();
-          onEnterDungeon();
+          e.preventDefault();
+          e.stopPropagation();
+          onRequestDungeonEntry();
           return;
         }
       }
@@ -233,6 +258,7 @@ export default function TownScene({ onEnterDungeon, onOpenShop }: TownSceneProps
     window.addEventListener('keyup', handleUp);
     return () => { window.removeEventListener('keydown', handleDown); window.removeEventListener('keyup', handleUp); };
   }, [character, onEnterDungeon, onOpenShop, updateCharacter]);
+  }, [character, onRequestDungeonEntry, onOpenShop, updateCharacter]);
 
   return (
     <canvas

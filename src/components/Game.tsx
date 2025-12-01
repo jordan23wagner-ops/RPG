@@ -61,6 +61,64 @@ export function Game() {
   );
 }
 
+function FloorSelectOverlay({ currentFloor, maxUnlocked, onSelect, onClose }: { currentFloor: number; maxUnlocked: number; onSelect: (f: number) => void; onClose: () => void }) {
+  const options: number[] = [1];
+  for (let f = 5; f <= (maxUnlocked || 1); f += 5) options.push(f);
+  const floors = Array.from(new Set(options)).sort((a, b) => a - b);
+  const nextMilestone = (Math.floor((maxUnlocked || 1) / 5) + 1) * 5;
+  const difficultyHint = (f: number) => `+${((f - 1) * 8)}% enemy strength`;
+  const lootHint = (f: number) => {
+    if (f >= 25) return 'Epic/Legendary+';
+    if (f >= 20) return 'Epic+';
+    if (f >= 15) return 'Rare/Epic';
+    if (f >= 10) return 'Rare+';
+    if (f >= 5) return 'Rare';
+    return 'Starter';
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative w-[380px] bg-gray-900 border border-purple-600 rounded-md shadow-xl p-5 animate-fade-in-down">
+        <h3 className="text-lg font-semibold text-purple-300 mb-2">Evil Dungeon Orb</h3>
+        <p className="text-xs text-gray-300 mb-4 leading-relaxed">
+          The orb hums with stored anguish. Choose a depth you have conquered. Each milestone (every 5 floors) amplifies power & loot.
+        </p>
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {floors.map(f => (
+            <button
+              key={f}
+              onClick={() => onSelect(f)}
+              title={`Floor ${f} – ${difficultyHint(f)} | Loot: ${lootHint(f)}`}
+              className={`px-2 py-2 rounded text-[11px] font-semibold transition border border-purple-700/40 bg-gray-800 hover:bg-purple-700/40 hover:text-white relative ${f === currentFloor ? 'ring-2 ring-purple-500' : ''}`}
+            >
+              <span>F{f}</span>
+              {f % 5 === 0 && <span className="absolute -top-1 -right-1 text-[9px] bg-purple-600 text-white px-1 rounded">★</span>}
+              <div className="mt-1 text-[9px] font-normal tracking-tight text-gray-300">{lootHint(f)}</div>
+            </button>
+          ))}
+          {/* Locked preview of next milestone */}
+          <button
+            disabled
+            title={`Clear Floor ${nextMilestone} to unlock (future milestone)`}
+            className="px-2 py-2 rounded text-[11px] font-semibold border border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed relative"
+          >
+            F{nextMilestone}
+            <span className="absolute -top-1 -right-1 text-[9px] bg-gray-600 text-gray-200 px-1 rounded">LOCK</span>
+            <div className="mt-1 text-[9px] font-normal tracking-tight text-gray-500">{lootHint(nextMilestone)}</div>
+          </button>
+        </div>
+        <div className="text-[10px] text-gray-400 mb-3 space-y-1">
+          <div>Scaling: +8% enemy strength per floor. Zone Heat further boosts difficulty & loot quality.</div>
+          <div>Milestones (5,10,15...): unlock direct descent targets.</div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-1.5 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-300">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GameContent({ notification, setNotification, shopOpen, setShopOpen, autoStart }: {
   notification: { message: string; color: string } | null;
   setNotification: (n: any) => void;
@@ -74,6 +132,8 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipTimer, setTooltipTimer] = useState<number | null>(null);
   const [mode, setMode] = useState<'town' | 'dungeon'>('town');
+  const [showFloorSelect, setShowFloorSelect] = useState(false);
+  const [milestoneFlash, setMilestoneFlash] = useState(false);
   const {
     character,
     items,
@@ -90,6 +150,9 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     buyPotion,
     sellAllItems,
     nextFloor,
+    setFloorDirect,
+    merchantInventory,
+    buyMerchantItem,
   } = useGame();
 
   const handleSignOut = async () => {
@@ -117,6 +180,16 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
       setMode('dungeon');
     }
   }, [autoStart, character]);
+
+  // Listen for milestone unlock visual effect
+  useEffect(() => {
+    const handler = () => {
+      setMilestoneFlash(true);
+      setTimeout(() => setMilestoneFlash(false), 3000);
+    };
+    window.addEventListener('milestone-unlocked', handler as EventListener);
+    return () => window.removeEventListener('milestone-unlocked', handler as EventListener);
+  }, []);
 
   if (loading) {
     return (
@@ -229,6 +302,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
             <Package className="w-4 h-4 text-yellow-500" />
             <h3 className="text-sm font-semibold text-yellow-500">Backpack</h3>
           </div>
+          <div className="mb-2 text-[11px] text-gray-300 flex justify-between"><span>Floor {floor}</span><span>Max {character.max_floor || 1}</span></div>
           <div className="h-72 overflow-y-auto border border-gray-700 rounded-md p-1.5 bg-gray-950/50 space-y-1">
             {items.filter((i: any) => !i.equipped && i.type !== 'potion').length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">No items</div>
@@ -309,7 +383,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
           {mode === 'dungeon' ? (
             <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
           ) : (
-            <TownScene onEnterDungeon={() => setMode('dungeon')} onOpenShop={() => setShopOpen(true)} />
+            <TownScene onRequestDungeonEntry={() => setShowFloorSelect(true)} onOpenShop={() => setShopOpen(true)} />
           )}
         </div>
 
@@ -427,10 +501,25 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         <Shop
           character={character}
           items={items}
+          merchantInventory={merchantInventory}
           onClose={() => setShopOpen(false)}
           onSellItem={sellItem}
           onBuyPotion={buyPotion}
           onSellAll={sellAllItems}
+          onBuyMerchantItem={buyMerchantItem}
+        />
+      )}
+
+      {showFloorSelect && (
+        <FloorSelectOverlay
+          currentFloor={floor}
+          maxUnlocked={character.max_floor || 1}
+          onClose={() => setShowFloorSelect(false)}
+          onSelect={(target) => {
+            setShowFloorSelect(false);
+            setFloorDirect(target);
+            setMode('dungeon');
+          }}
         />
       )}
 
@@ -439,6 +528,15 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         <TooltipPortal x={tooltipPos.x} y={tooltipPos.y}>
           <ItemTooltip item={hoveredItem} />
         </TooltipPortal>
+      )}
+      {milestoneFlash && (
+        <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-40">
+          <div className="absolute inset-0 bg-black/70 animate-pulse" />
+          <div className="relative bg-gradient-to-br from-purple-800 via-red-700 to-yellow-600 px-8 py-6 rounded-lg border-2 border-yellow-400 shadow-2xl animate-fade-in-down">
+            <div className="text-2xl font-extrabold text-yellow-300 tracking-wide mb-2">Milestone Unlocked!</div>
+            <div className="text-xs text-gray-200">New depth remembered by the Orb.</div>
+          </div>
+        </div>
       )}
     </div>
   );

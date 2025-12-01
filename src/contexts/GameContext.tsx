@@ -56,12 +56,15 @@ interface GameContextType {
   unequipAll: () => Promise<void>;
   allocateStatPoint: (stat: 'strength' | 'dexterity' | 'intelligence') => Promise<void>;
   nextFloor: () => void;
+  setFloorDirect: (target: number) => void;
   exploreRoom: (roomId: string) => void;
   onEngageEnemy: (enemyWorldId: string) => void;
   updateCharacter: (updates: Partial<Character>) => Promise<void>;
   sellItem: (itemId: string) => Promise<void>;
   sellAllItems: () => Promise<void>;
   buyPotion: () => Promise<void>;
+  merchantInventory: Partial<Item>[];
+  buyMerchantItem: (id: string) => Promise<void>;
   notifyDrop?: (rarity: string, itemName: string) => void;
   affixStats: { total: number; withAffixes: number; percentage: number };
   resetAffixStats: () => void;
@@ -84,6 +87,8 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
+  const [merchantInventory, setMerchantInventory] = useState<Partial<Item>[]>([]);
+  const lastMerchantBucketRef = useRef<number>(-1);
   // Affix drop statistics tracking (in-memory)
   const affixStatsRef = useRef<{ total: number; withAffixes: number }>({ total: 0, withAffixes: 0 });
   // Track killed world enemies per floor to prevent respawning
@@ -179,6 +184,7 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
           crit_damage: 150,
           stat_points: 0,
           gold: 0,
+          max_floor: 1,
         };
         const { data: created, error: createErr } = await supabase
           .from('characters')
@@ -258,6 +264,23 @@ export function GameProvider({ children, notifyDrop }: { children: ReactNode; no
     loadCharacter();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Merchant inventory rotation every 15 minutes (time bucket deterministic)
+  useEffect(() => {
+    if (!character) return;
+    const updateInventory = () => {
+      const bucket = Math.floor(Date.now() / (15 * 60 * 1000));
+      if (bucket !== lastMerchantBucketRef.current) {
+        lastMerchantBucketRef.current = bucket;
+        const { generateMerchantInventory } = require('../utils/gameLogic');
+        const inv = generateMerchantInventory(character.level, floor);
+        setMerchantInventory(inv);
+      }
+    };
+    updateInventory();
+    const interval = setInterval(updateInventory, 60 * 1000); // check every minute
+    return () => clearInterval(interval);
+  }, [character, floor]);
 
   const createCharacter = async (name: string) => {
     try {
@@ -1010,6 +1033,17 @@ try {
   };
 
   const nextFloor = () => {
+    // Unlock milestone if leaving a milestone floor (every 5)
+    if (character && floor % 5 === 0) {
+      const currentMax = character.max_floor || 1;
+      if (currentMax < floor) {
+        // Persist new max_floor
+        updateCharacter({ max_floor: floor });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('milestone-unlocked', { detail: { floor } }));
+        }
+      }
+    }
     const newFloor = floor + 1;
     // Store current exit ladder to place as entry ladder next floor
     if (exitLadderPos) previousExitLadderPosRef.current = exitLadderPos;
@@ -1017,6 +1051,21 @@ try {
     const newMap = generateFloorMap(newFloor);
     setFloorMap(newMap);
     setCurrentRoomId(`room-${newFloor}-0`);
+    setCurrentEnemy(null);
+  };
+
+  const setFloorDirect = (target: number) => {
+    if (target < 1) return;
+    // Prevent jumping beyond unlocked milestone
+    if (character && character.max_floor && target > character.max_floor) {
+      return;
+    }
+    if (exitLadderPos) previousExitLadderPosRef.current = exitLadderPos;
+    setFloor(target);
+    initializedFloorRef.current = null; // allow regen logic to run
+    const newMap = generateFloorMap(target);
+    setFloorMap(newMap);
+    setCurrentRoomId(`room-${target}-0`);
     setCurrentEnemy(null);
   };
 
@@ -1090,6 +1139,38 @@ try {
     }
   };
 
+  const buyMerchantItem = async (merchantItemId: string) => {
+    if (!character) return;
+    const item = merchantInventory.find(i => (i as any).id === merchantItemId);
+    if (!item) return;
+    const cost = item.value || 0;
+    if (character.gold < cost) return;
+    // Deduct gold
+    await updateCharacter({ gold: character.gold - cost });
+    // Insert into DB
+    const row: any = {
+      character_id: character.id,
+      name: item.name,
+      type: item.type,
+      rarity: item.rarity,
+      damage: item.damage,
+      armor: item.armor,
+      value: item.value,
+      equipped: false,
+      required_level: (item as any).required_level,
+      required_stats: (item as any).required_stats,
+      affixes: (item as any).affixes || [],
+    };
+    const { error } = await supabase.from('items').insert([row]);
+    if (error) {
+      console.error('Error purchasing merchant item:', error.message);
+      return;
+    }
+    await loadItems(character.id);
+    // Remove purchased item and keep slot empty until next rotation
+    setMerchantInventory(prev => prev.filter(i => (i as any).id !== merchantItemId));
+  };
+
   const allocateStatPoint = async (stat: 'strength' | 'dexterity' | 'intelligence') => {
     if (!character || (character.stat_points || 0) < 1) return;
 
@@ -1149,12 +1230,15 @@ try {
         usePotion,
         equipItem,
         nextFloor,
+        setFloorDirect,
         exploreRoom,
         onEngageEnemy,
         updateCharacter,
         sellItem,
         sellAllItems,
         buyPotion,
+        merchantInventory,
+        buyMerchantItem,
         allocateStatPoint,
         notifyDrop,
         affixStats: {

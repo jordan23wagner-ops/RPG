@@ -18,17 +18,6 @@ const meleeWeapons = ['Sword', 'Axe', 'Mace', 'Cleaver', 'Warhammer', 'Flail'];
 const rangedWeapons = ['Bow', 'Crossbow', 'Longbow', 'Shortbow'];
 const mageWeapons = ['Staff', 'Wand', 'Orb', 'Scepter', 'Tome'];
 
-const weaponPrefixes = {
-  melee: ["Brutal", "Savage", "Executioner's", "Berserker's", 'Demon'],
-  ranged: ["Piercing", "Swift", "Sniper's", "Ranger's", 'Phantom'],
-  mage: ['Arcane', 'Mystic', "Spellweaver's", "Wizard's", 'Ethereal'],
-};
-
-const armorPrefixes = {
-  melee: ['Plate', 'Dragon', 'Titanium', 'Obsidian', 'Indestructible'],
-  ranged: ['Leather', 'Shadow', 'Swift', "Assassin's", 'Phantom'],
-  mage: ['Silk', 'Enchanted', 'Mystic', 'Arcane', 'Celestial'],
-};
 
 // ----------------- SET ITEMS -----------------
 
@@ -251,47 +240,6 @@ export function computeSetBonuses(equippedItems: Item[]): {
   return total;
 }
 
-const affixPools = {
-  melee_weapon: [
-    { name: 'of Strength', stat: 'strength' as const, value: 5 },
-    { name: 'of Power', stat: 'damage' as const, value: 8 },
-    { name: 'Lifesteal', stat: 'health' as const, value: 3 },
-    { name: 'of Rending', stat: 'damage' as const, value: 5 },
-    { name: 'Crushing', stat: 'strength' as const, value: 3 },
-  ],
-  ranged_weapon: [
-    { name: 'of Dexterity', stat: 'dexterity' as const, value: 5 },
-    { name: 'of Precision', stat: 'damage' as const, value: 8 },
-    { name: 'of Swiftness', stat: 'dexterity' as const, value: 3 },
-    { name: 'Piercing', stat: 'damage' as const, value: 5 },
-    { name: 'of Accuracy', stat: 'dexterity' as const, value: 4 },
-  ],
-  mage_weapon: [
-    { name: 'of Intelligence', stat: 'intelligence' as const, value: 5 },
-    { name: 'of Spellpower', stat: 'damage' as const, value: 8 },
-    { name: 'of Mana', stat: 'mana' as const, value: 10 },
-    { name: 'Arcane', stat: 'intelligence' as const, value: 3 },
-    { name: 'of Wisdom', stat: 'intelligence' as const, value: 4 },
-  ],
-  melee_armor: [
-    { name: 'of Protection', stat: 'armor' as const, value: 5 },
-    { name: 'of Fortitude', stat: 'health' as const, value: 15 },
-    { name: 'of the Titan', stat: 'armor' as const, value: 8 },
-    { name: 'Ironbound', stat: 'armor' as const, value: 3 },
-  ],
-  ranged_armor: [
-    { name: 'of Evasion', stat: 'dexterity' as const, value: 4 },
-    { name: 'of Agility', stat: 'dexterity' as const, value: 5 },
-    { name: 'of Shadows', stat: 'armor' as const, value: 4 },
-    { name: 'of Speed', stat: 'dexterity' as const, value: 3 },
-  ],
-  mage_armor: [
-    { name: 'of Insight', stat: 'intelligence' as const, value: 4 },
-    { name: 'of Mana Shield', stat: 'mana' as const, value: 15 },
-    { name: 'of Sorcery', stat: 'intelligence' as const, value: 5 },
-    { name: 'of the Archmage', stat: 'mana' as const, value: 10 },
-  ],
-};
 
 // ----------------- ENEMY GENERATION -----------------
 
@@ -417,15 +365,16 @@ export function generateEnemyVariant(kind: 'enemy' | 'rareEnemy' | 'miniBoss' | 
 
 // ----------------- LOOT GENERATION (NEW SYSTEM) -----------------
 
+// Enemy loot rarity weights (common & magic removed from drops; merchant only)
 const BASE_RARITY_WEIGHTS = {
-  common: 55,
-  magic: 30,
-  rare: 10,
-  epic: 3,
-  legendary: 1,
-  mythic: 0.5,
-  set: 0.3,
-  radiant: 0.2,
+  common: 0,
+  magic: 0,
+  rare: 70,
+  epic: 18,
+  legendary: 7,
+  mythic: 3,
+  set: 1.2,
+  radiant: 0.8,
 };
 
 type RarityKey = keyof typeof BASE_RARITY_WEIGHTS;
@@ -470,7 +419,7 @@ function pickRarity(enemyRarity: RarityKey, zoneHeat: number = 0): RarityKey {
     if (roll < weights[key]) return key;
     roll -= weights[key];
   }
-  return 'common';
+  return 'rare';
 }
 
 // Deprecated direct type pools; theme-aware weighted pools used instead
@@ -960,13 +909,62 @@ export function generateBossLoot(enemyLevel: number, floor: number, zoneHeat: nu
 
 export function generateMimicLoot(enemyLevel: number, floor: number, zoneHeat: number): Partial<Item>[] {
   const drops: Partial<Item>[] = [];
-  // One guaranteed magic+ item
-  drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'magic'));
-  // Reduced to 25% chance for second rare+ item
-  if (Math.random() < 0.25) {
-    drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
+  // One guaranteed rare+ item (common/magic excluded from combat)
+  drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'rare'));
+  // 30% chance for second epic+ item
+  if (Math.random() < 0.30) {
+    drops.push(generateGuaranteedLoot(enemyLevel, floor, zoneHeat, 'epic'));
   }
   return drops;
+}
+// ----------------- MERCHANT INVENTORY -----------------
+export function generateMerchantInventory(playerLevel: number, floor: number): Partial<Item>[] {
+  const items: Partial<Item>[] = [];
+  const HIGH_TIER_CHANCE = 0.12; // 12% chance one slot is legendary+
+  const highSlot = Math.random() < HIGH_TIER_CHANCE ? Math.floor(Math.random() * 3) : -1;
+  const highWeights: { rarity: RarityKey; w: number }[] = [
+    { rarity: 'epic', w: 50 },
+    { rarity: 'legendary', w: 25 },
+    { rarity: 'mythic', w: 15 },
+    { rarity: 'radiant', w: 5 },
+    { rarity: 'set', w: 5 },
+  ];
+  const totalHigh = highWeights.reduce((s, r) => s + r.w, 0);
+  const rollHigh = () => {
+    let r = Math.random() * totalHigh;
+    for (const e of highWeights) { if (r < e.w) return e.rarity; r -= e.w; }
+    return 'epic';
+  };
+  const lowRarity = () => (Math.random() < 0.65 ? 'common' : 'magic');
+  for (let i = 0; i < 3; i++) {
+    const rarity: RarityKey = i === highSlot ? rollHigh() : lowRarity();
+    const weaponTypes: Item['type'][] = ['melee_weapon','ranged_weapon','mage_weapon'];
+    const armorTypes: Item['type'][] = ['melee_armor','ranged_armor','mage_armor','helmet','boots','gloves','belt','ring','amulet'];
+    const isWeapon = Math.random() < 0.5;
+    let type: Item['type'] = isWeapon ? weaponTypes[Math.floor(Math.random()*weaponTypes.length)] : armorTypes[Math.floor(Math.random()*armorTypes.length)];
+    const { damage, armor } = rollBaseStats(type, playerLevel, floor, rarity);
+    const { requiredLevel, requiredStats } = calculateItemRequirements(type, rarity, playerLevel, floor);
+    const affixes = generateAffixesForItem(rarity, type, 'normal');
+    const baseName = isWeapon ? randomFrom(meleeWeapons.concat(rangedWeapons, mageWeapons)) : type.replace(/_/g,' ');
+    const prefix = rarity === 'common' ? 'Simple' : rarity === 'magic' ? 'Enchanted' : rarity === 'epic' ? 'Majestic' : rarity === 'legendary' ? 'Ancient' : rarity === 'mythic' ? 'Mythic' : rarity === 'radiant' ? 'Radiant' : 'Set';
+    const name = `${prefix} ${baseName}`;
+    const valueMult = rarity === 'common' ? 1 : rarity === 'magic' ? 2 : rarity === 'rare' ? 3 : rarity === 'epic' ? 5 : rarity === 'legendary' ? 8 : rarity === 'mythic' ? 11 : rarity === 'radiant' ? 14 : 10;
+    const value = Math.round((damage || armor || 1) * valueMult);
+    items.push({
+      id: `merchant-${Date.now()}-${i}-${Math.random().toString(36).slice(2,6)}` as any,
+      name,
+      type,
+      rarity,
+      damage,
+      armor,
+      value,
+      equipped: false,
+      affixes,
+      required_level: requiredLevel,
+      required_stats: requiredStats,
+    });
+  }
+  return items;
 }
 
 // ----------------- RARITY COLORS -----------------
