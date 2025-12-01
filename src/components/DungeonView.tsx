@@ -1,6 +1,8 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
 import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
+import { DungeonTileset, dungeonTileMap } from '../utils/gameLogic';
+import type { DungeonTileId } from '../utils/gameLogic';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
@@ -33,6 +35,77 @@ export function DungeonView({
     items,
   } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tilesetRef = useRef<DungeonTileset | null>(null);
+
+  // Simple logical dungeon layout using DungeonTileId for drawing only.
+  // TILE_SIZE is purely visual; world/collision logic still uses
+  // WORLD_WIDTH / WORLD_HEIGHT and is unaffected by this.
+  const TILE_SIZE = 16;
+  const DUNGEON_COLS = 40;
+  const DUNGEON_ROWS = 30;
+
+  const baseRow: DungeonTileId[] = Array.from({ length: DUNGEON_COLS }, () => 'wall_inner');
+  const floorRow: DungeonTileId[] = [
+    'wall_inner',
+    ...Array.from({ length: DUNGEON_COLS - 2 }, () => 'floor_basic'),
+    'wall_inner',
+  ];
+
+  const dungeonLayout: DungeonTileId[][] = [
+    // Top outer wall
+    baseRow,
+    baseRow,
+    // Upper corridor and chambers
+    floorRow,
+    floorRow,
+    floorRow,
+    // Mid-section with pits and water
+    (() => {
+      const row: DungeonTileId[] = [...floorRow];
+      row[8] = 'pit';
+      row[9] = 'pit';
+      row[10] = 'water';
+      row[11] = 'water';
+      return row;
+    })(),
+    floorRow,
+    // Central chamber band (around ritual rug)
+    ...Array.from({ length: 10 }, (_, idx) => {
+      const row: DungeonTileId[] = [...floorRow];
+      // Add some scattered pits/water through the middle stretch
+      if (idx === 3) {
+        row[20] = 'pit';
+        row[21] = 'pit';
+      }
+      if (idx === 5) {
+        row[24] = 'water';
+        row[25] = 'water';
+      }
+      return row;
+    }),
+    // Lower corridor with a door near the exit ladder side (right edge)
+    (() => {
+      const row: DungeonTileId[] = [...floorRow];
+      row[DUNGEON_COLS - 4] = 'door_closed';
+      return row;
+    })(),
+    floorRow,
+    // Bottom outer wall band
+    baseRow,
+    baseRow,
+    // Fill remaining rows up to DUNGEON_ROWS with inner walls to keep bounds
+    ...Array.from({ length: DUNGEON_ROWS - 18 }, () => baseRow),
+  ];
+
+  // Ensure tileset is created and begins loading once on mount
+  useEffect(() => {
+    if (!tilesetRef.current) {
+      tilesetRef.current = new DungeonTileset();
+      tilesetRef.current.load().catch((err) => {
+        console.error('Failed to load dungeon tileset', err);
+      });
+    }
+  }, []);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
@@ -686,6 +759,14 @@ export function DungeonView({
     ctx.restore();
   };
 
+  // Simple collision helper: map a DungeonTileId to blocking/walkable.
+  // Walls, pits, and water are blocking; floors and props are walkable.
+  const isBlockingTile = (tileId: DungeonTileId): boolean => {
+    if (tileId === 'pit' || tileId === 'water') return true;
+    if (tileId.startsWith('wall_')) return true;
+    return false;
+  };
+
   // (Removed legacy character HUD drawing; handled in main UI panels.)
 
   // ---------- Render loop ----------
@@ -814,21 +895,22 @@ export function DungeonView({
       drawBones(rugScreenX + 40, rugScreenY + rugHeight - 36);
       drawBones(rugScreenX + rugWidth - 40, rugScreenY + rugHeight - 48);
 
-      // Stones tiled across the world; render only those within camera view
-      const tileSize = 100;
-      const cols = Math.ceil(WORLD_WIDTH / tileSize);
-      const rows = Math.ceil(WORLD_HEIGHT / tileSize);
-      const startCol = Math.max(0, Math.floor(camX / tileSize) - 1);
-      const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / tileSize) + 1);
-      const startRow = Math.max(0, Math.floor(camY / tileSize) - 1);
-      const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / tileSize) + 1);
+      // Tiles rendered from logical DungeonTileId[][]; still use
+      // 100x100 world tiles so existing camera math holds.
+      const cols = DUNGEON_COLS;
+      const rows = DUNGEON_ROWS;
+      const startCol = Math.max(0, Math.floor(camX / TILE_SIZE) - 1);
+      const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / TILE_SIZE) + 1);
+      const startRow = Math.max(0, Math.floor(camY / TILE_SIZE) - 1);
+      const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / TILE_SIZE) + 1);
       for (let r = startRow; r < endRow; r++) {
         for (let c = startCol; c < endCol; c++) {
-          const worldX = c * tileSize + 20;
-          const worldY = r * tileSize + 40;
+          let tileId = dungeonLayout[r]?.[c] ?? 'wall_inner';
+          const worldX = c * TILE_SIZE;
+          const worldY = r * TILE_SIZE;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
-          // Themed chunky tiles; avoid drawing over the central rug area
+          // Avoid drawing over the central rug area
           const inRug = worldX > rugX && worldX < rugX + rugWidth && worldY > rugY && worldY < rugY + rugHeight;
           if (inRug) continue;
 
@@ -838,10 +920,41 @@ export function DungeonView({
             worldY > rugY - 80 &&
             worldY < rugY + rugHeight + 80;
 
-          const baseColor = inChamber ? '#111827' : theme.tileFill;
-          const strokeColor = inChamber ? '#020617' : theme.tileStroke;
+          // Subtle floor variation: occasionally treat basic floor as cracked
+          if (tileId === 'floor_basic') {
+            const seed = (r * 73856093) ^ (c * 19349663) ^ (floorRef.current * 83492791);
+            const pr = Math.abs(Math.sin(seed)) % 1;
+            if (pr < 0.12) {
+              tileId = 'floor_cracked';
+            }
+          }
 
-          drawStone(ctx, screenX, screenY, 76, 86, baseColor, strokeColor);
+          const tileset = tilesetRef.current;
+
+          // Cheap torch glow: soft radial highlight behind torch_wall tiles
+          if (tileId === 'torch_wall') {
+            const glowRadius = TILE_SIZE * 3;
+            const gx = screenX + TILE_SIZE / 2;
+            const gy = screenY + TILE_SIZE / 2;
+            const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, glowRadius);
+            gradient.addColorStop(0, 'rgba(252, 211, 77, 0.45)');
+            gradient.addColorStop(1, 'rgba(252, 211, 77, 0.0)');
+            ctx.save();
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(gx, gy, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+          if (tileset && tileset.isLoaded) {
+            const def = dungeonTileMap[tileId];
+            tileset.drawTile(ctx, def.sx, def.sy, screenX, screenY, 1);
+          } else {
+            // Fallback: simple rectangle tile if spritesheet not yet loaded
+            const baseColor = inChamber ? '#111827' : theme.tileFill;
+            const strokeColor = inChamber ? '#020617' : theme.tileStroke;
+            drawStone(ctx, screenX, screenY, TILE_SIZE, TILE_SIZE, baseColor, strokeColor);
+          }
 
           // Deterministic pseudo-random per tile for ambient props
           const seed = floorRef.current * 73856093 ^ (r * 19349663) ^ (c * 83492791);
@@ -910,18 +1023,16 @@ export function DungeonView({
           const sy = ew.y - camY;
           if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) continue;
 
-          // Use same archetype-driven sprite as combat, but smaller and without aura
+          // Use same archetype-driven sprite as combat, but slightly smaller and without aura
           const markerEnemy = { ...ew, health: Math.max(1, ew.health) } as Enemy;
           const vMarker = getEnemyVisual(markerEnemy);
-          const markerSize = Math.max(10, vMarker.size - 8);
           ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          // Light shadow so it still pops off the floor
+          ctx.shadowColor = 'rgba(0,0,0,0.45)';
           ctx.shadowBlur = 6;
           ctx.shadowOffsetY = 3;
-          ctx.fillStyle = vMarker.coreColor;
-          ctx.beginPath();
-          ctx.arc(sx, sy, markerSize, 0, Math.PI * 2);
-          ctx.fill();
+          // Draw the full pixel-art body at a reduced Y so feet sit on tile
+          drawEnemyBody(ctx, sx, sy, vMarker);
           ctx.restore();
           ctx.font = '10px Arial';
           ctx.fillStyle = theme.hudAccent;
@@ -1293,6 +1404,16 @@ export function DungeonView({
       }
       if (keys['ArrowRight'] || keys['d'] || keys['D']) {
         newX = Math.min(WORLD_WIDTH, prev.x + MOVE_SPEED);
+      }
+
+      // Tile-based collision: prevent movement into blocking tiles
+      const col = Math.floor(newX / TILE_SIZE);
+      const row = Math.floor(newY / TILE_SIZE);
+      const tileId = dungeonLayout[row]?.[col];
+      if (tileId && isBlockingTile(tileId)) {
+        // If the target tile is blocking, keep the previous position
+        newX = prev.x;
+        newY = prev.y;
       }
 
       playerPosRef.current = { x: newX, y: newY };

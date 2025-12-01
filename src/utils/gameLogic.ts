@@ -1,6 +1,124 @@
 // src/utils/gameLogic.ts
 import { Enemy, Item, Affix } from '../types/game';
 
+// ----------------- DUNGEON TILESET HELPER -----------------
+
+/**
+ * Lightweight helper for drawing top-down dungeon tiles from a spritesheet.
+ *
+ * The sheet is expected at `/assets/tiles/dungeon.png` (adjust the
+ * URL below if your dev server serves from a different base) and
+ * organized as a grid of 16x16 pixel tiles.
+ */
+export class DungeonTileset {
+  private image: HTMLImageElement | null = null;
+  private readonly tileWidth: number;
+  private readonly tileHeight: number;
+  private _isLoaded = false;
+  private loadPromise: Promise<void> | null = null;
+
+  constructor(
+    /** Optional override for the tilesheet URL. Defaults to `/assets/tiles/dungeon.png`. */
+    private readonly src: string = '/assets/tiles/dungeon.png',
+    tileWidth = 16,
+    tileHeight = 16,
+  ) {
+    this.tileWidth = tileWidth;
+    this.tileHeight = tileHeight;
+  }
+
+  /** True once the underlying image has finished loading successfully. */
+  get isLoaded(): boolean {
+    return this._isLoaded;
+  }
+
+  /**
+   * Returns a Promise that resolves when the tileset image has loaded.
+   * Safe to call multiple times; returns the same in-flight Promise.
+   */
+  load(): Promise<void> {
+    if (this._isLoaded) return Promise.resolve();
+    if (this.loadPromise) return this.loadPromise;
+
+    this.loadPromise = new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        this.image = img;
+        this._isLoaded = true;
+        resolve();
+      };
+      img.onerror = (err) => {
+        console.error('Failed to load dungeon tileset:', err);
+        reject(err instanceof Error ? err : new Error('Failed to load dungeon tileset'));
+      };
+      img.src = this.src;
+    });
+
+    return this.loadPromise;
+  }
+
+  /**
+   * Draws a tile from (tileX, tileY) in the sheet to screenX/screenY.
+   * Does nothing if the image is not yet loaded.
+   */
+  drawTile(
+    ctx: CanvasRenderingContext2D,
+    tileX: number,
+    tileY: number,
+    screenX: number,
+    screenY: number,
+    scale = 1,
+  ): void {
+    if (!this.image || !this._isLoaded) return;
+
+    const sx = tileX * this.tileWidth;
+    const sy = tileY * this.tileHeight;
+    const sw = this.tileWidth;
+    const sh = this.tileHeight;
+    const dw = this.tileWidth * scale;
+    const dh = this.tileHeight * scale;
+
+    ctx.drawImage(this.image, sx, sy, sw, sh, screenX, screenY, dw, dh);
+  }
+}
+
+// ----------------- DUNGEON TILE CONFIG -----------------
+
+/**
+ * Logical identifiers for dungeon tiles in the 16x16 spritesheet.
+ * Tile (0,0) is the top-left of `/assets/tiles/dungeon.png`.
+ */
+export type DungeonTileId =
+  | 'floor_basic'
+  | 'floor_cracked'
+  | 'wall_top'
+  | 'wall_inner'
+  | 'wall_corner'
+  | 'door_closed'
+  | 'pit'
+  | 'water'
+  | 'torch_wall'
+  | 'crate'
+  | 'barrel';
+
+/**
+ * Mapping from logical tile ids to their spritesheet coordinates.
+ * `sx`/`sy` are tile indices (not pixel positions).
+ */
+export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
+  floor_basic: { sx: 0, sy: 0 },
+  floor_cracked: { sx: 1, sy: 0 },
+  wall_top: { sx: 0, sy: 1 },
+  wall_inner: { sx: 1, sy: 1 },
+  wall_corner: { sx: 2, sy: 1 },
+  door_closed: { sx: 3, sy: 1 },
+  pit: { sx: 0, sy: 2 },
+  water: { sx: 1, sy: 2 },
+  torch_wall: { sx: 2, sy: 2 },
+  crate: { sx: 3, sy: 2 },
+  barrel: { sx: 4, sy: 2 },
+};
+
 const enemyNames = [
   'Fallen',
   'Zombie',
