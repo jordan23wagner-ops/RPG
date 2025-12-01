@@ -513,6 +513,76 @@ export function DungeonView({
     ctx.strokeRect(x, y, width, height);
   };
 
+  // Ambient dungeon props
+  const drawGrassPatch = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.save();
+    ctx.fillStyle = '#16a34a';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 10, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.ellipse(x + 6, y - 2, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawTree = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.save();
+    // Trunk
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(x - 3, y, 6, 16);
+    // Canopy
+    ctx.fillStyle = '#166534';
+    ctx.beginPath();
+    ctx.arc(x, y - 4, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(x - 4, y - 6, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawRockProp = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.save();
+    ctx.fillStyle = '#4b5563';
+    ctx.beginPath();
+    ctx.moveTo(x - 8, y);
+    ctx.lineTo(x, y - 6);
+    ctx.lineTo(x + 9, y);
+    ctx.lineTo(x + 4, y + 5);
+    ctx.lineTo(x - 5, y + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#9ca3af';
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y - 3);
+    ctx.lineTo(x + 3, y - 1);
+    ctx.lineTo(x, y + 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawTorch = (ctx: CanvasRenderingContext2D, x: number, y: number, time: number) => {
+    ctx.save();
+    // Bracket
+    ctx.fillStyle = '#4b5563';
+    ctx.fillRect(x - 2, y + 4, 4, 10);
+
+    // Flickering flame with glow
+    const flicker = (Math.sin(time / 120 + x * 0.3) + 1) / 2; // 0..1
+    const radiusY = 7 + flicker * 2;
+    ctx.shadowColor = 'rgba(252, 211, 77, 0.95)';
+    ctx.shadowBlur = 20 + flicker * 6;
+    ctx.fillStyle = '#fde68a';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 4, radiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+
   // (Removed legacy character HUD drawing; handled in main UI panels.)
 
   // ---------- Render loop ----------
@@ -570,10 +640,48 @@ export function DungeonView({
           ctx.strokeStyle = theme.tileStroke;
           drawStone(ctx, screenX, screenY, 60, 80);
           ctx.strokeStyle = prevStroke;
+
+          // Deterministic pseudo-random per tile for ambient props
+          const seed = floorRef.current * 73856093 ^ (r * 19349663) ^ (c * 83492791);
+          const pr = Math.abs(Math.sin(seed)) % 1;
+
+          if (theme.name === 'jungle') {
+            if (pr < 0.04) {
+              drawTree(ctx, screenX + 36, screenY + 18);
+            } else if (pr < 0.12) {
+              drawGrassPatch(ctx, screenX + 30, screenY + 60);
+            } else if (pr < 0.16) {
+              drawRockProp(ctx, screenX + 40, screenY + 58);
+            }
+          } else if (theme.name === 'lava') {
+            if (pr < 0.08) {
+              drawRockProp(ctx, screenX + 40, screenY + 56);
+            }
+          } else if (theme.name === 'ice') {
+            if (pr < 0.06) {
+              drawRockProp(ctx, screenX + 38, screenY + 55);
+            }
+          } else {
+            // Classic dungeon: sparse rocks and occasional mossy patch
+            if (pr < 0.08) {
+              drawRockProp(ctx, screenX + 38, screenY + 58);
+            } else if (pr < 0.11) {
+              drawGrassPatch(ctx, screenX + 28, screenY + 62);
+            }
+          }
+
+          // Wall torches along some upper tiles to avoid UI overlap
+          if (r <= startRow + 1 && pr > 0.65 && pr < 0.75) {
+            const torchWorldX = worldX + 30;
+            const torchWorldY = worldY - 10;
+            const tx = torchWorldX - camX;
+            const ty = torchWorldY - camY;
+            if (ty > 40 && ty < CANVAS_HEIGHT - 80) {
+              drawTorch(ctx, tx, ty, nowTime);
+            }
+          }
         }
       }
-
-      // Torches removed for a cleaner canvas per request
 
       // Draw world enemies as markers when not engaged
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
