@@ -1406,12 +1406,15 @@ export function DungeonView({
         newX = Math.min(WORLD_WIDTH, prev.x + MOVE_SPEED);
       }
 
-      // Tile-based collision: prevent movement into blocking tiles
-      const col = Math.floor(newX / TILE_SIZE);
-      const row = Math.floor(newY / TILE_SIZE);
+      // Coarse tile-based collision using a virtual grid that matches the
+      // old 4000x3000 world. This keeps most of the space walkable while
+      // still respecting obvious walls, pits, and water.
+      const VIRTUAL_TILE_SIZE_X = WORLD_WIDTH / DUNGEON_COLS;
+      const VIRTUAL_TILE_SIZE_Y = WORLD_HEIGHT / DUNGEON_ROWS;
+      const col = Math.floor(newX / VIRTUAL_TILE_SIZE_X);
+      const row = Math.floor(newY / VIRTUAL_TILE_SIZE_Y);
       const tileId = dungeonLayout[row]?.[col];
       if (tileId && isBlockingTile(tileId)) {
-        // If the target tile is blocking, keep the previous position
         newX = prev.x;
         newY = prev.y;
       }
