@@ -77,3 +77,4 @@ Hosted on Vercel with automatic builds from `main` branch.
 - ✅ Merchant countdown timer (mm:ss until next rotation)
 - ✅ Milestone unlock visual effects
 - ✅ Floor selection overlay with loot/difficulty hints
+
