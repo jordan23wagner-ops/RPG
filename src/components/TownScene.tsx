@@ -35,16 +35,145 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
 
     let raf = 0 as number;
 
-    const drawBuilding = (x: number, y: number, w: number, h: number, label: string) => {
-      ctx.fillStyle = '#374151';
+    const drawBuilding = (
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      label: string,
+      theme: 'inn' | 'guild' | 'shop',
+    ) => {
+      // Base body
+      ctx.save();
+      if (theme === 'inn') {
+        ctx.fillStyle = '#1f2937';
+      } else if (theme === 'guild') {
+        ctx.fillStyle = '#111827';
+      } else {
+        ctx.fillStyle = '#1e293b';
+      }
       ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, w, h);
+
+      // Roof
+      if (theme === 'inn') {
+        ctx.fillStyle = '#7c2d12';
+      } else if (theme === 'guild') {
+        ctx.fillStyle = '#4c1d95';
+      } else {
+        ctx.fillStyle = '#92400e';
+      }
+      ctx.fillRect(x - 4, y - 16, w + 8, 16);
+
+      // Windows
+      const windowColor = theme === 'guild' ? '#93c5fd' : '#fbbf24';
+      ctx.fillStyle = windowColor;
+      const cols = Math.max(2, Math.floor(w / 50));
+      const rows = 2;
+      const padX = w / (cols + 1);
+      const padY = (h - 30) / (rows + 1);
+      for (let ry = 0; ry < rows; ry++) {
+        for (let cx = 0; cx < cols; cx++) {
+          const wx = x + padX * (cx + 1) - 10;
+          const wy = y + padY * (ry + 1) - 8;
+          ctx.fillRect(wx, wy, 18, 14);
+          ctx.fillStyle = 'rgba(15,23,42,0.4)';
+          ctx.fillRect(wx, wy, 18, 7);
+          ctx.fillStyle = windowColor;
+        }
+      }
+
+      // Door
+      ctx.fillStyle = '#78350f';
+      const doorWidth = Math.max(22, Math.min(40, w * 0.2));
+      const doorX = x + w / 2 - doorWidth / 2;
+      const doorY = y + h - 34;
+      ctx.fillRect(doorX, doorY, doorWidth, 34);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(doorX + doorWidth - 8, doorY + 16, 4, 4);
+
+      // Sign/label
       ctx.fillStyle = '#fbbf24';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
       ctx.fillText(label, x + w / 2, y - 8);
+      ctx.restore();
+    };
+
+    const drawTree = (x: number, y: number, scale: number = 1) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#4b3715';
+      ctx.fillRect(-4, 0, 8, 18);
+      ctx.beginPath();
+      ctx.fillStyle = '#166534';
+      ctx.arc(0, -4, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.fillStyle = '#22c55e';
+      ctx.arc(-5, -8, 8, 0, Math.PI * 2);
+      ctx.arc(6, -10, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const drawLampPost = (x: number, y: number, t: number) => {
+      ctx.save();
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(x - 2, y - 26, 4, 26);
+      const flicker = 0.6 + Math.sin(t / 250) * 0.1;
+      ctx.fillStyle = `rgba(250, 204, 21, ${0.7 * flicker})`;
+      ctx.beginPath();
+      ctx.arc(x, y - 30, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(250, 204, 21, ${0.25 * flicker})`;
+      ctx.arc(x, y - 30, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const drawCrates = (x: number, y: number) => {
+      ctx.save();
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(x, y, 22, 18);
+      ctx.strokeStyle = '#92400e';
+      ctx.strokeRect(x, y, 22, 18);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 22, y + 18);
+      ctx.moveTo(x + 22, y);
+      ctx.lineTo(x, y + 18);
+      ctx.stroke();
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(x + 16, y - 14, 18, 14);
+      ctx.strokeRect(x + 16, y - 14, 18, 14);
+      ctx.restore();
+    };
+
+    const drawFountain = (x: number, y: number, t: number) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = '#1f2937';
+      ctx.beginPath();
+      ctx.arc(0, 0, 34, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0ea5e9';
+      ctx.beginPath();
+      ctx.arc(0, 0, 26, 0, Math.PI * 2);
+      ctx.fill();
+      const wave = Math.sin(t / 400) * 2;
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.ellipse(0, wave * 0.4, 22, 10 + wave, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(-4, -22, 8, 18);
+      ctx.beginPath();
+      ctx.arc(0, -26, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#0ea5e9';
+      ctx.fill();
+      ctx.restore();
     };
 
     const drawNPC = (x: number, y: number) => {
@@ -119,11 +248,16 @@ export default function TownScene({ onRequestDungeonEntry, onOpenShop }: TownSce
       }
 
       // Buildings (background scenery)
-      drawBuilding(300 - camX, 520 - camY, 180, 120, 'Inn');
-      drawBuilding(700 - camX, 500 - camY, 220, 140, 'Guild');
+      drawBuilding(260 - camX, 520 - camY, 200, 130, 'Restless Lantern Inn', 'inn');
+      drawBuilding(720 - camX, 500 - camY, 230, 150, "Adventurer's Guild", 'guild');
 
-      // Merchant stall
-      drawBuilding(460 - camX, 710 - camY, 120, 12, '');
+      // Merchant stall & town square props
+      drawBuilding(460 - camX, 710 - camY, 120, 60, 'Market', 'shop');
+      drawCrates(430 - camX, 732 - camY);
+      drawCrates(610 - camX, 738 - camY);
+      drawFountain(600 - camX, 620 - camY, now);
+      drawLampPost(360 - camX, 560 - camY, now);
+      drawLampPost(840 - camX, 560 - camY, now);
       drawNPC(MERCHANT_POS.x - camX, MERCHANT_POS.y - camY);
       ctx.fillStyle = '#fbbf24';
       ctx.font = '12px Arial';

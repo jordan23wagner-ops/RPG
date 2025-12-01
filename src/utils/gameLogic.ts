@@ -304,11 +304,16 @@ export function generateEnemy(floor: number, playerLevel: number, zoneHeat: numb
   const damage = Math.floor((5 + level * 3 + floor * 1.5) * multiplier);
   const experience = Math.floor((20 + level * 10 + floor * 5) * multiplier);
   // Gold scales with floor and rarity more explicitly so that deeper
-  // floors and higher rarity enemies feel more rewarding.
-  const baseGold = 6 + level * 3 + floor * 4;
+  // floors and higher rarity enemies feel more rewarding. Early floors
+  // guarantee at least a small handful of gold so that players always
+  // feel rewarded (roughly 1–4 gold from floor 1 normals).
+  const baseGold = 4 + level * 2 + floor * 3;
   const rarityGoldMult =
     rarity === 'normal' ? 1 : rarity === 'rare' ? 1.6 : rarity === 'elite' ? 2.4 : 3.5;
-  const gold = Math.floor((baseGold + Math.random() * (6 + floor * 2)) * rarityGoldMult);
+  let gold = Math.floor((baseGold + Math.random() * (4 + floor * 1.5)) * rarityGoldMult);
+  if (floor <= 3 && rarity === 'normal') {
+    gold = Math.max(1, Math.min(gold, 4));
+  }
 
   return {
     id: Math.random().toString(36).substr(2, 9),
@@ -395,20 +400,19 @@ export function generateEnemyVariant(
 
 // Enemy loot rarity weights for combat drops.
 // NOTE: common & magic remain merchant-only; enemies drop rare+ only.
-// These are *base* weights for low floor / low heat. We apply
-// additional modest scaling by floor depth and zoneHeat in pickRarity
-// so that early floors are mostly rare with very occasional epic,
-// and high tiers (legendary/mythic/radiant/set) stay genuinely rare
-// until deeper floors + high heat.
+// These are conservative *base* weights for low floor / low heat –
+// early floors should see rare items as a ~5% event, with higher
+// tiers much rarer. Floor depth and zoneHeat will modestly increase
+// the relative weights of higher tiers.
 const BASE_RARITY_WEIGHTS = {
   common: 0,
   magic: 0,
-  rare: 88,
-  epic: 9,
-  legendary: 2,
-  mythic: 0.6,
-  set: 0.25,
-  radiant: 0.15,
+  rare: 3.5,
+  epic: 1.5,
+  legendary: 0.3,
+  mythic: 0.08,
+  set: 0.05,
+  radiant: 0.02,
 };
 
 type RarityKey = keyof typeof BASE_RARITY_WEIGHTS;
@@ -719,18 +723,19 @@ export function generateLoot(
   enemyRarity: RarityKey = 'common',
   zoneHeat: number = 0,
 ): Partial<Item> | null {
-  // Base no-drop chance: early floors have a noticeable chance to drop
-  // nothing; this decreases slightly with depth and heat but never
-  // disappears entirely.
+  // Base no-drop chance & gold guarantee:
+  // - On early floors (1–3), player should always get some gold
+  //   (even if no item drops) to keep progression steady.
+  // - Rare+ items are uncommon at low depth (e.g. rare ~5% event).
   const heatBoost = Math.max(0, Math.min(100, zoneHeat)) / 100;
   const depth = Math.max(0, floor - 1);
   const depthNorm = Math.min(depth, 40) / 40; // 0..1 at deep floors
 
-  let noDrop = enemyRarity === 'legendary' ? 0.06 : 0.22;
+  let noDrop = enemyRarity === 'legendary' ? 0.08 : 0.28;
   // Slightly lower no-drop on deeper floors and at higher heat, but
-  // never below ~5% so there is always a chance of no loot.
-  const dropScale = 1 - depthNorm * 0.25 - heatBoost * 0.3;
-  noDrop = Math.max(0.05, noDrop * Math.max(0.5, dropScale));
+  // never below ~8% so there is always a chance of no loot.
+  const dropScale = 1 - depthNorm * 0.3 - heatBoost * 0.35;
+  noDrop = Math.max(0.08, noDrop * Math.max(0.5, dropScale));
   if (Math.random() < noDrop) return null;
 
   // Chance to drop a set item independent of normal rarity. Set items are
