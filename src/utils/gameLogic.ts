@@ -6,9 +6,9 @@ import { Enemy, Item, Affix } from '../types/game';
 /**
  * Lightweight helper for drawing top-down dungeon tiles from a spritesheet.
  *
- * The sheet is expected at `/assets/tiles/dungeon.png` (adjust the
+ * The sheet is expected at `/assets/tiles/darkdungeon_tileset_allinone.png` (adjust the
  * URL below if your dev server serves from a different base) and
- * organized as a grid of 16x16 pixel tiles.
+ * organized as a grid of 16x16 pixel tiles (336x624 = 21 columns x 39 rows).
  */
 export class DungeonTileset {
   private image: HTMLImageElement | null = null;
@@ -18,8 +18,8 @@ export class DungeonTileset {
   private loadPromise: Promise<void> | null = null;
 
   constructor(
-    /** Optional override for the tilesheet URL. Defaults to `/assets/tiles/dungeon.png`. */
-    private readonly src: string = '/assets/tiles/dungeon.png',
+    /** Optional override for the tilesheet URL. Defaults to `/assets/tiles/darkdungeon_tileset_allinone.png`. */
+    private readonly src: string = '/assets/tiles/darkdungeon_tileset_allinone.png',
     tileWidth = 16,
     tileHeight = 16,
   ) {
@@ -86,7 +86,7 @@ export class DungeonTileset {
 
 /**
  * Logical identifiers for dungeon tiles in the 16x16 spritesheet.
- * Tile (0,0) is the top-left of `/assets/tiles/dungeon.png`.
+ * Tile (0,0) is the top-left of `/assets/tiles/darkdungeon_tileset_allinone.png`.
  */
 export type DungeonTileId =
   | 'floor_basic'
