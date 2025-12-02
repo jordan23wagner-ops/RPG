@@ -3,7 +3,6 @@ import { useRef, useEffect } from 'react';
 import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
 import { DungeonTileset, dungeonTileMap } from '../utils/gameLogic';
 import type { DungeonTileId } from '../utils/gameLogic';
-import { floor1Layout, FLOOR1_COLS, FLOOR1_ROWS } from '../config/floor1Layout';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
@@ -38,13 +37,187 @@ export function DungeonView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<DungeonTileset | null>(null);
 
-  // Simple logical dungeon layout using DungeonTileId for drawing only.
-  // TILE_SIZE must match the tilesheet size to avoid stretching.
-  const TILE_SIZE = 32;
-  const DUNGEON_COLS = FLOOR1_COLS;
-  const DUNGEON_ROWS = FLOOR1_ROWS;
+  const TILE_SIZE = 16;
+  const DUNGEON_COLS = 40;
+  const DUNGEON_ROWS = 30;
 
-  const dungeonLayout: DungeonTileId[][] = floor1Layout;
+  type FloorGrid = DungeonTileId[][];
+
+  const makeFilled = (val: DungeonTileId): FloorGrid => {
+    const grid: FloorGrid = [];
+    for (let y = 0; y < DUNGEON_ROWS; y++) {
+      const row: DungeonTileId[] = [];
+      for (let x = 0; x < DUNGEON_COLS; x++) row.push(val);
+      grid.push(row);
+    }
+    return grid;
+  };
+
+  const carveRoom = (
+    grid: FloorGrid,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    floor: DungeonTileId = 'floor_basic',
+  ) => {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
+          grid[y][x] = floor;
+        }
+      }
+    }
+  };
+
+  const carveCorridor = (
+    grid: FloorGrid,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    floor: DungeonTileId = 'floor_basic',
+  ) => {
+    // simple L-shaped corridor: horizontal then vertical
+    let x = x0;
+    let y = y0;
+
+    while (x !== x1) {
+      if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
+        grid[y][x] = floor;
+      }
+      x += x < x1 ? 1 : -1;
+    }
+
+    while (y !== y1) {
+      if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
+        grid[y][x] = floor;
+      }
+      y += y < y1 ? 1 : -1;
+    }
+
+    if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
+      grid[y][x] = floor;
+    }
+  };
+
+  const addWallTops = (grid: FloorGrid) => {
+    // Any wall tile directly above a floor becomes wall_top
+    for (let y = 1; y < DUNGEON_ROWS; y++) {
+      for (let x = 0; x < DUNGEON_COLS; x++) {
+        const here = grid[y][x];
+        const below = grid[y + 1]?.[x];
+        const isWall = here === 'wall_inner' || here === 'wall_column';
+        const isFloor =
+          below === 'floor_basic' ||
+          below === 'floor_cracked' ||
+          below === 'floor_moss';
+        if (isWall && isFloor) {
+          grid[y][x] = 'wall_top';
+        }
+      }
+    }
+  };
+
+  const generateFloor1 = (): FloorGrid => {
+    const grid = makeFilled('wall_inner');
+
+    // --- Outer boundary as solid wall_top on the inside rim
+    for (let x = 0; x < DUNGEON_COLS; x++) {
+      grid[0][x] = 'wall_top';
+      grid[DUNGEON_ROWS - 1][x] = 'wall_inner';
+    }
+    for (let y = 0; y < DUNGEON_ROWS; y++) {
+      grid[y][0] = 'wall_inner';
+      grid[y][DUNGEON_COLS - 1] = 'wall_inner';
+    }
+
+    // --- Central hub room
+    const hub = { x0: 10, y0: 10, x1: 29, y1: 19 };
+    carveRoom(grid, hub.x0, hub.y0, hub.x1, hub.y1, 'floor_basic');
+
+    // cracked “combat area” in the middle of hub
+    carveRoom(grid, 16, 13, 23, 16, 'floor_cracked');
+
+    // --- Side rooms
+    const leftRoom = { x0: 3, y0: 12, x1: 8, y1: 17 };
+    const rightRoom = { x0: 31, y0: 12, x1: 36, y1: 17 };
+    const topRoom = { x0: 14, y0: 3, x1: 25, y1: 8 };
+
+    carveRoom(grid, leftRoom.x0, leftRoom.y0, leftRoom.x1, leftRoom.y1, 'floor_moss');
+    carveRoom(grid, rightRoom.x0, rightRoom.y0, rightRoom.x1, rightRoom.y1, 'floor_moss');
+    carveRoom(grid, topRoom.x0, topRoom.y0, topRoom.x1, topRoom.y1, 'floor_basic');
+
+    // --- Corridors between rooms and hub
+    const hubCenter = {
+      x: Math.floor((hub.x0 + hub.x1) / 2),
+      y: Math.floor((hub.y0 + hub.y1) / 2),
+    };
+
+    // left corridor (center of left room to hub center)
+    carveCorridor(
+      grid,
+      Math.floor((leftRoom.x0 + leftRoom.x1) / 2),
+      Math.floor((leftRoom.y0 + leftRoom.y1) / 2),
+      hub.x0,
+      hubCenter.y,
+    );
+
+    // right corridor
+    carveCorridor(
+      grid,
+      Math.floor((rightRoom.x0 + rightRoom.x1) / 2),
+      Math.floor((rightRoom.y0 + rightRoom.y1) / 2),
+      hub.x1,
+      hubCenter.y,
+    );
+
+    // top corridor
+    carveCorridor(
+      grid,
+      Math.floor((topRoom.x0 + topRoom.x1) / 2),
+      topRoom.y1,
+      hubCenter.x,
+      hub.y0,
+    );
+
+    // --- Doors at room entrances
+    grid[hubCenter.y][hub.x0 - 1] = 'door_closed'; // left door
+    grid[hubCenter.y][hub.x1 + 1] = 'door_closed'; // right door
+    grid[hub.y0 - 1][hubCenter.x] = 'door_closed'; // top door
+
+    // --- Hazards: pits & water in side rooms
+    grid[leftRoom.y1][leftRoom.x0 + 1] = 'pit';
+    grid[leftRoom.y1][leftRoom.x1 - 1] = 'pit';
+
+    for (let x = rightRoom.x0 + 1; x <= rightRoom.x1 - 1; x++) {
+      grid[rightRoom.y1][x] = 'water';
+    }
+
+    // --- Deco: columns, torches, crates, barrels in hub
+    // columns at hub corners
+    grid[hub.y0][hub.x0] = 'wall_column';
+    grid[hub.y0][hub.x1] = 'wall_column';
+    grid[hub.y1][hub.x0] = 'wall_column';
+    grid[hub.y1][hub.x1] = 'wall_column';
+
+    // wall torches on hub north wall
+    grid[hub.y0 - 1][hub.x0 + 3] = 'torch_wall';
+    grid[hub.y0 - 1][hub.x1 - 3] = 'torch_wall';
+
+    // crates & barrels near bottom of hub
+    grid[hub.y1 - 1][hub.x0 + 2] = 'crate';
+    grid[hub.y1 - 1][hub.x0 + 3] = 'barrel';
+    grid[hub.y1 - 1][hub.x1 - 3] = 'crate';
+    grid[hub.y1 - 1][hub.x1 - 2] = 'barrel';
+
+    // --- Promote wall_top where appropriate
+    addWallTops(grid);
+
+    return grid;
+  };
+
+  const dungeonLayout: DungeonTileId[][] = generateFloor1();
 
   // Ensure tileset is created and begins loading once on mount
   useEffect(() => {

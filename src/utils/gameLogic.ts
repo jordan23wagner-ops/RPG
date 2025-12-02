@@ -84,16 +84,21 @@ export class DungeonTileset {
 
 // ----------------- DUNGEON TILE CONFIG -----------------
 
-/**
- * Logical identifiers for dungeon tiles in the 16x16 spritesheet.
- * Tile (0,0) is the top-left of `/assets/tiles/dungeon.png`.
- */
+// ------------------------------------------------------------
+// Dungeon tiles: logical IDs used by the layout + their sheet coords
+// Sheet: public/assets/tiles/dungeon.png (16x16 tiles, 336×624 full sheet)
+// sx / sy are PIXEL offsets on the big sheet.
+// ------------------------------------------------------------
+
+export const TILE_SIZE = 16;
+
 export type DungeonTileId =
   | 'floor_basic'
   | 'floor_cracked'
-  | 'wall_top'
+  | 'floor_moss'
   | 'wall_inner'
-  | 'wall_corner'
+  | 'wall_top'
+  | 'wall_column'
   | 'door_closed'
   | 'pit'
   | 'water'
@@ -101,37 +106,28 @@ export type DungeonTileId =
   | 'crate'
   | 'barrel';
 
-/**
- * Mapping from logical tile ids to their spritesheet coordinates.
- * `sx`/`sy` are tile indices (not pixel positions).
- */
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Basic floors
-  floor_basic:         { sx: 2, sy: 1 }, // clean floor
-  floor_cracked:       { sx: 3, sy: 1 }, // cracked variant
-  floor_moss:          { sx: 4, sy: 1 }, // mossy variant
-
-  // Brick floors
-  brick_floor_basic:        { sx: 0, sy: 3 },
-  brick_floor_large_crack:  { sx: 1, sy: 3 },
-  brick_floor_small_crack:  { sx: 2, sy: 3 },
+  // Floors
+  floor_basic:   { sx: 0,          sy: 19 * TILE_SIZE }, // col 0, row 19
+  floor_cracked: { sx: 4 * TILE_SIZE, sy: 19 * TILE_SIZE }, // col 4, row 19
+  floor_moss:    { sx: 0,          sy: 23 * TILE_SIZE }, // col 0, row 23 (dark/mossy)
 
   // Walls
-  wall_stone:          { sx: 0, sy: 0 }, // stone wall
-  wall_cobble:         { sx: 1, sy: 0 }, // cobble wall
-  wall_brick:          { sx: 2, sy: 0 }, // brick wall top
-  wall_brick_large_crack: { sx: 3, sy: 0 }, // cracked top
+  wall_top:      { sx: 0,          sy: 3 * TILE_SIZE },  // top edge of wall
+  wall_inner:    { sx: 0,          sy: 4 * TILE_SIZE },  // middle wall band
+  wall_column:   { sx: 0,          sy: 8 * TILE_SIZE },  // vertical column/pillar
 
-  // Liquids
-  water:               { sx: 5, sy: 7 }, // water-looking tile
-  lava:                { sx: 6, sy: 7 }, // lava tile
+  // Doors
+  door_closed:   { sx: 7 * TILE_SIZE, sy: 4 * TILE_SIZE },  // wooden door with bars
 
-  // Hazards
-  spikes:              { sx: 6, sy: 2 }, // spike tile from props row
+  // Hazards / liquids
+  pit:           { sx: 10 * TILE_SIZE, sy: 19 * TILE_SIZE }, // orange pit in stone
+  water:         { sx: 4 * TILE_SIZE,  sy: 13 * TILE_SIZE }, // sewer-water with rim
 
-  // Stairs (we pick visually reasonable tiles)
-  stairs_up:           { sx: 7, sy: 2 },
-  stairs_down:         { sx: 8, sy: 2 },
+  // Deco
+  torch_wall:    { sx: 13 * TILE_SIZE, sy: 6 * TILE_SIZE },  // wall-mounted torch
+  crate:         { sx: 5 * TILE_SIZE,  sy: 37 * TILE_SIZE }, // wooden crate
+  barrel:        { sx: 7 * TILE_SIZE,  sy: 37 * TILE_SIZE }, // round barrel
 };
 
 const enemyNames = [
