@@ -25,7 +25,7 @@ export const floor1Layout: DungeonTileId[][] = (() => {
         y === FLOOR1_ROWS - 1;
 
       if (isBorder) {
-        tile = 'wall_inner';
+        tile = 'wall_top';
       } else {
         // --- central vertical corridor ---
         const midX = Math.floor(FLOOR1_COLS / 2);

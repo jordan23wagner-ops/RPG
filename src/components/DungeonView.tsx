@@ -856,7 +856,7 @@ export function DungeonView({
       const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / TILE_SIZE) + 1);
       for (let r = startRow; r < endRow; r++) {
         for (let c = startCol; c < endCol; c++) {
-          let tileId = dungeonLayout[r]?.[c] ?? 'wall_inner';
+          let tileId: DungeonTileId = dungeonLayout[r]?.[c] ?? 'floor_basic';
           const worldX = c * TILE_SIZE;
           const worldY = r * TILE_SIZE;
           const screenX = worldX - camX;
@@ -899,6 +899,10 @@ export function DungeonView({
           }
           if (tileset && tileset.isLoaded) {
             const def = dungeonTileMap[tileId];
+            if (!def) {
+              console.warn('Unknown dungeon tile id:', tileId, 'at', r, c);
+              continue; // skip drawing this tile
+            }
             tileset.drawTile(ctx, def.sx, def.sy, screenX, screenY, 1);
           } else {
             // Fallback: simple rectangle tile if spritesheet not yet loaded
