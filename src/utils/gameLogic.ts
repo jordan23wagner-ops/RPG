@@ -43,6 +43,7 @@ export class DungeonTileset {
     this.loadPromise = new Promise<void>((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
+        console.log('Tileset loaded:', img.src, img.width, img.height);
         this.image = img;
         this._isLoaded = true;
         resolve();
@@ -136,28 +137,35 @@ export type DungeonTileId =
   | 'crate'
   | 'barrel';
 
+function fromGrid(col: number, row: number) {
+  return {
+    sx: col * TILE_SIZE,
+    sy: row * TILE_SIZE,
+  };
+}
+
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Floors
-  floor_basic:   { sx: 0,          sy: 19 * TILE_SIZE }, // col 0, row 19
-  floor_cracked: { sx: 4 * TILE_SIZE, sy: 19 * TILE_SIZE }, // col 4, row 19
-  floor_moss:    { sx: 0,          sy: 23 * TILE_SIZE }, // col 0, row 23 (dark/mossy)
+  // Floors (bottom-right colored blocks)
+  floor_basic:   fromGrid(14, 32), // blue
+  floor_cracked: fromGrid(16, 32), // red / broken
+  floor_moss:    fromGrid(18, 32), // green
 
   // Walls
-  wall_top:      { sx: 0,          sy: 3 * TILE_SIZE },  // top edge of wall
-  wall_inner:    { sx: 0,          sy: 4 * TILE_SIZE },  // middle wall band
-  wall_column:   { sx: 0,          sy: 8 * TILE_SIZE },  // vertical column/pillar
+  wall_top:      fromGrid(0, 3),
+  wall_inner:    fromGrid(0, 4),
+  wall_column:   fromGrid(6, 7),
 
-  // Doors
-  door_closed:   { sx: 7 * TILE_SIZE, sy: 4 * TILE_SIZE },  // wooden door with bars
+  // Door
+  door_closed:   fromGrid(7, 4),
 
   // Hazards / liquids
-  pit:           { sx: 10 * TILE_SIZE, sy: 19 * TILE_SIZE }, // orange pit in stone
-  water:         { sx: 4 * TILE_SIZE,  sy: 13 * TILE_SIZE }, // sewer-water with rim
+  pit:           fromGrid(10, 19),
+  water:         fromGrid(2, 17),
 
   // Deco
-  torch_wall:    { sx: 13 * TILE_SIZE, sy: 6 * TILE_SIZE },  // wall-mounted torch
-  crate:         { sx: 5 * TILE_SIZE,  sy: 37 * TILE_SIZE }, // wooden crate
-  barrel:        { sx: 7 * TILE_SIZE,  sy: 37 * TILE_SIZE }, // round barrel
+  torch_wall:    fromGrid(9, 30),
+  crate:         fromGrid(6, 37),
+  barrel:        fromGrid(10, 37),
 };
 
 const enemyNames = [
