@@ -706,14 +706,20 @@ export function DungeonView({
       const currentFloor = floorRef.current;
       const nowTime = Date.now();
 
-      // Update camera to center on player (clamped to world bounds)
+      // Update camera to center on player (clamped to dungeon grid bounds)
+      const cameraGrid = dungeonGridRef.current;
+      const worldWidthPx = cameraGrid && cameraGrid[0]
+        ? cameraGrid[0].length * TILE_SIZE
+        : WORLD_WIDTH;
+      const worldHeightPx = cameraGrid ? cameraGrid.length * TILE_SIZE : WORLD_HEIGHT;
+
       const camX = Math.max(
         0,
-        Math.min(WORLD_WIDTH - CANVAS_WIDTH, playerPos.x - CANVAS_WIDTH / 2),
+        Math.min(worldWidthPx - CANVAS_WIDTH, playerPos.x - CANVAS_WIDTH / 2),
       );
       const camY = Math.max(
         0,
-        Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, playerPos.y - CANVAS_HEIGHT / 2),
+        Math.min(worldHeightPx - CANVAS_HEIGHT, playerPos.y - CANVAS_HEIGHT / 2),
       );
       cameraRef.current = { x: camX, y: camY };
 
@@ -1277,16 +1283,16 @@ export function DungeonView({
       const keys = keysPressed.current;
 
       if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-        newY = Math.max(0, prev.y - MOVE_SPEED);
+        newY = prev.y - MOVE_SPEED;
       }
       if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-        newY = Math.min(WORLD_HEIGHT, prev.y + MOVE_SPEED);
+        newY = prev.y + MOVE_SPEED;
       }
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-        newX = Math.max(0, prev.x - MOVE_SPEED);
+        newX = prev.x - MOVE_SPEED;
       }
       if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-        newX = Math.min(WORLD_WIDTH, prev.x + MOVE_SPEED);
+        newX = prev.x + MOVE_SPEED;
       }
 
       // Coarse tile-based collision using a virtual grid that matches the
@@ -1294,13 +1300,29 @@ export function DungeonView({
       // still respecting obvious walls, pits, and water.
       const grid = dungeonGridRef.current;
       if (grid) {
-        const tileX = Math.floor(newX / TILE_SIZE);
-        const tileY = Math.floor(newY / TILE_SIZE);
-        // TEMP: disable dungeon collision for debugging walkability
-        // if (!canMoveTo(grid, tileX, tileY)) {
-        //   newX = prev.x;
-        //   newY = prev.y;
-        // }
+        const worldWidthPx = grid[0].length * TILE_SIZE;
+        const worldHeightPx = grid.length * TILE_SIZE;
+
+        // Sample collision at the player's "feet" (bottom-center of sprite)
+        const PLAYER_WIDTH = 32;
+        const PLAYER_HEIGHT = 48;
+        const collisionX = newX + PLAYER_WIDTH / 2;
+        const collisionY = newY + PLAYER_HEIGHT;
+
+        const tileX = Math.floor(collisionX / TILE_SIZE);
+        const tileY = Math.floor(collisionY / TILE_SIZE);
+
+        // Clamp against dungeon bounds and apply collision
+        if (
+          collisionX < 0 ||
+          collisionY < 0 ||
+          collisionX >= worldWidthPx ||
+          collisionY >= worldHeightPx ||
+          !canMoveTo(grid, tileX, tileY)
+        ) {
+          newX = prev.x;
+          newY = prev.y;
+        }
       }
 
       playerPosRef.current = { x: newX, y: newY };
