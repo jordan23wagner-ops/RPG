@@ -1,8 +1,14 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
 import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
-import { DungeonTileset, dungeonTileMap, drawTilesetDebug } from '../utils/gameLogic';
-import type { DungeonTileId } from '../utils/gameLogic';
+import {
+  TILE_SIZE,
+  loadDungeonTileset,
+  generateFloor1,
+  drawDungeon,
+  canMoveTo,
+  type DungeonGrid,
+} from '../dungeonConfig';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
@@ -35,200 +41,8 @@ export function DungeonView({
     items,
   } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const tilesetRef = useRef<DungeonTileset | null>(null);
-  const debugTilesetRef = useRef(false);
-
-  const TILE_SIZE = 16;
-  const DUNGEON_COLS = 40;
-  const DUNGEON_ROWS = 30;
-
-  type FloorGrid = DungeonTileId[][];
-
-  const makeFilled = (val: DungeonTileId): FloorGrid => {
-    const grid: FloorGrid = [];
-    for (let y = 0; y < DUNGEON_ROWS; y++) {
-      const row: DungeonTileId[] = [];
-      for (let x = 0; x < DUNGEON_COLS; x++) row.push(val);
-      grid.push(row);
-    }
-    return grid;
-  };
-
-  const carveRoom = (
-    grid: FloorGrid,
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-    floor: DungeonTileId = 'floor_basic',
-  ) => {
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
-          grid[y][x] = floor;
-        }
-      }
-    }
-  };
-
-  const carveCorridor = (
-    grid: FloorGrid,
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-    floor: DungeonTileId = 'floor_basic',
-  ) => {
-    // simple L-shaped corridor: horizontal then vertical
-    let x = x0;
-    let y = y0;
-
-    while (x !== x1) {
-      if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
-        grid[y][x] = floor;
-      }
-      x += x < x1 ? 1 : -1;
-    }
-
-    while (y !== y1) {
-      if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
-        grid[y][x] = floor;
-      }
-      y += y < y1 ? 1 : -1;
-    }
-
-    if (x > 0 && x < DUNGEON_COLS - 1 && y > 0 && y < DUNGEON_ROWS - 1) {
-      grid[y][x] = floor;
-    }
-  };
-
-  const addWallTops = (grid: FloorGrid) => {
-    // Any wall tile directly above a floor becomes wall_top
-    for (let y = 1; y < DUNGEON_ROWS; y++) {
-      for (let x = 0; x < DUNGEON_COLS; x++) {
-        const here = grid[y][x];
-        const below = grid[y + 1]?.[x];
-        const isWall = here === 'wall_inner' || here === 'wall_column';
-        const isFloor =
-          below === 'floor_basic' ||
-          below === 'floor_cracked' ||
-          below === 'floor_moss';
-        if (isWall && isFloor) {
-          grid[y][x] = 'wall_top';
-        }
-      }
-    }
-  };
-
-  const generateFloor1 = (): FloorGrid => {
-    const grid = makeFilled('wall_inner');
-
-    // --- Outer boundary as solid wall_top on the inside rim
-    for (let x = 0; x < DUNGEON_COLS; x++) {
-      grid[0][x] = 'wall_top';
-      grid[DUNGEON_ROWS - 1][x] = 'wall_inner';
-    }
-    for (let y = 0; y < DUNGEON_ROWS; y++) {
-      grid[y][0] = 'wall_inner';
-      grid[y][DUNGEON_COLS - 1] = 'wall_inner';
-    }
-
-    // --- Central hub room
-    const hub = { x0: 10, y0: 10, x1: 29, y1: 19 };
-    carveRoom(grid, hub.x0, hub.y0, hub.x1, hub.y1, 'floor_basic');
-
-    // cracked “combat area” in the middle of hub
-    carveRoom(grid, 16, 13, 23, 16, 'floor_cracked');
-
-    // --- Side rooms
-    const leftRoom = { x0: 3, y0: 12, x1: 8, y1: 17 };
-    const rightRoom = { x0: 31, y0: 12, x1: 36, y1: 17 };
-    const topRoom = { x0: 14, y0: 3, x1: 25, y1: 8 };
-
-    carveRoom(grid, leftRoom.x0, leftRoom.y0, leftRoom.x1, leftRoom.y1, 'floor_moss');
-    carveRoom(grid, rightRoom.x0, rightRoom.y0, rightRoom.x1, rightRoom.y1, 'floor_moss');
-    carveRoom(grid, topRoom.x0, topRoom.y0, topRoom.x1, topRoom.y1, 'floor_basic');
-
-    // --- Corridors between rooms and hub
-    const hubCenter = {
-      x: Math.floor((hub.x0 + hub.x1) / 2),
-      y: Math.floor((hub.y0 + hub.y1) / 2),
-    };
-
-    // left corridor (center of left room to hub center)
-    carveCorridor(
-      grid,
-      Math.floor((leftRoom.x0 + leftRoom.x1) / 2),
-      Math.floor((leftRoom.y0 + leftRoom.y1) / 2),
-      hub.x0,
-      hubCenter.y,
-    );
-
-    // right corridor
-    carveCorridor(
-      grid,
-      Math.floor((rightRoom.x0 + rightRoom.x1) / 2),
-      Math.floor((rightRoom.y0 + rightRoom.y1) / 2),
-      hub.x1,
-      hubCenter.y,
-    );
-
-    // top corridor
-    carveCorridor(
-      grid,
-      Math.floor((topRoom.x0 + topRoom.x1) / 2),
-      topRoom.y1,
-      hubCenter.x,
-      hub.y0,
-    );
-
-    // --- Doors at room entrances
-    grid[hubCenter.y][hub.x0 - 1] = 'door_closed'; // left door
-    grid[hubCenter.y][hub.x1 + 1] = 'door_closed'; // right door
-    grid[hub.y0 - 1][hubCenter.x] = 'door_closed'; // top door
-
-    // --- Hazards: pits & water in side rooms
-    grid[leftRoom.y1][leftRoom.x0 + 1] = 'pit';
-    grid[leftRoom.y1][leftRoom.x1 - 1] = 'pit';
-
-    for (let x = rightRoom.x0 + 1; x <= rightRoom.x1 - 1; x++) {
-      grid[rightRoom.y1][x] = 'water';
-    }
-
-    // --- Deco: columns, torches, crates, barrels in hub
-    // columns at hub corners
-    grid[hub.y0][hub.x0] = 'wall_column';
-    grid[hub.y0][hub.x1] = 'wall_column';
-    grid[hub.y1][hub.x0] = 'wall_column';
-    grid[hub.y1][hub.x1] = 'wall_column';
-
-    // wall torches on hub north wall
-    grid[hub.y0 - 1][hub.x0 + 3] = 'torch_wall';
-    grid[hub.y0 - 1][hub.x1 - 3] = 'torch_wall';
-
-    // crates & barrels near bottom of hub
-    grid[hub.y1 - 1][hub.x0 + 2] = 'crate';
-    grid[hub.y1 - 1][hub.x0 + 3] = 'barrel';
-    grid[hub.y1 - 1][hub.x1 - 3] = 'crate';
-    grid[hub.y1 - 1][hub.x1 - 2] = 'barrel';
-
-    // --- Promote wall_top where appropriate
-    addWallTops(grid);
-
-    return grid;
-  };
-
-  const dungeonLayout: DungeonTileId[][] = generateFloor1();
-
-  // Ensure tileset is created and begins loading once on mount
-  useEffect(() => {
-    if (!tilesetRef.current) {
-      tilesetRef.current = new DungeonTileset();
-      tilesetRef.current.load().catch((err) => {
-        console.error('Failed to load dungeon tileset', err);
-      });
-    }
-  }, []);
+  const tilesetImageRef = useRef<HTMLImageElement | null>(null);
+  const dungeonGridRef = useRef<DungeonGrid | null>(null);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
@@ -337,6 +151,25 @@ export function DungeonView({
   const onAttackRef = useRef(onAttack);
   const damageNumbersRef = useRef(damageNumbers);
   const characterRef = useRef(character);
+
+  // Initialize dungeon tileset + grid once
+  useEffect(() => {
+    let cancelled = false;
+    const initDungeon = async () => {
+      try {
+        const img = await loadDungeonTileset();
+        if (cancelled) return;
+        tilesetImageRef.current = img;
+        dungeonGridRef.current = generateFloor1();
+      } catch (err) {
+        console.error('Failed to init dungeon', err);
+      }
+    };
+    initDungeon();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // --- keep refs in sync with props ---
 
@@ -783,35 +616,6 @@ export function DungeonView({
 
   // Torch drawing helper removed
 
-  const drawStone = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    themeBaseColor: string,
-    themeStrokeColor: string,
-  ) => {
-    const base = themeBaseColor;
-    const stroke = themeStrokeColor;
-
-    // Thick chunky border
-    ctx.fillStyle = base;
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(x, y, width, height);
-
-    // Simple bevel highlight on top/left for depth
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 1, y + height - 2);
-    ctx.lineTo(x + 1, y + 1);
-    ctx.lineTo(x + width - 2, y + 1);
-    ctx.stroke();
-  };
-
   // Ambient dungeon props
   const drawGrassPatch = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
     ctx.save();
@@ -882,14 +686,6 @@ export function DungeonView({
     ctx.restore();
   };
 
-  // Simple collision helper: map a DungeonTileId to blocking/walkable.
-  // Walls, pits, and water are blocking; floors and props are walkable.
-  const isBlockingTile = (tileId: DungeonTileId): boolean => {
-    if (tileId === 'pit' || tileId === 'water') return true;
-    if (tileId.startsWith('wall_')) return true;
-    return false;
-  };
-
   // (Removed legacy character HUD drawing; handled in main UI panels.)
 
   // ---------- Render loop ----------
@@ -909,18 +705,6 @@ export function DungeonView({
       const enemy = enemyRef.current;
       const currentFloor = floorRef.current;
       const nowTime = Date.now();
-
-      // If debug mode is enabled and tileset is loaded, draw the tileset grid
-      // with (col,row) labels instead of the main scene.
-      const tileset = tilesetRef.current;
-      if (debugTilesetRef.current && tileset && (tileset as any).image) {
-        const img = (tileset as any).image as HTMLImageElement;
-        if (img.complete && img.naturalWidth > 0) {
-          drawTilesetDebug(ctx, img, TILE_SIZE);
-          animationFrameId = requestAnimationFrame(render);
-          return;
-        }
-      }
 
       // Update camera to center on player (clamped to world bounds)
       const camX = Math.max(
@@ -1030,68 +814,27 @@ export function DungeonView({
       drawBones(rugScreenX + 40, rugScreenY + rugHeight - 36);
       drawBones(rugScreenX + rugWidth - 40, rugScreenY + rugHeight - 48);
 
-      // Tiles rendered from logical DungeonTileId[][]; still use
-      // 100x100 world tiles so existing camera math holds.
-      console.log('Drawing tiles...', dungeonLayout.length, dungeonLayout[0]?.length);
-      const cols = DUNGEON_COLS;
-      const rows = DUNGEON_ROWS;
+      // Draw dungeon grid from atlas if loaded
+      const grid = dungeonGridRef.current;
+      const tilesetImage = tilesetImageRef.current;
+      if (grid && tilesetImage) {
+        drawDungeon(ctx, tilesetImage, grid);
+      }
+
+      // Deterministic pseudo-random per tile for ambient props over rug area
+      const cols = grid ? grid[0]?.length ?? 0 : 0;
+      const rows = grid ? grid.length : 0;
       const startCol = Math.max(0, Math.floor(camX / TILE_SIZE) - 1);
       const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / TILE_SIZE) + 1);
       const startRow = Math.max(0, Math.floor(camY / TILE_SIZE) - 1);
       const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / TILE_SIZE) + 1);
       for (let r = startRow; r < endRow; r++) {
         for (let c = startCol; c < endCol; c++) {
-          let tileId: DungeonTileId = dungeonLayout[r]?.[c] ?? 'floor_basic';
           const worldX = c * TILE_SIZE;
           const worldY = r * TILE_SIZE;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
 
-          const inChamber =
-            worldX > rugX - 80 &&
-            worldX < rugX + rugWidth + 80 &&
-            worldY > rugY - 80 &&
-            worldY < rugY + rugHeight + 80;
-
-          // Subtle floor variation: occasionally treat basic floor as cracked
-          if (tileId === 'floor_basic') {
-            const seed = (r * 73856093) ^ (c * 19349663) ^ (floorRef.current * 83492791);
-            const pr = Math.abs(Math.sin(seed)) % 1;
-            if (pr < 0.12) {
-              tileId = 'floor_cracked';
-            }
-          }
-
-          // Cheap torch glow: soft radial highlight behind torch_wall tiles
-          if (tileId === 'torch_wall') {
-            const glowRadius = TILE_SIZE * 3;
-            const gx = screenX + TILE_SIZE / 2;
-            const gy = screenY + TILE_SIZE / 2;
-            const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, glowRadius);
-            gradient.addColorStop(0, 'rgba(252, 211, 77, 0.45)');
-            gradient.addColorStop(1, 'rgba(252, 211, 77, 0.0)');
-            ctx.save();
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(gx, gy, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-          if (tileset && tileset.isLoaded) {
-            const def = dungeonTileMap[tileId];
-            if (!def) {
-              console.warn('Unknown dungeon tile id:', tileId, 'at', r, c);
-              continue; // skip drawing this tile
-            }
-            tileset.drawTile(ctx, def.sx, def.sy, screenX, screenY, 1);
-          } else {
-            // Fallback: simple rectangle tile if spritesheet not yet loaded
-            const baseColor = inChamber ? '#111827' : theme.tileFill;
-            const strokeColor = inChamber ? '#020617' : theme.tileStroke;
-            drawStone(ctx, screenX, screenY, TILE_SIZE, TILE_SIZE, baseColor, strokeColor);
-          }
-
-          // Deterministic pseudo-random per tile for ambient props
           const seed = floorRef.current * 73856093 ^ (r * 19349663) ^ (c * 83492791);
           const pr = Math.abs(Math.sin(seed)) % 1;
 
@@ -1549,14 +1292,14 @@ export function DungeonView({
       // Coarse tile-based collision using a virtual grid that matches the
       // old 4000x3000 world. This keeps most of the space walkable while
       // still respecting obvious walls, pits, and water.
-      const VIRTUAL_TILE_SIZE_X = WORLD_WIDTH / DUNGEON_COLS;
-      const VIRTUAL_TILE_SIZE_Y = WORLD_HEIGHT / DUNGEON_ROWS;
-      const col = Math.floor(newX / VIRTUAL_TILE_SIZE_X);
-      const row = Math.floor(newY / VIRTUAL_TILE_SIZE_Y);
-      const tileId = dungeonLayout[row]?.[col];
-      if (tileId && isBlockingTile(tileId)) {
-        newX = prev.x;
-        newY = prev.y;
+      const grid = dungeonGridRef.current;
+      if (grid) {
+        const tileX = Math.floor(newX / TILE_SIZE);
+        const tileY = Math.floor(newY / TILE_SIZE);
+        if (!canMoveTo(grid, tileX, tileY)) {
+          newX = prev.x;
+          newY = prev.y;
+        }
       }
 
       playerPosRef.current = { x: newX, y: newY };
@@ -1616,12 +1359,6 @@ export function DungeonView({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Track movement keys
       keysPressed.current[e.key] = true;
-
-      // Temporary: toggle tileset debug view with backtick (`) key
-      if (e.key === '`') {
-        debugTilesetRef.current = !debugTilesetRef.current;
-        return;
-      }
 
       // Handle attacks separately
       if (e.code === 'Space') {
