@@ -58,21 +58,20 @@ export class DungeonTileset {
   }
 
   /**
-   * Draws a tile from (tileX, tileY) in the sheet to screenX/screenY.
+   * Draws a tile from the spritesheet to screenX/screenY.
+   * `sx`/`sy` are PIXEL offsets into the big sheet (not indices).
    * Does nothing if the image is not yet loaded.
    */
   drawTile(
     ctx: CanvasRenderingContext2D,
-    tileX: number,
-    tileY: number,
+    sx: number,
+    sy: number,
     screenX: number,
     screenY: number,
     scale = 1,
   ): void {
     if (!this.image || !this._isLoaded) return;
 
-    const sx = tileX * this.tileWidth;
-    const sy = tileY * this.tileHeight;
     const sw = this.tileWidth;
     const sh = this.tileHeight;
     const dw = this.tileWidth * scale;
