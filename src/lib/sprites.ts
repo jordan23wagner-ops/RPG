@@ -12,19 +12,6 @@ const ENEMY_SPRITE_PATHS: Record<string, string> = {
 
 const enemySpriteCache: Map<string, HTMLImageElement> = new Map();
 
-export function preloadEnemySprites(rarities: string[]): void {
-  rarities.forEach((rarity) => {
-    const key = rarity.toLowerCase();
-    const src = ENEMY_SPRITE_PATHS[key];
-    if (!src) return;
-    if (enemySpriteCache.has(key)) return;
-
-    const img = new Image();
-    img.src = src;
-    enemySpriteCache.set(key, img);
-  });
-}
-
 export function getEnemySprite(rarity: string): HTMLImageElement | null {
   const key = rarity.toLowerCase();
   return enemySpriteCache.get(key) ?? null;
@@ -88,8 +75,11 @@ export function getCachedEnemySprite(enemy: { name: string; rarity: string }): H
 }
 
 // Preload a set of enemy rarity keys (including mimic special case)
-export async function preloadEnemySprites(keys: string[]) {
+export async function preloadEnemySprites(keys: string[]): Promise<void> {
   for (const k of keys) {
-    await ensureEnemySprite({ name: k === 'mimic' ? 'Mimic Chest' : k, rarity: k === 'mimic' ? 'common' : k });
+    await ensureEnemySprite({
+      name: k === 'mimic' ? 'Mimic Chest' : k,
+      rarity: k === 'mimic' ? 'common' : k,
+    });
   }
 }
