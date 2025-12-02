@@ -1276,56 +1276,53 @@ export function DungeonView({
     let animationFrameId: number;
 
     const movePlayer = () => {
-      const prev = playerPosRef.current;
-      let newX = prev.x;
-      let newY = prev.y;
+      let newX = 0;
+      let newY = 0;
+      const player = playerPosRef.current;
+      newX = player.x;
+      newY = player.y;
 
       const keys = keysPressed.current;
+      const grid = dungeonGridRef.current;
 
+      // If grid not ready yet, just loop without moving
+      if (!grid) {
+        animationFrameId = requestAnimationFrame(movePlayer);
+        return;
+      }
+
+      const dungeonWidthPx = grid[0].length * TILE_SIZE;
+      const dungeonHeightPx = grid.length * TILE_SIZE;
+
+      // ----- 1. Base movement intent (no collision yet) -----
       if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-        newY = prev.y - MOVE_SPEED;
+        newY -= MOVE_SPEED;
       }
       if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-        newY = prev.y + MOVE_SPEED;
+        newY += MOVE_SPEED;
       }
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-        newX = prev.x - MOVE_SPEED;
+        newX -= MOVE_SPEED;
       }
       if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-        newX = prev.x + MOVE_SPEED;
+        newX += MOVE_SPEED;
       }
 
-      // Coarse tile-based collision using a virtual grid that matches the
-      // old 4000x3000 world. This keeps most of the space walkable while
-      // still respecting obvious walls, pits, and water.
-      const grid = dungeonGridRef.current;
-      if (grid) {
-        const worldWidthPx = grid[0].length * TILE_SIZE;
-        const worldHeightPx = grid.length * TILE_SIZE;
+      // Clamp to dungeon bounds so we never step outside the grid
+      newX = Math.max(0, Math.min(dungeonWidthPx, newX));
+      newY = Math.max(0, Math.min(dungeonHeightPx, newY));
 
-        // Sample collision at the player's "feet" (bottom-center of sprite)
-        const PLAYER_WIDTH = 32;
-        const PLAYER_HEIGHT = 48;
-        const collisionX = newX + PLAYER_WIDTH / 2;
-        const collisionY = newY + PLAYER_HEIGHT;
+      // ----- 2. Tile collision check -----
+      const tileX = Math.floor(newX / TILE_SIZE);
+      const tileY = Math.floor(newY / TILE_SIZE);
 
-        const tileX = Math.floor(collisionX / TILE_SIZE);
-        const tileY = Math.floor(collisionY / TILE_SIZE);
-
-        // Clamp against dungeon bounds and apply collision
-        if (
-          collisionX < 0 ||
-          collisionY < 0 ||
-          collisionX >= worldWidthPx ||
-          collisionY >= worldHeightPx ||
-          !canMoveTo(grid, tileX, tileY)
-        ) {
-          newX = prev.x;
-          newY = prev.y;
-        }
+      if (canMoveTo(grid, tileX, tileY)) {
+        // Floor tile: commit the move
+        playerPosRef.current = { x: newX, y: newY };
+      } else {
+        // Blocked (wall, door, crate, water, etc.): stay put
+        playerPosRef.current = { x: player.x, y: player.y };
       }
-
-      playerPosRef.current = { x: newX, y: newY };
 
       animationFrameId = requestAnimationFrame(movePlayer);
     };
