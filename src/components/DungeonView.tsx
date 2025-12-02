@@ -37,64 +37,127 @@ export function DungeonView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<DungeonTileset | null>(null);
 
-  // Simple logical dungeon layout using DungeonTileId for drawing only.
+  // Enhanced dungeon layout with cave walls, walking paths, and atmospheric details.
   // TILE_SIZE is purely visual; world/collision logic still uses
   // WORLD_WIDTH / WORLD_HEIGHT and is unaffected by this.
   const TILE_SIZE = 16;
   const DUNGEON_COLS = 40;
   const DUNGEON_ROWS = 30;
 
-  const baseRow: DungeonTileId[] = Array.from({ length: DUNGEON_COLS }, () => 'wall_inner');
-  const floorRow: DungeonTileId[] = [
-    'wall_inner',
-    ...Array.from({ length: DUNGEON_COLS - 2 }, () => 'floor_basic'),
-    'wall_inner',
-  ];
+  // Helper to create cave-style walls with variation
+  const createCaveWallRow = (seed: number): DungeonTileId[] => {
+    return Array.from({ length: DUNGEON_COLS }, (_, i) => {
+      const hash = (seed * 73856093) ^ (i * 19349663);
+      const variation = Math.abs(Math.sin(hash)) % 1;
+      if (variation < 0.3) return 'wall_cave';
+      if (variation < 0.5) return 'wall_cave_rough';
+      if (variation < 0.65) return 'wall_boulder';
+      if (variation < 0.75) return 'wall_stalactite';
+      return 'wall_inner';
+    });
+  };
 
+  // Create floor with walking paths and variations
+  const createFloorRow = (rowIdx: number, hasPath: boolean = false): DungeonTileId[] => {
+    const row: DungeonTileId[] = [];
+    for (let col = 0; col < DUNGEON_COLS; col++) {
+      // Outer walls
+      if (col === 0 || col === DUNGEON_COLS - 1) {
+        const hash = (rowIdx * 73856093) ^ (col * 19349663);
+        const v = Math.abs(Math.sin(hash)) % 1;
+        row.push(v < 0.4 ? 'wall_cave' : v < 0.7 ? 'wall_cave_rough' : 'wall_boulder');
+        continue;
+      }
+      
+      // Walking path in the center (columns 18-22)
+      if (hasPath && col >= 18 && col <= 22) {
+        const hash = (rowIdx * 83492791) ^ (col * 73856093);
+        const v = Math.abs(Math.sin(hash)) % 1;
+        row.push(v < 0.6 ? 'floor_path' : 'floor_path_worn');
+        continue;
+      }
+      
+      // Regular floor with variations
+      const hash = (rowIdx * 83492791) ^ (col * 19349663);
+      const v = Math.abs(Math.sin(hash)) % 1;
+      if (v < 0.65) {
+        row.push('floor_basic');
+      } else if (v < 0.80) {
+        row.push('floor_cracked');
+      } else if (v < 0.90) {
+        row.push('floor_cobble');
+      } else if (v < 0.95) {
+        row.push('floor_mossy');
+      } else {
+        // Occasional debris/bones on floor
+        row.push(v < 0.975 ? 'debris' : 'bones');
+      }
+    }
+    return row;
+  };
+
+  // Build the dungeon layout with caves, paths, and atmosphere
   const dungeonLayout: DungeonTileId[][] = [
-    // Top outer wall
-    baseRow,
-    baseRow,
-    // Upper corridor and chambers
-    floorRow,
-    floorRow,
-    floorRow,
-    // Mid-section with pits and water
+    // Top outer cave walls (rows 0-2)
+    createCaveWallRow(0),
+    createCaveWallRow(1),
+    createCaveWallRow(2),
+    // Upper corridor with walking path
+    createFloorRow(3, true),
+    createFloorRow(4, true),
+    createFloorRow(5, true),
+    // Mid-section with pits, water, and hazards
     (() => {
-      const row: DungeonTileId[] = [...floorRow];
-      row[8] = 'pit';
-      row[9] = 'pit';
-      row[10] = 'water';
-      row[11] = 'water';
+      const row = createFloorRow(6, true);
+      // Water pool on left side
+      row[6] = 'water';
+      row[7] = 'water';
+      row[8] = 'water';
+      // Pit hazard
+      row[12] = 'pit';
+      row[13] = 'pit';
+      // Rubble
+      row[30] = 'rubble';
+      row[31] = 'rubble';
       return row;
     })(),
-    floorRow,
-    // Central chamber band (around ritual rug)
+    createFloorRow(7, true),
+    // Central chamber band (around ritual rug) with walking path
     ...Array.from({ length: 10 }, (_, idx) => {
-      const row: DungeonTileId[] = [...floorRow];
-      // Add some scattered pits/water through the middle stretch
-      if (idx === 3) {
-        row[20] = 'pit';
-        row[21] = 'pit';
+      const row = createFloorRow(8 + idx, true);
+      // Add scattered hazards and props
+      if (idx === 2) {
+        row[5] = 'bones';
+        row[6] = 'debris';
       }
-      if (idx === 5) {
-        row[24] = 'water';
-        row[25] = 'water';
+      if (idx === 4) {
+        row[28] = 'pit';
+        row[29] = 'pit';
+      }
+      if (idx === 6) {
+        row[32] = 'water';
+        row[33] = 'water';
+      }
+      if (idx === 8) {
+        row[8] = 'rubble';
+        row[35] = 'bones';
       }
       return row;
     }),
-    // Lower corridor with a door near the exit ladder side (right edge)
+    // Lower corridor with door
     (() => {
-      const row: DungeonTileId[] = [...floorRow];
-      row[DUNGEON_COLS - 4] = 'door_closed';
+      const row = createFloorRow(18, true);
+      row[DUNGEON_COLS - 5] = 'door_closed';
       return row;
     })(),
-    floorRow,
-    // Bottom outer wall band
-    baseRow,
-    baseRow,
-    // Fill remaining rows up to DUNGEON_ROWS with inner walls to keep bounds
-    ...Array.from({ length: DUNGEON_ROWS - 18 }, () => baseRow),
+    createFloorRow(19, true),
+    createFloorRow(20, false),
+    // Bottom outer cave walls
+    createCaveWallRow(21),
+    createCaveWallRow(22),
+    createCaveWallRow(23),
+    // Fill remaining rows with cave walls
+    ...Array.from({ length: DUNGEON_ROWS - 24 }, (_, i) => createCaveWallRow(24 + i)),
   ];
 
   // Ensure tileset is created and begins loading once on mount
@@ -759,6 +822,306 @@ export function DungeonView({
     ctx.restore();
   };
 
+  // ===== Enhanced procedural tile rendering for cave/dungeon aesthetic =====
+  
+  // Draw a cave-style wall tile with rocky texture
+  const drawCaveWall = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    variant: 'cave' | 'rough' | 'boulder' | 'stalactite',
+    seed: number,
+  ) => {
+    ctx.save();
+    const hash = Math.abs(Math.sin(seed * 73856093)) % 1;
+    
+    // Base dark rock color with variation
+    const baseColors = ['#1f2937', '#111827', '#1a1a2e', '#0f172a'];
+    ctx.fillStyle = baseColors[Math.floor(hash * baseColors.length)];
+    ctx.fillRect(x, y, size, size);
+    
+    // Add rocky texture based on variant
+    if (variant === 'cave' || variant === 'rough') {
+      // Jagged rock highlights
+      ctx.fillStyle = 'rgba(75, 85, 99, 0.5)';
+      const rocks = variant === 'rough' ? 4 : 2;
+      for (let i = 0; i < rocks; i++) {
+        const rx = x + (((seed * (i + 1) * 13) % size) * 0.7);
+        const ry = y + (((seed * (i + 2) * 17) % size) * 0.7);
+        const rsize = 3 + (hash * 4);
+        ctx.beginPath();
+        ctx.arc(rx, ry, rsize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Dark crevices
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 2, y + size * 0.3);
+      ctx.lineTo(x + size * 0.4, y + size * 0.5);
+      ctx.moveTo(x + size * 0.6, y + 3);
+      ctx.lineTo(x + size * 0.8, y + size * 0.4);
+      ctx.stroke();
+    }
+    
+    if (variant === 'boulder') {
+      // Large rounded boulder shape
+      ctx.fillStyle = '#374151';
+      ctx.beginPath();
+      ctx.ellipse(x + size / 2, y + size / 2, size * 0.4, size * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Highlight
+      ctx.fillStyle = 'rgba(156, 163, 175, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.4, y + size * 0.35, size * 0.15, size * 0.1, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (variant === 'stalactite') {
+      // Hanging stalactite points
+      ctx.fillStyle = '#4b5563';
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.3, y);
+      ctx.lineTo(x + size * 0.35, y + size * 0.6);
+      ctx.lineTo(x + size * 0.25, y);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.7, y);
+      ctx.lineTo(x + size * 0.72, y + size * 0.45);
+      ctx.lineTo(x + size * 0.68, y);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  };
+
+  // Draw floor tiles with path and crack variations
+  const drawFloorTile = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    variant: 'basic' | 'cracked' | 'mossy' | 'path' | 'path_worn' | 'cobble',
+    theme: ReturnType<typeof getFloorTheme>,
+    _seed: number,
+  ) => {
+    ctx.save();
+    
+    // Base floor color
+    let baseColor = theme.tileFill;
+    if (variant === 'path' || variant === 'path_worn') {
+      baseColor = '#3f3f46'; // Lighter path color
+    } else if (variant === 'cobble') {
+      baseColor = '#27272a';
+    }
+    
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x, y, size, size);
+    
+    // Add variation details
+    if (variant === 'cracked') {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      // Random crack pattern
+      ctx.moveTo(x + size * 0.2, y + size * 0.1);
+      ctx.lineTo(x + size * 0.5, y + size * 0.4);
+      ctx.lineTo(x + size * 0.4, y + size * 0.7);
+      ctx.lineTo(x + size * 0.6, y + size * 0.9);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.5, y + size * 0.4);
+      ctx.lineTo(x + size * 0.8, y + size * 0.5);
+      ctx.stroke();
+    }
+    
+    if (variant === 'mossy') {
+      // Green moss patches
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.3, y + size * 0.6, size * 0.2, size * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(22, 163, 74, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.7, y + size * 0.3, size * 0.15, size * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (variant === 'path') {
+      // Smooth worn path with subtle border
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+    }
+    
+    if (variant === 'path_worn') {
+      // Worn path with footprint hints
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.3, y + size * 0.5, size * 0.12, size * 0.18, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.7, y + size * 0.4, size * 0.1, size * 0.15, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (variant === 'cobble') {
+      // Cobblestone pattern
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y + size * 0.5);
+      ctx.lineTo(x + size, y + size * 0.5);
+      ctx.moveTo(x + size * 0.5, y);
+      ctx.lineTo(x + size * 0.5, y + size);
+      ctx.stroke();
+    }
+    
+    // Subtle tile border
+    ctx.strokeStyle = theme.tileStroke;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, size, size);
+    
+    ctx.restore();
+  };
+
+  // Draw ambient props (bones, debris, rubble)
+  const drawAmbientProp = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    variant: 'bones' | 'debris' | 'rubble',
+    seed: number,
+  ) => {
+    ctx.save();
+    
+    if (variant === 'bones') {
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      // Scattered bone pieces
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.2, y + size * 0.3);
+      ctx.lineTo(x + size * 0.5, y + size * 0.4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.4, y + size * 0.6);
+      ctx.lineTo(x + size * 0.7, y + size * 0.5);
+      ctx.stroke();
+      // Skull hint
+      ctx.fillStyle = '#d1d5db';
+      ctx.beginPath();
+      ctx.arc(x + size * 0.6, y + size * 0.7, size * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1f2937';
+      ctx.beginPath();
+      ctx.arc(x + size * 0.55, y + size * 0.68, size * 0.03, 0, Math.PI * 2);
+      ctx.arc(x + size * 0.65, y + size * 0.68, size * 0.03, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (variant === 'debris') {
+      // Scattered small rocks and dust
+      ctx.fillStyle = '#4b5563';
+      for (let i = 0; i < 4; i++) {
+        const dx = x + ((seed * (i + 1) * 31) % (size * 0.8)) + size * 0.1;
+        const dy = y + ((seed * (i + 2) * 37) % (size * 0.8)) + size * 0.1;
+        const ds = 2 + (i % 3);
+        ctx.beginPath();
+        ctx.arc(dx, dy, ds, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Dust smudge
+      ctx.fillStyle = 'rgba(75, 85, 99, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.5, y + size * 0.5, size * 0.3, size * 0.2, 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (variant === 'rubble') {
+      // Larger rock pile
+      ctx.fillStyle = '#374151';
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.1, y + size * 0.8);
+      ctx.lineTo(x + size * 0.3, y + size * 0.3);
+      ctx.lineTo(x + size * 0.5, y + size * 0.5);
+      ctx.lineTo(x + size * 0.7, y + size * 0.2);
+      ctx.lineTo(x + size * 0.9, y + size * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      // Highlights
+      ctx.fillStyle = '#6b7280';
+      ctx.beginPath();
+      ctx.arc(x + size * 0.4, y + size * 0.45, size * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  };
+
+  // Draw water/pit hazard tiles
+  const drawHazardTile = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    variant: 'water' | 'pit',
+    time: number,
+  ) => {
+    ctx.save();
+    
+    if (variant === 'water') {
+      // Animated water with ripples
+      const wave = (Math.sin(time / 500 + x * 0.1) + 1) / 2;
+      ctx.fillStyle = '#1e3a5f';
+      ctx.fillRect(x, y, size, size);
+      // Ripple effect
+      ctx.strokeStyle = `rgba(96, 165, 250, ${0.3 + wave * 0.2})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.5, y + size * 0.5, size * (0.2 + wave * 0.1), size * 0.15, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.5, y + size * 0.5, size * (0.35 + wave * 0.05), size * 0.25, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Surface shine
+      ctx.fillStyle = 'rgba(147, 197, 253, 0.2)';
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.3, y + size * 0.3, size * 0.1, size * 0.05, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (variant === 'pit') {
+      // Deep dark pit with edge
+      const gradient = ctx.createRadialGradient(
+        x + size / 2, y + size / 2, 0,
+        x + size / 2, y + size / 2, size * 0.6
+      );
+      gradient.addColorStop(0, '#000000');
+      gradient.addColorStop(0.7, '#0a0a0a');
+      gradient.addColorStop(1, '#1f2937');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, size, size);
+      // Crumbling edge
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + size * 0.1, y + size * 0.15);
+      ctx.lineTo(x, y + size * 0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size, y + size * 0.7);
+      ctx.lineTo(x + size * 0.85, y + size * 0.8);
+      ctx.lineTo(x + size, y + size);
+      ctx.stroke();
+    }
+    
+    ctx.restore();
+  };
+
   // Simple collision helper: map a DungeonTileId to blocking/walkable.
   // Walls, pits, and water are blocking; floors and props are walkable.
   const isBlockingTile = (tileId: DungeonTileId): boolean => {
@@ -905,7 +1268,7 @@ export function DungeonView({
       const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / TILE_SIZE) + 1);
       for (let r = startRow; r < endRow; r++) {
         for (let c = startCol; c < endCol; c++) {
-          let tileId = dungeonLayout[r]?.[c] ?? 'wall_inner';
+          const tileId = dungeonLayout[r]?.[c] ?? 'wall_inner';
           const worldX = c * TILE_SIZE;
           const worldY = r * TILE_SIZE;
           const screenX = worldX - camX;
@@ -920,14 +1283,8 @@ export function DungeonView({
             worldY > rugY - 80 &&
             worldY < rugY + rugHeight + 80;
 
-          // Subtle floor variation: occasionally treat basic floor as cracked
-          if (tileId === 'floor_basic') {
-            const seed = (r * 73856093) ^ (c * 19349663) ^ (floorRef.current * 83492791);
-            const pr = Math.abs(Math.sin(seed)) % 1;
-            if (pr < 0.12) {
-              tileId = 'floor_cracked';
-            }
-          }
+          // Seed for deterministic randomness per tile
+          const tileSeed = (r * 73856093) ^ (c * 19349663) ^ (floorRef.current * 83492791);
 
           const tileset = tilesetRef.current;
 
@@ -946,53 +1303,146 @@ export function DungeonView({
             ctx.fill();
             ctx.restore();
           }
-          if (tileset && tileset.isLoaded) {
+          
+          // Enhanced procedural tile rendering with cave/dungeon aesthetic
+          // Only use spritesheet if fully loaded AND has the tile; otherwise fallback to procedural
+          const useProceduralFallback = !tileset || !tileset.isLoaded;
+          
+          if (useProceduralFallback) {
+            // ===== CAVE WALL TILES =====
+            if (tileId === 'wall_cave') {
+              drawCaveWall(ctx, screenX, screenY, TILE_SIZE, 'cave', tileSeed);
+            } else if (tileId === 'wall_cave_rough') {
+              drawCaveWall(ctx, screenX, screenY, TILE_SIZE, 'rough', tileSeed);
+            } else if (tileId === 'wall_boulder') {
+              drawCaveWall(ctx, screenX, screenY, TILE_SIZE, 'boulder', tileSeed);
+            } else if (tileId === 'wall_stalactite') {
+              drawCaveWall(ctx, screenX, screenY, TILE_SIZE, 'stalactite', tileSeed);
+            } else if (tileId.startsWith('wall_')) {
+              // Generic wall fallback
+              const baseColor = inChamber ? '#111827' : '#1f2937';
+              const strokeColor = inChamber ? '#020617' : '#0f172a';
+              drawStone(ctx, screenX, screenY, TILE_SIZE, TILE_SIZE, baseColor, strokeColor);
+            }
+            // ===== FLOOR TILES =====
+            else if (tileId === 'floor_basic') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'basic', theme, tileSeed);
+            } else if (tileId === 'floor_cracked') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'cracked', theme, tileSeed);
+            } else if (tileId === 'floor_mossy') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'mossy', theme, tileSeed);
+            } else if (tileId === 'floor_path') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'path', theme, tileSeed);
+            } else if (tileId === 'floor_path_worn') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'path_worn', theme, tileSeed);
+            } else if (tileId === 'floor_cobble') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'cobble', theme, tileSeed);
+            }
+            // ===== HAZARD TILES =====
+            else if (tileId === 'water') {
+              drawHazardTile(ctx, screenX, screenY, TILE_SIZE, 'water', nowTime);
+            } else if (tileId === 'pit') {
+              drawHazardTile(ctx, screenX, screenY, TILE_SIZE, 'pit', nowTime);
+            }
+            // ===== AMBIENT PROP TILES =====
+            else if (tileId === 'bones') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'basic', theme, tileSeed);
+              drawAmbientProp(ctx, screenX, screenY, TILE_SIZE, 'bones', tileSeed);
+            } else if (tileId === 'debris') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'basic', theme, tileSeed);
+              drawAmbientProp(ctx, screenX, screenY, TILE_SIZE, 'debris', tileSeed);
+            } else if (tileId === 'rubble') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'basic', theme, tileSeed);
+              drawAmbientProp(ctx, screenX, screenY, TILE_SIZE, 'rubble', tileSeed);
+            }
+            // ===== DOOR TILES =====
+            else if (tileId === 'door_closed') {
+              // Draw floor underneath, then door frame
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'path', theme, tileSeed);
+              ctx.fillStyle = '#7c2d12';
+              ctx.fillRect(screenX + 2, screenY, TILE_SIZE - 4, TILE_SIZE);
+              ctx.strokeStyle = '#451a03';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(screenX + 2, screenY, TILE_SIZE - 4, TILE_SIZE);
+              // Door handle
+              ctx.fillStyle = '#d97706';
+              ctx.beginPath();
+              ctx.arc(screenX + TILE_SIZE - 5, screenY + TILE_SIZE / 2, 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            // ===== TORCH TILES =====
+            else if (tileId === 'torch_wall') {
+              drawCaveWall(ctx, screenX, screenY, TILE_SIZE, 'cave', tileSeed);
+              drawTorch(ctx, screenX + TILE_SIZE / 2, screenY + 4, nowTime);
+            }
+            // ===== PROP TILES =====
+            else if (tileId === 'crate' || tileId === 'barrel') {
+              drawFloorTile(ctx, screenX, screenY, TILE_SIZE, 'basic', theme, tileSeed);
+              ctx.fillStyle = tileId === 'crate' ? '#78350f' : '#7c2d12';
+              ctx.fillRect(screenX + 3, screenY + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+              ctx.strokeStyle = '#451a03';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(screenX + 3, screenY + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+            }
+            // ===== FALLBACK =====
+            else {
+              const baseColor = inChamber ? '#111827' : theme.tileFill;
+              const strokeColor = inChamber ? '#020617' : theme.tileStroke;
+              drawStone(ctx, screenX, screenY, TILE_SIZE, TILE_SIZE, baseColor, strokeColor);
+            }
+          } else {
+            // Use spritesheet rendering
             const def = dungeonTileMap[tileId];
             tileset.drawTile(ctx, def.sx, def.sy, screenX, screenY, 1);
-          } else {
-            // Fallback: simple rectangle tile if spritesheet not yet loaded
-            const baseColor = inChamber ? '#111827' : theme.tileFill;
-            const strokeColor = inChamber ? '#020617' : theme.tileStroke;
-            drawStone(ctx, screenX, screenY, TILE_SIZE, TILE_SIZE, baseColor, strokeColor);
           }
 
-          // Deterministic pseudo-random per tile for ambient props
-          const seed = floorRef.current * 73856093 ^ (r * 19349663) ^ (c * 83492791);
-          const pr = Math.abs(Math.sin(seed)) % 1;
+          // Deterministic pseudo-random per tile for additional ambient props
+          const pr = Math.abs(Math.sin(tileSeed)) % 1;
 
-          if (theme.name === 'jungle') {
-            if (pr < 0.04) {
-              drawTree(ctx, screenX + 36, screenY + 18);
-            } else if (pr < 0.12) {
-              drawGrassPatch(ctx, screenX + 30, screenY + 60);
-            } else if (pr < 0.16) {
-              drawRockProp(ctx, screenX + 40, screenY + 58);
-            }
-          } else if (theme.name === 'lava') {
-            if (pr < 0.08) {
-              drawRockProp(ctx, screenX + 40, screenY + 56);
-            }
-          } else if (theme.name === 'ice') {
-            if (pr < 0.06) {
-              drawRockProp(ctx, screenX + 38, screenY + 55);
-            }
-          } else {
-            // Classic dungeon: sparse rocks and occasional mossy patch
-            if (pr < 0.08) {
-              drawRockProp(ctx, screenX + 38, screenY + 58);
-            } else if (pr < 0.11) {
-              drawGrassPatch(ctx, screenX + 28, screenY + 62);
+          // Additional ambient decoration on floor tiles (positioned within tile bounds)
+          if (tileId.startsWith('floor_') && !tileId.includes('path')) {
+            if (theme.name === 'jungle') {
+              if (pr < 0.04) {
+                drawTree(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.3);
+              } else if (pr < 0.12) {
+                drawGrassPatch(ctx, screenX + TILE_SIZE * 0.4, screenY + TILE_SIZE * 0.7);
+              } else if (pr < 0.16) {
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
+              }
+            } else if (theme.name === 'lava') {
+              if (pr < 0.08) {
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
+              }
+            } else if (theme.name === 'ice') {
+              if (pr < 0.06) {
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
+              }
+            } else {
+              // Classic dungeon: sparse rocks
+              if (pr < 0.05) {
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
+              }
             }
           }
 
-          // Wall torches along some upper tiles to avoid UI overlap
-          if (r <= startRow + 1 && pr > 0.65 && pr < 0.75) {
-            const torchWorldX = worldX + 30;
-            const torchWorldY = worldY - 10;
-            const tx = torchWorldX - camX;
-            const ty = torchWorldY - camY;
-            if (ty > 40 && ty < CANVAS_HEIGHT - 80) {
-              drawTorch(ctx, tx, ty, nowTime);
+          // Wall torches along cave walls for atmosphere
+          if (tileId.startsWith('wall_') && !tileId.includes('torch')) {
+            if (pr > 0.85 && pr < 0.92) {
+              // Place torches on walls with glow
+              const glowRadius = TILE_SIZE * 4;
+              const gx = screenX + TILE_SIZE / 2;
+              const gy = screenY + TILE_SIZE;
+              const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, glowRadius);
+              gradient.addColorStop(0, 'rgba(252, 211, 77, 0.35)');
+              gradient.addColorStop(0.5, 'rgba(251, 191, 36, 0.15)');
+              gradient.addColorStop(1, 'rgba(252, 211, 77, 0.0)');
+              ctx.save();
+              ctx.fillStyle = gradient;
+              ctx.beginPath();
+              ctx.arc(gx, gy, glowRadius, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+              drawTorch(ctx, gx, gy - 6, nowTime);
             }
           }
         }
