@@ -3,6 +3,7 @@ import { useRef, useEffect } from 'react';
 import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
 import { DungeonTileset, dungeonTileMap } from '../utils/gameLogic';
 import type { DungeonTileId } from '../utils/gameLogic';
+import { floor1Layout, FLOOR1_COLS, FLOOR1_ROWS } from '../config/floor1Layout';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
@@ -41,12 +42,10 @@ export function DungeonView({
   // TILE_SIZE is purely visual; world/collision logic still uses
   // WORLD_WIDTH / WORLD_HEIGHT and is unaffected by this.
   const TILE_SIZE = 16;
-  const DUNGEON_COLS = 30;
-  const DUNGEON_ROWS = 20;
+  const DUNGEON_COLS = FLOOR1_COLS;
+  const DUNGEON_ROWS = FLOOR1_ROWS;
 
-  const dungeonLayout: DungeonTileId[][] = Array.from({ length: DUNGEON_ROWS }, () =>
-    Array.from({ length: DUNGEON_COLS }, () => 'floor_basic'),
-  );
+  const dungeonLayout: DungeonTileId[][] = floor1Layout;
 
   // Ensure tileset is created and begins loading once on mount
   useEffect(() => {
