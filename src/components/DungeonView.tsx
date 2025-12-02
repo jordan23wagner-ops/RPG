@@ -41,19 +41,22 @@ export function DungeonView({
   // TILE_SIZE is purely visual; world/collision logic still uses
   // WORLD_WIDTH / WORLD_HEIGHT and is unaffected by this.
   const TILE_SIZE = 16;
-  const DUNGEON_COLS = 40;
-  const DUNGEON_ROWS = 30;
+  const DUNGEON_COLS = 30;
+  const DUNGEON_ROWS = 20;
 
-  const baseRow: DungeonTileId[] = Array.from({ length: DUNGEON_COLS }, () => 'wall_inner');
-  const floorRow: DungeonTileId[] = [
-    'wall_inner',
-    ...Array.from({ length: DUNGEON_COLS - 2 }, () => 'floor_basic'),
-    'wall_inner',
-  ];
+  const dungeonLayout: DungeonTileId[][] = Array.from({ length: DUNGEON_ROWS }, () =>
+    Array.from({ length: DUNGEON_COLS }, () => 'floor_basic'),
+  );
 
-  const dungeonLayout: DungeonTileId[][] = Array.from({ length: 20 }, () =>
-  Array.from({ length: 30 }, () => 'floor_basic')
-);
+  // Ensure tileset is created and begins loading once on mount
+  useEffect(() => {
+    if (!tilesetRef.current) {
+      tilesetRef.current = new DungeonTileset();
+      tilesetRef.current.load().catch((err) => {
+        console.error('Failed to load dungeon tileset', err);
+      });
+    }
+  }, []);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
