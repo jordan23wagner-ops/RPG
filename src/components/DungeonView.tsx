@@ -847,6 +847,7 @@ export function DungeonView({
 
       // Tiles rendered from logical DungeonTileId[][]; still use
       // 100x100 world tiles so existing camera math holds.
+      console.log('Drawing tiles...', dungeonLayout.length, dungeonLayout[0]?.length);
       const cols = DUNGEON_COLS;
       const rows = DUNGEON_ROWS;
       const startCol = Math.max(0, Math.floor(camX / TILE_SIZE) - 1);
