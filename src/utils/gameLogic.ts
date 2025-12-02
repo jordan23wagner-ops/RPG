@@ -87,36 +87,61 @@ export class DungeonTileset {
 /**
  * Logical identifiers for dungeon tiles in the 16x16 spritesheet.
  * Tile (0,0) is the top-left of `/assets/tiles/dungeon.png`.
+ * Extended for Phase 1 dungeon visual overhaul with cave/rocky aesthetics.
  */
 export type DungeonTileId =
   | 'floor_basic'
   | 'floor_cracked'
+  | 'floor_mossy'
+  | 'floor_path'
+  | 'floor_path_worn'
+  | 'floor_cobble'
   | 'wall_top'
   | 'wall_inner'
   | 'wall_corner'
+  | 'wall_cave'
+  | 'wall_cave_rough'
+  | 'wall_boulder'
+  | 'wall_stalactite'
   | 'door_closed'
   | 'pit'
   | 'water'
   | 'torch_wall'
   | 'crate'
-  | 'barrel';
+  | 'barrel'
+  | 'bones'
+  | 'debris'
+  | 'rubble';
 
 /**
  * Mapping from logical tile ids to their spritesheet coordinates.
  * `sx`/`sy` are tile indices (not pixel positions).
+ * Note: New tiles use procedural rendering as fallback when spritesheet
+ * doesn't include them yet.
  */
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
   floor_basic: { sx: 0, sy: 0 },
   floor_cracked: { sx: 1, sy: 0 },
+  floor_mossy: { sx: 2, sy: 0 },
+  floor_path: { sx: 3, sy: 0 },
+  floor_path_worn: { sx: 4, sy: 0 },
+  floor_cobble: { sx: 5, sy: 0 },
   wall_top: { sx: 0, sy: 1 },
   wall_inner: { sx: 1, sy: 1 },
   wall_corner: { sx: 2, sy: 1 },
-  door_closed: { sx: 3, sy: 1 },
+  wall_cave: { sx: 3, sy: 1 },
+  wall_cave_rough: { sx: 4, sy: 1 },
+  wall_boulder: { sx: 5, sy: 1 },
+  wall_stalactite: { sx: 6, sy: 1 },
+  door_closed: { sx: 7, sy: 1 },
   pit: { sx: 0, sy: 2 },
   water: { sx: 1, sy: 2 },
   torch_wall: { sx: 2, sy: 2 },
   crate: { sx: 3, sy: 2 },
   barrel: { sx: 4, sy: 2 },
+  bones: { sx: 5, sy: 2 },
+  debris: { sx: 6, sy: 2 },
+  rubble: { sx: 7, sy: 2 },
 };
 
 const enemyNames = [
