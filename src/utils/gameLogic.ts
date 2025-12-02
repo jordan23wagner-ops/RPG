@@ -18,8 +18,8 @@ export class DungeonTileset {
   private loadPromise: Promise<void> | null = null;
 
   constructor(
-    /** Optional override for the tilesheet URL. Defaults to `/assets/tiles/dungeon.png`. */
-    private readonly src: string = '/assets/tiles/dungeon.png',
+    /** Optional override for the tilesheet URL. Defaults to `/assets/tiles/Dungeon.png`. */
+    private readonly src: string = '/assets/tiles/Dungeon.png',
     tileWidth = 16,
     tileHeight = 16,
   ) {
