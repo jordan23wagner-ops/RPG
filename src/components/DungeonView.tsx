@@ -1,7 +1,7 @@
 // src/components/DungeonView.tsx
 import { useRef, useEffect } from 'react';
 import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
-import { DungeonTileset, dungeonTileMap } from '../utils/gameLogic';
+import { DungeonTileset, dungeonTileMap, drawTilesetDebug } from '../utils/gameLogic';
 import type { DungeonTileId } from '../utils/gameLogic';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
@@ -36,6 +36,7 @@ export function DungeonView({
   } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetRef = useRef<DungeonTileset | null>(null);
+  const debugTilesetRef = useRef(false);
 
   const TILE_SIZE = 16;
   const DUNGEON_COLS = 40;
@@ -909,6 +910,18 @@ export function DungeonView({
       const currentFloor = floorRef.current;
       const nowTime = Date.now();
 
+      // If debug mode is enabled and tileset is loaded, draw the tileset grid
+      // with (col,row) labels instead of the main scene.
+      const tileset = tilesetRef.current;
+      if (debugTilesetRef.current && tileset && (tileset as any).image) {
+        const img = (tileset as any).image as HTMLImageElement;
+        if (img.complete && img.naturalWidth > 0) {
+          drawTilesetDebug(ctx, img, TILE_SIZE);
+          animationFrameId = requestAnimationFrame(render);
+          return;
+        }
+      }
+
       // Update camera to center on player (clamped to world bounds)
       const camX = Math.max(
         0,
@@ -1048,8 +1061,6 @@ export function DungeonView({
               tileId = 'floor_cracked';
             }
           }
-
-          const tileset = tilesetRef.current;
 
           // Cheap torch glow: soft radial highlight behind torch_wall tiles
           if (tileId === 'torch_wall') {
@@ -1273,9 +1284,14 @@ export function DungeonView({
       const equippedMap: Record<string, boolean> = {};
       if (character) {
         for (const slot of Object.keys(EQUIPMENT_VISUALS)) {
-          equippedMap[slot] = items.some(
-            (i) => i.equipped && (ITEM_TYPE_TO_SLOT[i.type] === slot || i.type === slot),
-          );
+          equippedMap[slot] = items.some((i) => {
+            if (!i.equipped) return false;
+            const slotMapping =
+              i.type in ITEM_TYPE_TO_SLOT
+                ? ITEM_TYPE_TO_SLOT[i.type as keyof typeof ITEM_TYPE_TO_SLOT]
+                : undefined;
+            return slotMapping === slot || i.type === (slot as any);
+          });
         }
       }
       drawCharacter(ctx, playerPos.x - camX, playerPos.y - camY, true, equippedMap);
@@ -1600,6 +1616,12 @@ export function DungeonView({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Track movement keys
       keysPressed.current[e.key] = true;
+
+      // Temporary: toggle tileset debug view with backtick (`) key
+      if (e.key === '`') {
+        debugTilesetRef.current = !debugTilesetRef.current;
+        return;
+      }
 
       // Handle attacks separately
       if (e.code === 'Space') {

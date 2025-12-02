@@ -1,3 +1,35 @@
+// src/lib/sprites.ts
+// Helper for loading enemy sprites. This follows the guidance that
+// `/sprites/...` URLs are served from `public/`.
+
+const ENEMY_SPRITE_PATHS: Record<string, string> = {
+  common: '/sprites/enemies/common.png',
+  rare: '/sprites/enemies/rare.png',
+  elite: '/sprites/enemies/elite.png',
+  boss: '/sprites/enemies/boss.png',
+  mimic: '/sprites/enemies/mimic.png',
+};
+
+const enemySpriteCache: Map<string, HTMLImageElement> = new Map();
+
+export function preloadEnemySprites(rarities: string[]): void {
+  rarities.forEach((rarity) => {
+    const key = rarity.toLowerCase();
+    const src = ENEMY_SPRITE_PATHS[key];
+    if (!src) return;
+    if (enemySpriteCache.has(key)) return;
+
+    const img = new Image();
+    img.src = src;
+    enemySpriteCache.set(key, img);
+  });
+}
+
+export function getEnemySprite(rarity: string): HTMLImageElement | null {
+  const key = rarity.toLowerCase();
+  return enemySpriteCache.get(key) ?? null;
+}
+
 // Sprite manager for enemy images with fallback logic.
 // Looks for /public/sprites/enemies/<key>.png then <key>.svg.
 // Suggested files: common, rare, elite, boss, mimic.

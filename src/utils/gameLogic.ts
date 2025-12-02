@@ -81,6 +81,37 @@ export class DungeonTileset {
   }
 }
 
+// Optional debug helper: render the entire tileset with (col,row) labels so
+// you can map logical tile IDs to sheet indices.
+export function drawTilesetDebug(
+  ctx: CanvasRenderingContext2D,
+  tilesetImage: HTMLImageElement,
+  tileSize: number = TILE_SIZE,
+): void {
+  const cols = Math.floor(tilesetImage.width / tileSize);
+  const rows = Math.floor(tilesetImage.height / tileSize);
+
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white';
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const sx = col * tileSize;
+      const sy = row * tileSize;
+      const dx = col * tileSize;
+      const dy = row * tileSize;
+
+      ctx.drawImage(tilesetImage, sx, sy, tileSize, tileSize, dx, dy, tileSize, tileSize);
+
+      ctx.fillText(`${col},${row}`, dx + tileSize / 2, dy + tileSize / 2);
+    }
+  }
+}
+
 // ----------------- DUNGEON TILE CONFIG -----------------
 
 // ------------------------------------------------------------
@@ -883,7 +914,8 @@ export function generateLoot(
   const depth = Math.max(0, floor - 1);
   const depthNorm = Math.min(depth, 40) / 40; // 0..1 at deep floors
 
-  let noDrop = enemyRarity === 'legendary' ? 0.08 : 0.28;
+  // Boss/elite variants should have a lower no-drop chance than normals.
+  let noDrop = enemyRarity === 'boss' || enemyRarity === 'elite' ? 0.18 : 0.28;
   // Slightly lower no-drop on deeper floors and at higher heat, but
   // never below ~8% so there is always a chance of no loot.
   const dropScale = 1 - depthNorm * 0.3 - heatBoost * 0.35;
@@ -1007,7 +1039,8 @@ export function generateLoot(
           : ['of Might', 'of the Fox', 'of Embers', 'of the Depths'];
 
   let name = `${randomFrom(prefixes)} ${randomFrom(bases)}`;
-  if (rarity !== 'common' && Math.random() < 0.7) {
+  // At this point rarity is rare+, so the check against 'common' is redundant.
+  if (Math.random() < 0.7) {
     name += ` ${randomFrom(suffixes)}`;
   }
 
@@ -1150,7 +1183,7 @@ function generateGuaranteedLoot(
     // floor depth / heat scaling. On very low floors this will still
     // mostly produce rare/epic, with higher tiers showing up more
     // often only later.
-    loot = generateLoot(enemyLevel, floor, 'legendary', zoneHeat);
+    loot = generateLoot(enemyLevel, floor, 'boss', zoneHeat);
     if (loot && rarityIndex(loot.rarity as RarityKey) >= rarityIndex(minRarity)) break;
     attempts++;
   }
