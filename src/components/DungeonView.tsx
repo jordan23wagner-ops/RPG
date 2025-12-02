@@ -127,29 +127,30 @@ export function DungeonView({
   // ========== Constants ==========
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 480;
-  // Large world dimensions for camera to pan around
-  const WORLD_WIDTH = 4000;
-  const WORLD_HEIGHT = 3000;
-  // Calculate render tile size to stretch tiles across the entire world
-  const RENDER_TILE_SIZE_X = WORLD_WIDTH / DUNGEON_COLS;
-  const RENDER_TILE_SIZE_Y = WORLD_HEIGHT / DUNGEON_ROWS;
-  const MOVE_SPEED = 5;
+  // World size now matches the tile grid exactly at native 16px tiles
+  // This prevents tile stretching and keeps the tileset looking correct
+  const WORLD_WIDTH = DUNGEON_COLS * TILE_SIZE;  // 30 * 16 = 480
+  const WORLD_HEIGHT = DUNGEON_ROWS * TILE_SIZE; // 20 * 16 = 320
+  // Render tiles at their native size (no stretching)
+  const RENDER_TILE_SIZE_X = TILE_SIZE;
+  const RENDER_TILE_SIZE_Y = TILE_SIZE;
+  const MOVE_SPEED = 3;
   // const BOUNDARY_PADDING = 50; // deprecated with world bounds
   const ATTACK_COOLDOWN_MS = 400;
   const MAX_CHASE_DISTANCE = 450;
   const ENEMY_SPEED = 2.2;
   const ATTACK_RANGE = 120;
   const MIN_PLAYER_ENEMY_DISTANCE = 10; // Prevents overlap
-  // Town gate world position (near initial spawn)
-  const TOWN_GATE_POS = { x: 340, y: 450 };
+  // Town gate world position (near initial spawn, at tile 2,2)
+  const TOWN_GATE_POS = { x: 2 * TILE_SIZE, y: 2 * TILE_SIZE };
 
   // ========== Ref Storage for Game State ==========
   // Using refs to avoid 60fps React re-renders and maintain state across frames
 
   // Player and enemy positions (updated each frame)
-  // World positions
-  const playerPosRef = useRef({ x: 400, y: 450 });
-  const enemyPosRef = useRef({ x: 900, y: 600 });
+  // World positions - start player at tile (3, 3) which is inside the walkable area
+  const playerPosRef = useRef({ x: 3 * TILE_SIZE, y: 3 * TILE_SIZE });
+  const enemyPosRef = useRef({ x: 10 * TILE_SIZE, y: 8 * TILE_SIZE });
   const hasSpawnedThisFloorRef = useRef(false);
 
   // Camera state: top-left world coordinates of the visible viewport
@@ -181,7 +182,8 @@ export function DungeonView({
     if (entryLadderPos && floor > 1) {
       playerPosRef.current = { x: entryLadderPos.x, y: entryLadderPos.y };
     } else {
-      playerPosRef.current = { x: 400, y: 450 };
+      // Start at tile (3, 3) inside the walkable area
+      playerPosRef.current = { x: 3 * TILE_SIZE, y: 3 * TILE_SIZE };
     }
     hasSpawnedThisFloorRef.current = true;
   }, [floor, entryLadderPos]);
@@ -756,101 +758,7 @@ export function DungeonView({
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // ---- Central ritual chamber (carpet + altar) in world space ----
-      const centerX = WORLD_WIDTH / 2;
-      const centerY = WORLD_HEIGHT / 2;
-      const rugWidth = 520;
-      const rugHeight = 360;
-      const rugX = centerX - rugWidth / 2;
-      const rugY = centerY - rugHeight / 2;
-
-      // Convert center chamber to screen space once per frame
-      const rugScreenX = rugX - camX;
-      const rugScreenY = rugY - camY;
-
-      // Dark stone platform under rug
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(rugScreenX - 40, rugScreenY - 40, rugWidth + 80, rugHeight + 80);
-
-      // Outer border stones for chamber (chunky walls)
-      ctx.strokeStyle = '#020617';
-      ctx.lineWidth = 10;
-      ctx.strokeRect(rugScreenX - 42, rugScreenY - 42, rugWidth + 84, rugHeight + 84);
-
-      // Main carpet body
-      ctx.fillStyle = '#7f1d1d';
-      ctx.fillRect(rugScreenX, rugScreenY, rugWidth, rugHeight);
-
-      // Inner glowing border
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(rugScreenX + 12, rugScreenY + 12, rugWidth - 24, rugHeight - 24);
-
-      // Subtle cross pattern on rug
-      ctx.strokeStyle = 'rgba(248, 250, 252, 0.12)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(rugScreenX + rugWidth / 2, rugScreenY + 18);
-      ctx.lineTo(rugScreenX + rugWidth / 2, rugScreenY + rugHeight - 18);
-      ctx.moveTo(rugScreenX + 18, rugScreenY + rugHeight / 2);
-      ctx.lineTo(rugScreenX + rugWidth - 18, rugScreenY + rugHeight / 2);
-      ctx.stroke();
-
-      // Altar block at top of rug
-      const altarWidth = 180;
-      const altarHeight = 80;
-      const altarX = rugScreenX + rugWidth / 2 - altarWidth / 2;
-      const altarY = rugScreenY + 38;
-      ctx.fillStyle = '#111827';
-      ctx.fillRect(altarX, altarY, altarWidth, altarHeight);
-      ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(altarX, altarY, altarWidth, altarHeight);
-
-      // Small glowing circle on altar center (summoning focus)
-      ctx.save();
-      ctx.shadowColor = 'rgba(248, 250, 252, 0.55)';
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = '#facc15';
-      ctx.beginPath();
-      ctx.arc(altarX + altarWidth / 2, altarY + altarHeight / 2, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // Side statues flanking the altar
-      const statueOffsetX = 140;
-      const statueY = altarY + altarHeight + 24;
-      const drawStatue = (sx: number) => {
-        ctx.save();
-        ctx.fillStyle = '#4b5563';
-        ctx.fillRect(sx - 10, statueY - 52, 20, 40);
-        ctx.fillRect(sx - 7, statueY - 70, 14, 18); // head
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillRect(sx - 3, statueY - 65, 6, 3); // eyes glow
-        ctx.restore();
-      };
-      drawStatue(rugScreenX + rugWidth / 2 - statueOffsetX);
-      drawStatue(rugScreenX + rugWidth / 2 + statueOffsetX);
-
-      // Bone piles at bottom corners
-      const drawBones = (bx: number, by: number) => {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(249, 250, 251, 0.9)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(bx - 10, by);
-        ctx.lineTo(bx + 10, by + 4);
-        ctx.moveTo(bx - 11, by + 5);
-        ctx.lineTo(bx + 9, by + 1);
-        ctx.stroke();
-        ctx.restore();
-      };
-      drawBones(rugScreenX + 40, rugScreenY + rugHeight - 36);
-      drawBones(rugScreenX + rugWidth - 40, rugScreenY + rugHeight - 48);
-
-      // Tiles rendered from logical DungeonTileId[][] stretched across the world.
-      // Each tile is rendered at RENDER_TILE_SIZE_X x RENDER_TILE_SIZE_Y to fill the world.
-      // console.log('Drawing tiles...', dungeonLayout.length, dungeonLayout[0]?.length);
+      // Tiles rendered from logical DungeonTileId[][] at native 16x16 size.
       const cols = DUNGEON_COLS;
       const rows = DUNGEON_ROWS;
       const startCol = Math.max(0, Math.floor(camX / RENDER_TILE_SIZE_X) - 1);
@@ -864,15 +772,6 @@ export function DungeonView({
           const worldY = r * RENDER_TILE_SIZE_Y;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
-          // Avoid drawing over the central rug area
-          const inRug = worldX > rugX && worldX < rugX + rugWidth && worldY > rugY && worldY < rugY + rugHeight;
-          if (inRug) continue;
-
-          const inChamber =
-            worldX > rugX - 80 &&
-            worldX < rugX + rugWidth + 80 &&
-            worldY > rugY - 80 &&
-            worldY < rugY + rugHeight + 80;
 
           // Subtle floor variation: occasionally treat basic floor as cracked
           if (tileId === 'floor_basic') {
@@ -906,8 +805,7 @@ export function DungeonView({
               console.warn('Unknown dungeon tile id:', tileId, 'at', r, c);
               continue; // skip drawing this tile
             }
-            // Draw tile with separate x/y scaling to fill the render tile size
-            // Access the tileset's internal image for direct canvas drawing
+            // Draw tile at native 16x16 size
             const img = (tileset as unknown as { image: HTMLImageElement }).image;
             if (img) {
               const sx = def.sx * TILE_SIZE;
@@ -920,9 +818,7 @@ export function DungeonView({
             }
           } else {
             // Fallback: simple rectangle tile if spritesheet not yet loaded
-            const baseColor = inChamber ? '#111827' : theme.tileFill;
-            const strokeColor = inChamber ? '#020617' : theme.tileStroke;
-            drawStone(ctx, screenX, screenY, RENDER_TILE_SIZE_X, RENDER_TILE_SIZE_Y, baseColor, strokeColor);
+            drawStone(ctx, screenX, screenY, RENDER_TILE_SIZE_X, RENDER_TILE_SIZE_Y, theme.tileFill, theme.tileStroke);
           }
 
           // Deterministic pseudo-random per tile for ambient props
