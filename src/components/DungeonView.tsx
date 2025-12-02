@@ -51,61 +51,9 @@ export function DungeonView({
     'wall_inner',
   ];
 
-  const dungeonLayout: DungeonTileId[][] = [
-    // Top outer wall
-    baseRow,
-    baseRow,
-    // Upper corridor and chambers
-    floorRow,
-    floorRow,
-    floorRow,
-    // Mid-section with pits and water
-    (() => {
-      const row: DungeonTileId[] = [...floorRow];
-      row[8] = 'pit';
-      row[9] = 'pit';
-      row[10] = 'water';
-      row[11] = 'water';
-      return row;
-    })(),
-    floorRow,
-    // Central chamber band (around ritual rug)
-    ...Array.from({ length: 10 }, (_, idx) => {
-      const row: DungeonTileId[] = [...floorRow];
-      // Add some scattered pits/water through the middle stretch
-      if (idx === 3) {
-        row[20] = 'pit';
-        row[21] = 'pit';
-      }
-      if (idx === 5) {
-        row[24] = 'water';
-        row[25] = 'water';
-      }
-      return row;
-    }),
-    // Lower corridor with a door near the exit ladder side (right edge)
-    (() => {
-      const row: DungeonTileId[] = [...floorRow];
-      row[DUNGEON_COLS - 4] = 'door_closed';
-      return row;
-    })(),
-    floorRow,
-    // Bottom outer wall band
-    baseRow,
-    baseRow,
-    // Fill remaining rows up to DUNGEON_ROWS with inner walls to keep bounds
-    ...Array.from({ length: DUNGEON_ROWS - 18 }, () => baseRow),
-  ];
-
-  // Ensure tileset is created and begins loading once on mount
-  useEffect(() => {
-    if (!tilesetRef.current) {
-      tilesetRef.current = new DungeonTileset();
-      tilesetRef.current.load().catch((err) => {
-        console.error('Failed to load dungeon tileset', err);
-      });
-    }
-  }, []);
+  const dungeonLayout: DungeonTileId[][] = Array.from({ length: 20 }, () =>
+  Array.from({ length: 30 }, () => 'floor_basic')
+);
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
