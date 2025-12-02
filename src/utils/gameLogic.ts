@@ -106,17 +106,32 @@ export type DungeonTileId =
  * `sx`/`sy` are tile indices (not pixel positions).
  */
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  floor_basic: { sx: 0, sy: 0 },
-  floor_cracked: { sx: 1, sy: 0 },
-  wall_top: { sx: 0, sy: 1 },
-  wall_inner: { sx: 1, sy: 1 },
-  wall_corner: { sx: 2, sy: 1 },
-  door_closed: { sx: 3, sy: 1 },
-  pit: { sx: 0, sy: 2 },
-  water: { sx: 1, sy: 2 },
-  torch_wall: { sx: 2, sy: 2 },
-  crate: { sx: 3, sy: 2 },
-  barrel: { sx: 4, sy: 2 },
+  // Basic floors
+  floor_basic:         { sx: 2, sy: 1 }, // clean floor
+  floor_cracked:       { sx: 3, sy: 1 }, // cracked variant
+  floor_moss:          { sx: 4, sy: 1 }, // mossy variant
+
+  // Brick floors
+  brick_floor_basic:        { sx: 0, sy: 3 },
+  brick_floor_large_crack:  { sx: 1, sy: 3 },
+  brick_floor_small_crack:  { sx: 2, sy: 3 },
+
+  // Walls
+  wall_stone:          { sx: 0, sy: 0 }, // stone wall
+  wall_cobble:         { sx: 1, sy: 0 }, // cobble wall
+  wall_brick:          { sx: 2, sy: 0 }, // brick wall top
+  wall_brick_large_crack: { sx: 3, sy: 0 }, // cracked top
+
+  // Liquids
+  water:               { sx: 5, sy: 7 }, // water-looking tile
+  lava:                { sx: 6, sy: 7 }, // lava tile
+
+  // Hazards
+  spikes:              { sx: 6, sy: 2 }, // spike tile from props row
+
+  // Stairs (we pick visually reasonable tiles)
+  stairs_up:           { sx: 7, sy: 2 },
+  stairs_down:         { sx: 8, sy: 2 },
 };
 
 const enemyNames = [
