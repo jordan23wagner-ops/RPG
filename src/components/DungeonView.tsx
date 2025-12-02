@@ -818,7 +818,7 @@ export function DungeonView({
       const grid = dungeonGridRef.current;
       const tilesetImage = tilesetImageRef.current;
       if (grid && tilesetImage) {
-        drawDungeon(ctx, tilesetImage, grid);
+        drawDungeon(ctx, tilesetImage, grid, camX, camY);
       }
 
       // Deterministic pseudo-random per tile for ambient props over rug area
