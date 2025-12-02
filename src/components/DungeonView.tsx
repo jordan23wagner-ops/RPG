@@ -1296,10 +1296,11 @@ export function DungeonView({
       if (grid) {
         const tileX = Math.floor(newX / TILE_SIZE);
         const tileY = Math.floor(newY / TILE_SIZE);
-        if (!canMoveTo(grid, tileX, tileY)) {
-          newX = prev.x;
-          newY = prev.y;
-        }
+        // TEMP: disable dungeon collision for debugging walkability
+        // if (!canMoveTo(grid, tileX, tileY)) {
+        //   newX = prev.x;
+        //   newY = prev.y;
+        // }
       }
 
       playerPosRef.current = { x: newX, y: newY };
