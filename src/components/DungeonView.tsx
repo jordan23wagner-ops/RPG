@@ -1399,28 +1399,28 @@ export function DungeonView({
           // Deterministic pseudo-random per tile for additional ambient props
           const pr = Math.abs(Math.sin(tileSeed)) % 1;
 
-          // Additional ambient decoration on floor tiles
+          // Additional ambient decoration on floor tiles (positioned within tile bounds)
           if (tileId.startsWith('floor_') && !tileId.includes('path')) {
             if (theme.name === 'jungle') {
               if (pr < 0.04) {
-                drawTree(ctx, screenX + TILE_SIZE * 2.5, screenY + TILE_SIZE);
+                drawTree(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.3);
               } else if (pr < 0.12) {
-                drawGrassPatch(ctx, screenX + TILE_SIZE * 2, screenY + TILE_SIZE * 4);
+                drawGrassPatch(ctx, screenX + TILE_SIZE * 0.4, screenY + TILE_SIZE * 0.7);
               } else if (pr < 0.16) {
-                drawRockProp(ctx, screenX + TILE_SIZE * 2.5, screenY + TILE_SIZE * 3.5);
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
               }
             } else if (theme.name === 'lava') {
               if (pr < 0.08) {
-                drawRockProp(ctx, screenX + TILE_SIZE * 2.5, screenY + TILE_SIZE * 3.5);
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
               }
             } else if (theme.name === 'ice') {
               if (pr < 0.06) {
-                drawRockProp(ctx, screenX + TILE_SIZE * 2.5, screenY + TILE_SIZE * 3.5);
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
               }
             } else {
-              // Classic dungeon: sparse rocks and occasional mossy patch
+              // Classic dungeon: sparse rocks
               if (pr < 0.05) {
-                drawRockProp(ctx, screenX + TILE_SIZE * 2.5, screenY + TILE_SIZE * 3.5);
+                drawRockProp(ctx, screenX + TILE_SIZE * 0.5, screenY + TILE_SIZE * 0.6);
               }
             }
           }
