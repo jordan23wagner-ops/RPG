@@ -39,8 +39,8 @@ export function DungeonView({
   const tilesetRef = useRef<DungeonTileset | null>(null);
 
   // Simple logical dungeon layout using DungeonTileId for drawing only.
-  // TILE_SIZE is purely visual; world/collision logic still uses
-  // WORLD_WIDTH / WORLD_HEIGHT and is unaffected by this.
+  // TILE_SIZE is the base tileset sprite size (16px).
+  // RENDER_TILE_SIZE is calculated to stretch tiles across the entire world.
   const TILE_SIZE = 16;
   const DUNGEON_COLS = FLOOR1_COLS;
   const DUNGEON_ROWS = FLOOR1_ROWS;
@@ -130,6 +130,9 @@ export function DungeonView({
   // Large world dimensions for camera to pan around
   const WORLD_WIDTH = 4000;
   const WORLD_HEIGHT = 3000;
+  // Calculate render tile size to stretch tiles across the entire world
+  const RENDER_TILE_SIZE_X = WORLD_WIDTH / DUNGEON_COLS;
+  const RENDER_TILE_SIZE_Y = WORLD_HEIGHT / DUNGEON_ROWS;
   const MOVE_SPEED = 5;
   // const BOUNDARY_PADDING = 50; // deprecated with world bounds
   const ATTACK_COOLDOWN_MS = 400;
@@ -845,20 +848,20 @@ export function DungeonView({
       drawBones(rugScreenX + 40, rugScreenY + rugHeight - 36);
       drawBones(rugScreenX + rugWidth - 40, rugScreenY + rugHeight - 48);
 
-      // Tiles rendered from logical DungeonTileId[][]; still use
-      // 100x100 world tiles so existing camera math holds.
-      console.log('Drawing tiles...', dungeonLayout.length, dungeonLayout[0]?.length);
+      // Tiles rendered from logical DungeonTileId[][] stretched across the world.
+      // Each tile is rendered at RENDER_TILE_SIZE_X x RENDER_TILE_SIZE_Y to fill the world.
+      // console.log('Drawing tiles...', dungeonLayout.length, dungeonLayout[0]?.length);
       const cols = DUNGEON_COLS;
       const rows = DUNGEON_ROWS;
-      const startCol = Math.max(0, Math.floor(camX / TILE_SIZE) - 1);
-      const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / TILE_SIZE) + 1);
-      const startRow = Math.max(0, Math.floor(camY / TILE_SIZE) - 1);
-      const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / TILE_SIZE) + 1);
+      const startCol = Math.max(0, Math.floor(camX / RENDER_TILE_SIZE_X) - 1);
+      const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / RENDER_TILE_SIZE_X) + 1);
+      const startRow = Math.max(0, Math.floor(camY / RENDER_TILE_SIZE_Y) - 1);
+      const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / RENDER_TILE_SIZE_Y) + 1);
       for (let r = startRow; r < endRow; r++) {
         for (let c = startCol; c < endCol; c++) {
           let tileId: DungeonTileId = dungeonLayout[r]?.[c] ?? 'floor_basic';
-          const worldX = c * TILE_SIZE;
-          const worldY = r * TILE_SIZE;
+          const worldX = c * RENDER_TILE_SIZE_X;
+          const worldY = r * RENDER_TILE_SIZE_Y;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
           // Avoid drawing over the central rug area
@@ -884,9 +887,9 @@ export function DungeonView({
 
           // Cheap torch glow: soft radial highlight behind torch_wall tiles
           if (tileId === 'torch_wall') {
-            const glowRadius = TILE_SIZE * 3;
-            const gx = screenX + TILE_SIZE / 2;
-            const gy = screenY + TILE_SIZE / 2;
+            const glowRadius = RENDER_TILE_SIZE_X * 3;
+            const gx = screenX + RENDER_TILE_SIZE_X / 2;
+            const gy = screenY + RENDER_TILE_SIZE_Y / 2;
             const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, glowRadius);
             gradient.addColorStop(0, 'rgba(252, 211, 77, 0.45)');
             gradient.addColorStop(1, 'rgba(252, 211, 77, 0.0)');
@@ -903,12 +906,23 @@ export function DungeonView({
               console.warn('Unknown dungeon tile id:', tileId, 'at', r, c);
               continue; // skip drawing this tile
             }
-            tileset.drawTile(ctx, def.sx, def.sy, screenX, screenY, 1);
+            // Draw tile with separate x/y scaling to fill the render tile size
+            // Access the tileset's internal image for direct canvas drawing
+            const img = (tileset as unknown as { image: HTMLImageElement }).image;
+            if (img) {
+              const sx = def.sx * TILE_SIZE;
+              const sy = def.sy * TILE_SIZE;
+              ctx.drawImage(
+                img,
+                sx, sy, TILE_SIZE, TILE_SIZE,
+                screenX, screenY, RENDER_TILE_SIZE_X, RENDER_TILE_SIZE_Y
+              );
+            }
           } else {
             // Fallback: simple rectangle tile if spritesheet not yet loaded
             const baseColor = inChamber ? '#111827' : theme.tileFill;
             const strokeColor = inChamber ? '#020617' : theme.tileStroke;
-            drawStone(ctx, screenX, screenY, TILE_SIZE, TILE_SIZE, baseColor, strokeColor);
+            drawStone(ctx, screenX, screenY, RENDER_TILE_SIZE_X, RENDER_TILE_SIZE_Y, baseColor, strokeColor);
           }
 
           // Deterministic pseudo-random per tile for ambient props
@@ -1361,13 +1375,10 @@ export function DungeonView({
         newX = Math.min(WORLD_WIDTH, prev.x + MOVE_SPEED);
       }
 
-      // Coarse tile-based collision using a virtual grid that matches the
-      // old 4000x3000 world. This keeps most of the space walkable while
-      // still respecting obvious walls, pits, and water.
-      const VIRTUAL_TILE_SIZE_X = WORLD_WIDTH / DUNGEON_COLS;
-      const VIRTUAL_TILE_SIZE_Y = WORLD_HEIGHT / DUNGEON_ROWS;
-      const col = Math.floor(newX / VIRTUAL_TILE_SIZE_X);
-      const row = Math.floor(newY / VIRTUAL_TILE_SIZE_Y);
+      // Coarse tile-based collision using the same grid that's used for rendering.
+      // This ensures tiles stretch across the entire world properly.
+      const col = Math.floor(newX / RENDER_TILE_SIZE_X);
+      const row = Math.floor(newY / RENDER_TILE_SIZE_Y);
       const tileId = dungeonLayout[row]?.[col];
       if (tileId && isBlockingTile(tileId)) {
         newX = prev.x;
