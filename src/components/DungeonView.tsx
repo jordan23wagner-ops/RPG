@@ -39,9 +39,8 @@ export function DungeonView({
   const tilesetRef = useRef<DungeonTileset | null>(null);
 
   // Simple logical dungeon layout using DungeonTileId for drawing only.
-  // TILE_SIZE is purely visual; world/collision logic still uses
-  // WORLD_WIDTH / WORLD_HEIGHT and is unaffected by this.
-  const TILE_SIZE = 16;
+  // TILE_SIZE must match the tilesheet size to avoid stretching.
+  const TILE_SIZE = 32;
   const DUNGEON_COLS = FLOOR1_COLS;
   const DUNGEON_ROWS = FLOOR1_ROWS;
 
@@ -861,9 +860,6 @@ export function DungeonView({
           const worldY = r * TILE_SIZE;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
-          // Avoid drawing over the central rug area
-          const inRug = worldX > rugX && worldX < rugX + rugWidth && worldY > rugY && worldY < rugY + rugHeight;
-          if (inRug) continue;
 
           const inChamber =
             worldX > rugX - 80 &&
