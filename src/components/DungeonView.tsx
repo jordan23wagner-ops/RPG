@@ -906,11 +906,18 @@ export function DungeonView({
               console.warn('Unknown dungeon tile id:', tileId, 'at', r, c);
               continue; // skip drawing this tile
             }
-            // Scale factor to stretch 16px tiles to RENDER_TILE_SIZE
-            const scaleX = RENDER_TILE_SIZE_X / TILE_SIZE;
-            const scaleY = RENDER_TILE_SIZE_Y / TILE_SIZE;
-            const scale = Math.max(scaleX, scaleY);
-            tileset.drawTile(ctx, def.sx, def.sy, screenX, screenY, scale);
+            // Draw tile with separate x/y scaling to fill the render tile size
+            // Access the tileset's internal image for direct canvas drawing
+            const img = (tileset as unknown as { image: HTMLImageElement }).image;
+            if (img) {
+              const sx = def.sx * TILE_SIZE;
+              const sy = def.sy * TILE_SIZE;
+              ctx.drawImage(
+                img,
+                sx, sy, TILE_SIZE, TILE_SIZE,
+                screenX, screenY, RENDER_TILE_SIZE_X, RENDER_TILE_SIZE_Y
+              );
+            }
           } else {
             // Fallback: simple rectangle tile if spritesheet not yet loaded
             const baseColor = inChamber ? '#111827' : theme.tileFill;
