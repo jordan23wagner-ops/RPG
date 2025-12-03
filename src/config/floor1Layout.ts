@@ -2,8 +2,8 @@
 import type { DungeonTileId } from '../utils/gameLogic';
 import { dungeonTileMap } from '../utils/gameLogic';
 
-export const FLOOR1_COLS = 40;
-export const FLOOR1_ROWS = 30;
+export const FLOOR1_COLS = 120;
+export const FLOOR1_ROWS = 90;
 
 type Room = {
   x: number;
@@ -29,8 +29,8 @@ export const floor1Layout: DungeonTileId[][] = (() => {
 
   const rooms: Room[] = [];
 
-  // More rooms so Floor 1 uses most of the 40x30 space
-  const roomCount = randomInt(8, 14);
+  // Many rooms so Floor 1 uses most of the 120x90 space
+  const roomCount = randomInt(20, 35);
   for (let i = 0; i < roomCount; i++) {
     const room = createRandomRoom(cols, rows);
     if (!roomIntersects(room, rooms)) {
@@ -59,6 +59,9 @@ export const floor1Layout: DungeonTileId[][] = (() => {
 
   // Add extra random connections so more of the map gets carved
   connectAdditionalRooms(grid, rooms);
+
+  // Cleanup pass: convert any interior wall_* that aren't borders into floors
+  cleanInteriorWalls(grid, rooms);
 
   // Place stairs_down in the last room near its center
   if (rooms.length > 0) {
@@ -95,8 +98,8 @@ function randomFloorTileId(): DungeonTileId {
 
 function createRandomRoom(cols: number, rows: number): Room {
   // Slightly smaller rooms so we can pack more of them
-  const w = randomInt(6, 12);
-  const h = randomInt(5, 9);
+  const w = randomInt(6, 14);
+  const h = randomInt(5, 11);
   const x = randomInt(1, cols - w - 2);
   const y = randomInt(1, rows - h - 2);
   return { x, y, w, h };
@@ -170,29 +173,32 @@ function connectRooms(
   carveCorridorCell(grid, b.x, b.y);
 }
 
-// Optional extra connectivity: connect each room to a random other room
-function connectAdditionalRooms(grid: DungeonTileId[][], rooms: Room[]): void {
-  if (rooms.length < 3) return;
-  for (let i = 0; i < rooms.length; i++) {
-    const a = rooms[i];
-    const targetIndex = randomInt(0, rooms.length - 1);
-    if (targetIndex === i) continue;
-    const b = rooms[targetIndex];
-    connectRooms(grid, roomCenter(a), roomCenter(b));
-  }
-}
-
 function carveCorridorCell(grid: DungeonTileId[][], x: number, y: number): void {
-  if (y <= 0 || y >= grid.length - 1 || x <= 0 || x >= grid[0].length - 1) return;
-  const current = grid[y][x];
-  if (
-    current === 'wall_top' ||
-    current === 'wall_inner' ||
-    current === 'wall_side' ||
-    current === 'wall_corner_inner' ||
-    current === 'wall_corner_outer'
-  ) {
-    grid[y][x] = randomFloorTileId();
+  const rows = grid.length;
+  const cols = grid[0].length;
+  if (y <= 0 || y >= rows - 1 || x <= 0 || x >= cols - 1) return;
+
+  // Carve a 3-tile wide corridor: center + up/down and left/right when possible
+  const positions: { x: number; y: number }[] = [
+    { x, y },
+    { x: x, y: y - 1 },
+    { x: x, y: y + 1 },
+    { x: x - 1, y },
+    { x: x + 1, y },
+  ];
+
+  for (const pos of positions) {
+    if (pos.x <= 0 || pos.x >= cols - 1 || pos.y <= 0 || pos.y >= rows - 1) continue;
+    const current = grid[pos.y][pos.x];
+    if (
+      current === 'wall_top' ||
+      current === 'wall_inner' ||
+      current === 'wall_side' ||
+      current === 'wall_corner_inner' ||
+      current === 'wall_corner_outer'
+    ) {
+      grid[pos.y][pos.x] = randomFloorTileId();
+    }
   }
 }
 
@@ -278,6 +284,45 @@ function addBarsAndGrates(grid: DungeonTileId[][], rooms: Room[]): void {
     if (isFloorTile(grid[y][x])) {
       grid[y][x] = 'grate_floor';
       placed++;
+    }
+  }
+}
+
+function cleanInteriorWalls(grid: DungeonTileId[][], rooms: Room[]): void {
+  const rows = grid.length;
+  const cols = grid[0].length;
+
+  // Build a quick boolean mask of room-border positions
+  const isBorder: boolean[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => false),
+  );
+
+  for (const room of rooms) {
+    const { x, y, w, h } = room;
+    for (let iy = y; iy < y + h; iy++) {
+      for (let ix = x; ix < x + w; ix++) {
+        const border = ix === x || ix === x + w - 1 || iy === y || iy === y + h - 1;
+        if (border) {
+          isBorder[iy][ix] = true;
+        }
+      }
+    }
+  }
+
+  for (let y = 1; y < rows - 1; y++) {
+    for (let x = 1; x < cols - 1; x++) {
+      const tile = grid[y][x];
+      if (isBorder[y][x]) continue; // keep room borders intact
+      if (
+        tile === 'wall_top' ||
+        tile === 'wall_inner' ||
+        tile === 'wall_side' ||
+        tile === 'wall_corner_inner' ||
+        tile === 'wall_corner_outer'
+      ) {
+        // Convert any interior wall_* to stone floor
+        grid[y][x] = randomFloorTileId();
+      }
     }
   }
 }
