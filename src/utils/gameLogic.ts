@@ -104,30 +104,35 @@ export type DungeonTileId =
 /**
  * Mapping from logical tile ids to their spritesheet coordinates.
  * `sx`/`sy` are tile indices (not pixel positions).
+ * The tileset is 336x624 pixels = 21 columns x 39 rows of 16x16 tiles.
+ * 
+ * To find correct tiles: Open the tileset image and count 16px squares
+ * from top-left. sx is the column (0-20), sy is the row (0-38).
  */
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Basic floors
-  floor_basic:         { sx: 2, sy: 1 }, // clean floor
-  floor_cracked:       { sx: 3, sy: 1 }, // cracked variant
+  // Each tile uses a different position across the tileset for visibility
+  // Adjust these coordinates to match actual tile art in the tileset
+  floor_basic:         { sx: 0, sy: 2 },   // row 2, col 0 - hopefully a floor tile
+  floor_cracked:       { sx: 1, sy: 2 },   // row 2, col 1 - floor variant
 
-  // Walls (used in floor1Layout)
-  wall_top:            { sx: 0, sy: 0 }, // top wall tile
-  wall_inner:          { sx: 1, sy: 0 }, // inner wall
-  wall_corner:         { sx: 2, sy: 0 }, // corner wall
+  // Walls - typically darker/solid tiles
+  wall_top:            { sx: 0, sy: 0 },   // row 0, col 0 - top-left often a wall
+  wall_inner:          { sx: 1, sy: 0 },   // row 0, col 1
+  wall_corner:         { sx: 2, sy: 0 },   // row 0, col 2
 
   // Door
-  door_closed:         { sx: 5, sy: 0 }, // closed door
+  door_closed:         { sx: 4, sy: 3 },   // row 3, col 4 - possible door area
 
   // Hazards
-  pit:                 { sx: 6, sy: 2 }, // pit/hole tile
+  pit:                 { sx: 6, sy: 6 },   // row 6, col 6 - pit/dark area
 
   // Liquids
-  water:               { sx: 5, sy: 7 }, // water-looking tile
+  water:               { sx: 0, sy: 8 },   // row 8, col 0 - water area
 
   // Decorations
-  torch_wall:          { sx: 8, sy: 0 }, // torch on wall
-  crate:               { sx: 0, sy: 4 }, // wooden crate
-  barrel:              { sx: 1, sy: 4 }, // barrel
+  torch_wall:          { sx: 10, sy: 0 },  // row 0, col 10
+  crate:               { sx: 0, sy: 10 },  // row 10, col 0
+  barrel:              { sx: 1, sy: 10 },  // row 10, col 1
 };
 
 const enemyNames = [
