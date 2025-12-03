@@ -169,6 +169,33 @@ export function drawDungeon(
   const rows = grid.length;
   const cols = rows > 0 ? grid[0].length : 0;
 
+  // Get the base floor sprite (stone floor at row 15, col 11)
+  const baseFloorSprite = DUNGEON_TILE_SPRITES['floor_stone_main'];
+
+  // PASS 1: Draw base floor layer across the entire grid
+  // This ensures every cell has a visible floor tile as the background
+  if (baseFloorSprite) {
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const screenX = x * TILE_SIZE - camX;
+        const screenY = y * TILE_SIZE - camY;
+
+        ctx.drawImage(
+          tilesetImage,
+          baseFloorSprite.sx,
+          baseFloorSprite.sy,
+          baseFloorSprite.sw,
+          baseFloorSprite.sh,
+          screenX,
+          screenY,
+          TILE_SIZE,
+          TILE_SIZE
+        );
+      }
+    }
+  }
+
+  // PASS 2: Draw actual tiles on top (walls, props, doors, stairs, etc.)
   for (let y = 0; y < rows; y++) {
     const row = grid[y];
     for (let x = 0; x < cols; x++) {
@@ -177,6 +204,18 @@ export function drawDungeon(
       // Normalize tile ID: only structural tiles render as-is,
       // everything else (rubble, rocks, debris) becomes floor_stone_main
       const safeTileId = normalizeDungeonTileIdForRender(rawId);
+
+      // Skip floor tiles in pass 2 since they're already drawn in pass 1
+      if (
+        safeTileId === 'floor_stone_main' ||
+        safeTileId === 'floor_stone_alt1' ||
+        safeTileId === 'floor_stone_alt2' ||
+        safeTileId === 'floor_basic' ||
+        safeTileId === 'floor_cracked' ||
+        safeTileId === 'floor_moss'
+      ) {
+        continue;
+      }
 
       const sprite = DUNGEON_TILE_SPRITES[safeTileId];
       if (!sprite) continue;
