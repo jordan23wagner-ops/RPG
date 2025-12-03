@@ -6,6 +6,7 @@ import {
   loadDungeonTileset,
   generateFloor1,
   drawDungeon,
+  drawCobbleFloor,
   type DungeonGrid,
 } from '../dungeonConfig';
 import { isWalkableTile } from '../utils/gameLogic';
@@ -850,6 +851,7 @@ export function DungeonView({
       const grid = dungeonGridRef.current;
       const tilesetImage = tilesetImageRef.current;
       if (grid && tilesetImage) {
+        drawCobbleFloor(ctx, tilesetImage, grid, camX, camY);
         drawDungeon(ctx, tilesetImage, grid, camX, camY);
       }
 
