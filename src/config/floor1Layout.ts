@@ -173,6 +173,26 @@ function connectRooms(
   carveCorridorCell(grid, b.x, b.y);
 }
 
+// Add extra random connections so the dungeon becomes more interconnected
+function connectAdditionalRooms(grid: DungeonTileId[][], rooms: Room[]): void {
+  // If there are fewer than 3 rooms, nothing extra to do.
+  if (rooms.length < 3) return;
+
+  // Add a bunch of extra connections to make the dungeon more interconnected.
+  const extraConnections = Math.min(rooms.length * 2, 30);
+
+  for (let i = 0; i < extraConnections; i++) {
+    const aIndex = randomInt(0, rooms.length - 1);
+    const bIndex = randomInt(0, rooms.length - 1);
+    if (aIndex === bIndex) continue;
+
+    const a = rooms[aIndex];
+    const b = rooms[bIndex];
+
+    connectRooms(grid, roomCenter(a), roomCenter(b));
+  }
+}
+
 function carveCorridorCell(grid: DungeonTileId[][], x: number, y: number): void {
   const rows = grid.length;
   const cols = grid[0].length;
