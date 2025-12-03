@@ -12,17 +12,16 @@ type Room = {
   h: number;
 };
 
-// Helper function declared before use in the IIFE
+// Weighted floor tile randomizer for clean, Diablo-style cobblestone look
+// 85% floor_stone_main, 10% floor_stone_alt1, 5% rare variants
 function randomFloorTileId(): DungeonTileId {
-  const floors: DungeonTileId[] = [
-    'floor_stone_main',
-    'floor_stone_alt1',
-    'floor_stone_alt2',
-    'floor_basic',
-    'floor_cracked',
-    'floor_moss',
-  ];
-  return floors[Math.floor(Math.random() * floors.length)];
+  const r = Math.random();
+
+  if (r < 0.85) return 'floor_stone_main';
+  if (r < 0.95) return 'floor_stone_alt1';
+
+  const rares: DungeonTileId[] = ['floor_stone_alt2', 'floor_cracked', 'floor_moss'];
+  return rares[Math.floor(Math.random() * rares.length)];
 }
 
 // Randomized Floor 1: multiple rooms, corridors, and decorations
