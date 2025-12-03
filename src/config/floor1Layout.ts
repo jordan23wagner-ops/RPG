@@ -29,7 +29,8 @@ export const floor1Layout: DungeonTileId[][] = (() => {
 
   const rooms: Room[] = [];
 
-  const roomCount = randomInt(5, 8);
+  // More rooms so Floor 1 uses most of the 40x30 space
+  const roomCount = randomInt(8, 14);
   for (let i = 0; i < roomCount; i++) {
     const room = createRandomRoom(cols, rows);
     if (!roomIntersects(room, rooms)) {
@@ -49,12 +50,15 @@ export const floor1Layout: DungeonTileId[][] = (() => {
     }
   }
 
-  // Connect rooms with simple L-shaped corridors
+  // Connect rooms with simple L-shaped corridors in a chain
   for (let i = 0; i < rooms.length - 1; i++) {
     const a = rooms[i];
     const b = rooms[i + 1];
     connectRooms(grid, roomCenter(a), roomCenter(b));
   }
+
+  // Add extra random connections so more of the map gets carved
+  connectAdditionalRooms(grid, rooms);
 
   // Place stairs_down in the last room near its center
   if (rooms.length > 0) {
@@ -71,6 +75,10 @@ export const floor1Layout: DungeonTileId[][] = (() => {
   // Optionally add bars/grates in one corridor or room
   addBarsAndGrates(grid, rooms);
 
+  // Add pillars and environmental hazards (pits, water)
+  addPillars(grid, rooms);
+  addHazards(grid, rooms);
+
   return grid;
 })();
 
@@ -86,8 +94,9 @@ function randomFloorTileId(): DungeonTileId {
 }
 
 function createRandomRoom(cols: number, rows: number): Room {
-  const w = randomInt(8, 14);
-  const h = randomInt(6, 10);
+  // Slightly smaller rooms so we can pack more of them
+  const w = randomInt(6, 12);
+  const h = randomInt(5, 9);
   const x = randomInt(1, cols - w - 2);
   const y = randomInt(1, rows - h - 2);
   return { x, y, w, h };
@@ -95,10 +104,10 @@ function createRandomRoom(cols: number, rows: number): Room {
 
 function roomIntersects(room: Room, others: Room[]): boolean {
   return others.some((r) =>
-    room.x < r.x + r.w + 1 &&
-    room.x + room.w + 1 > r.x &&
-    room.y < r.y + r.h + 1 &&
-    room.y + room.h + 1 > r.y,
+    room.x < r.x + r.w &&
+    room.x + room.w > r.x &&
+    room.y < r.y + r.h &&
+    room.y + room.h > r.y,
   );
 }
 
@@ -161,6 +170,18 @@ function connectRooms(
   carveCorridorCell(grid, b.x, b.y);
 }
 
+// Optional extra connectivity: connect each room to a random other room
+function connectAdditionalRooms(grid: DungeonTileId[][], rooms: Room[]): void {
+  if (rooms.length < 3) return;
+  for (let i = 0; i < rooms.length; i++) {
+    const a = rooms[i];
+    const targetIndex = randomInt(0, rooms.length - 1);
+    if (targetIndex === i) continue;
+    const b = rooms[targetIndex];
+    connectRooms(grid, roomCenter(a), roomCenter(b));
+  }
+}
+
 function carveCorridorCell(grid: DungeonTileId[][], x: number, y: number): void {
   if (y <= 0 || y >= grid.length - 1 || x <= 0 || x >= grid[0].length - 1) return;
   const current = grid[y][x];
@@ -216,6 +237,7 @@ function addTorchesToRoom(grid: DungeonTileId[][], room: Room): void {
 
 function addPropsToRoom(grid: DungeonTileId[][], room: Room): void {
   const { x, y, w, h } = room;
+  // Keep rooms readable: very few props per room
   const maxProps = randomInt(0, 2);
   let placed = 0;
 
@@ -224,7 +246,7 @@ function addPropsToRoom(grid: DungeonTileId[][], room: Room): void {
       if (placed >= maxProps) return;
       const tile = grid[iy][ix];
       if (!isFloorTile(tile)) continue;
-      if (Math.random() < 0.05) {
+      if (Math.random() < 0.03) {
         const prop = pickRoomProp();
         grid[iy][ix] = prop;
         placed++;
@@ -260,6 +282,69 @@ function addBarsAndGrates(grid: DungeonTileId[][], rooms: Room[]): void {
   }
 }
 
+function addPillars(grid: DungeonTileId[][], rooms: Room[]): void {
+  for (const room of rooms) {
+    const { x, y, w, h } = room;
+    // Only add pillars to medium/large rooms
+    if (w < 8 || h < 7) continue;
+
+    const innerX1 = x + 2;
+    const innerY1 = y + 2;
+    const innerX2 = x + w - 3;
+    const innerY2 = y + h - 3;
+
+    const positions: { x: number; y: number }[] = [
+      { x: innerX1, y: innerY1 },
+      { x: innerX2, y: innerY1 },
+      { x: innerX1, y: innerY2 },
+      { x: innerX2, y: innerY2 },
+    ];
+
+    for (const pos of positions) {
+      const tile = grid[pos.y]?.[pos.x];
+      if (tile && isFloorTile(tile)) {
+        grid[pos.y][pos.x] = 'wall_column';
+      }
+    }
+  }
+}
+
+function addHazards(grid: DungeonTileId[][], rooms: Room[]): void {
+  if (rooms.length === 0) return;
+
+  // Pick 1–2 rooms to receive hazards
+  const hazardRoomCount = Math.min(2, rooms.length);
+  const picked: Set<number> = new Set();
+
+  while (picked.size < hazardRoomCount) {
+    picked.add(randomInt(0, rooms.length - 1));
+  }
+
+  for (const idx of picked) {
+    const room = rooms[idx];
+    const { x, y, w, h } = room;
+    if (w < 6 || h < 6) continue;
+
+    const patchW = randomInt(2, 4);
+    const patchH = randomInt(2, 4);
+    const startX = randomInt(x + 2, x + w - patchW - 2);
+    const startY = randomInt(y + 2, y + h - patchH - 2);
+
+    const useWater = Math.random() < 0.5;
+    const hazardTile: DungeonTileId = useWater ? 'water' : 'pit';
+
+    for (let iy = startY; iy < startY + patchH; iy++) {
+      for (let ix = startX; ix < startX + patchW; ix++) {
+        const current = grid[iy][ix];
+        // Don't overwrite stairs or non-floor special tiles
+        if (!isFloorTile(current)) continue;
+        if (current === 'stairs_down' || current === 'torch_wall') continue;
+        grid[iy][ix] = hazardTile;
+      }
+    }
+  }
+}
+
 function isFloorTile(tile: DungeonTileId): boolean {
   return (
     tile === 'floor_basic' ||
@@ -273,12 +358,12 @@ function isFloorTile(tile: DungeonTileId): boolean {
 }
 
 function pickRoomProp(): DungeonTileId {
+  // Bias toward cleaner props; rubble is rare
   const choices: DungeonTileId[] = [
-    'rubble_small',
-    'rubble_large',
-    'crate',
-    'barrel',
+    'crate', 'crate',
+    'barrel', 'barrel',
     'table',
+    'rubble_small',
   ];
   return choices[Math.floor(Math.random() * choices.length)];
 }
