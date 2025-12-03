@@ -17,13 +17,13 @@ export const floor1Layout: DungeonTileId[][] = (() => {
   const cols = FLOOR1_COLS;
   const rows = FLOOR1_ROWS;
 
-  // Start with solid inner walls and a wall_top border
+  // Start with stone floors and a wall_top border so the default interior is clean stone
   const grid: DungeonTileId[][] = Array.from({ length: rows }, (_, y) =>
     Array.from({ length: cols }, (_, x) => {
       if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) {
         return 'wall_top';
       }
-      return 'wall_inner';
+      return 'floor_stone_main';
     }),
   );
 
@@ -82,6 +82,22 @@ export const floor1Layout: DungeonTileId[][] = (() => {
   addPillars(grid, rooms);
   addHazards(grid, rooms);
 
+  // Final cleanup: convert isolated wall tiles that look like loose rocks back into floor
+  for (let y = 1; y < rows - 1; y++) {
+    for (let x = 1; x < cols - 1; x++) {
+      const tile = grid[y][x];
+      if (
+        (tile === 'wall_top' || tile === 'wall_side' || tile === 'wall_column') &&
+        isFloorTile(grid[y][x - 1]) &&
+        isFloorTile(grid[y][x + 1]) &&
+        isFloorTile(grid[y - 1][x]) &&
+        isFloorTile(grid[y + 1][x])
+      ) {
+        grid[y][x] = randomFloorTileId();
+      }
+    }
+  }
+
   return grid;
 })();
 
@@ -90,9 +106,9 @@ function randomInt(min: number, max: number): number {
 }
 
 function randomFloorTileId(): DungeonTileId {
-  const roll = Math.random() * 100;
-  if (roll < 60) return 'floor_stone_main';
-  if (roll < 85) return 'floor_stone_alt1';
+  const roll = Math.random();
+  if (roll < 0.6) return 'floor_stone_main';
+  if (roll < 0.85) return 'floor_stone_alt1';
   return 'floor_stone_alt2';
 }
 
@@ -272,7 +288,7 @@ function addPropsToRoom(grid: DungeonTileId[][], room: Room): void {
       if (placed >= maxProps) return;
       const tile = grid[iy][ix];
       if (!isFloorTile(tile)) continue;
-      if (Math.random() < 0.03) {
+      if (Math.random() < 0.05) {
         const prop = pickRoomProp();
         grid[iy][ix] = prop;
         placed++;
@@ -412,9 +428,6 @@ function addHazards(grid: DungeonTileId[][], rooms: Room[]): void {
 
 function isFloorTile(tile: DungeonTileId): boolean {
   return (
-    tile === 'floor_basic' ||
-    tile === 'floor_cracked' ||
-    tile === 'floor_moss' ||
     tile === 'floor_stone_main' ||
     tile === 'floor_stone_alt1' ||
     tile === 'floor_stone_alt2' ||
@@ -423,12 +436,11 @@ function isFloorTile(tile: DungeonTileId): boolean {
 }
 
 function pickRoomProp(): DungeonTileId {
-  // Bias toward cleaner props; rubble is rare
   const choices: DungeonTileId[] = [
-    'crate', 'crate',
-    'barrel', 'barrel',
+    'crate',
+    'barrel',
     'table',
-    'rubble_small',
+    'wall_column',
   ];
   return choices[Math.floor(Math.random() * choices.length)];
 }
