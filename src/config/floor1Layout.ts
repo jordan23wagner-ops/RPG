@@ -4,6 +4,25 @@ import type { DungeonTileId } from '../utils/gameLogic';
 export const FLOOR1_COLS = 30;
 export const FLOOR1_ROWS = 20;
 
+// Weighted floor tile selection for variety
+const FLOOR_TILES: { id: DungeonTileId; weight: number }[] = [
+  { id: 'floor_basic', weight: 0.6 },
+  { id: 'floor_cracked', weight: 0.25 },
+  { id: 'floor_moss', weight: 0.15 },
+];
+
+function randomFloorTileId(): DungeonTileId {
+  const roll = Math.random();
+  let cumulative = 0;
+  for (const tile of FLOOR_TILES) {
+    cumulative += tile.weight;
+    if (roll < cumulative) {
+      return tile.id;
+    }
+  }
+  return 'floor_basic'; // fallback
+}
+
 // Floor 1 layout:
 // - Solid wall border
 // - Central vertical corridor
@@ -16,7 +35,7 @@ export const floor1Layout: DungeonTileId[][] = (() => {
     const row: DungeonTileId[] = [];
 
     for (let x = 0; x < FLOOR1_COLS; x++) {
-      let tile: DungeonTileId = 'floor_basic';
+      let tile: DungeonTileId = randomFloorTileId();
 
       const isBorder =
         x === 0 ||
@@ -30,14 +49,14 @@ export const floor1Layout: DungeonTileId[][] = (() => {
         // --- central vertical corridor ---
         const midX = Math.floor(FLOOR1_COLS / 2);
         if (x === midX || x === midX - 1) {
-          tile = 'floor_basic';
+          tile = randomFloorTileId();
         }
 
         // --- left side room (y: 5–10, x: 3–8) ---
         if (x >= 3 && x <= 8 && y >= 5 && y <= 10) {
           const isRoomBorder =
             x === 3 || x === 8 || y === 5 || y === 10;
-          tile = isRoomBorder ? 'floor_cracked' : 'floor_basic';
+          tile = isRoomBorder ? 'floor_cracked' : randomFloorTileId();
         }
 
         // --- pit cluster near bottom-right ---
