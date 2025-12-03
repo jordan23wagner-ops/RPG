@@ -58,7 +58,7 @@ const fromGrid = (col: number, row: number): TileSprite => ({
 });
 
 // Main tileset image (already loading correctly for you)
-export const DUNGEON_TILESET_URL = '/darkdungeon_tileset_allinone.png';
+export const DUNGEON_TILESET_URL = '/darkdungeon_tileset_allinone_v2.png';
 
 // Sprite rects for each logical tile id, derived from the extended dungeonTileMap
 export const DUNGEON_TILE_SPRITES: Record<TileId, TileSprite> = Object.fromEntries(
