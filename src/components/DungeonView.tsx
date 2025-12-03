@@ -807,16 +807,18 @@ export function DungeonView({
             ctx.restore();
           }
           if (tileset && tileset.isLoaded) {
-            const def = dungeonTileMap[tileId];
-            if (!def) {
+            const numericTileId = dungeonTileMap[tileId];
+            if (numericTileId === undefined) {
               console.warn('Unknown dungeon tile id:', tileId, 'at', r, c);
               continue; // skip drawing this tile
             }
             // Draw tile at native 16x16 size
+            // Compute source coordinates from numeric tileId
+            const TILESET_COLUMNS = 21;
+            const sx = (numericTileId % TILESET_COLUMNS) * TILE_SIZE;
+            const sy = Math.floor(numericTileId / TILESET_COLUMNS) * TILE_SIZE;
             const img = (tileset as unknown as { image: HTMLImageElement }).image;
             if (img) {
-              const sx = def.sx * TILE_SIZE;
-              const sy = def.sy * TILE_SIZE;
               ctx.drawImage(
                 img,
                 sx, sy, TILE_SIZE, TILE_SIZE,

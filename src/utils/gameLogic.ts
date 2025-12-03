@@ -85,6 +85,7 @@ export class DungeonTileset {
 // ----------------- DUNGEON TILE CONFIG -----------------
 
 // Helper to convert (col, row) coordinates to a numeric tileId
+// tileId = row * TILESET_COLUMNS + col
 const TILESET_COLUMNS = 21;
 const tileId = (col: number, row: number) => row * TILESET_COLUMNS + col;
 
@@ -116,34 +117,34 @@ export type DungeonTileId =
  *   sx = (tileId % 21) * 16
  *   sy = Math.floor(tileId / 21) * 16
  * 
- * Coordinates below come from tileset inspector (col, row):
+ * Coordinates: tileId(col, row)
  */
-export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
+export const dungeonTileMap: Record<DungeonTileId, number> = {
   // Floors (row 2)
-  floor_basic:         { sx: 3, sy: 2 },   // (3, 2)
-  floor_cracked:       { sx: 4, sy: 2 },   // (4, 2)
-  floor_moss:          { sx: 5, sy: 2 },   // (5, 2)
+  floor_basic:    tileId(3, 2),   // (3, 2)
+  floor_cracked:  tileId(4, 2),   // (4, 2)
+  floor_moss:     tileId(5, 2),   // (5, 2)
 
   // Walls (row 0)
-  wall_top:            { sx: 0, sy: 0 },   // (0, 0)
-  wall_side:           { sx: 1, sy: 0 },   // (1, 0)
-  wall_inner:          { sx: 2, sy: 0 },   // (2, 0)
-  wall_corner:         { sx: 2, sy: 0 },   // same as wall_inner for now
+  wall_top:       tileId(0, 0),   // (0, 0)
+  wall_side:      tileId(1, 0),   // (1, 0)
+  wall_inner:     tileId(2, 0),   // (2, 0)
+  wall_corner:    tileId(2, 0),   // same as wall_inner for now
 
   // Doors (row 3)
-  door_closed:         { sx: 0, sy: 3 },   // (0, 3)
-  door_open:           { sx: 1, sy: 3 },   // (1, 3)
+  door_closed:    tileId(0, 3),   // (0, 3)
+  door_open:      tileId(1, 3),   // (1, 3)
 
   // Hazards
-  pit:                 { sx: 6, sy: 6 },   // (6, 6)
+  pit:            tileId(6, 6),   // (6, 6)
 
   // Liquids
-  water:               { sx: 0, sy: 8 },   // (0, 8)
+  water:          tileId(0, 8),   // (0, 8)
 
-  // Decorations (keeping existing coords for now)
-  torch_wall:          { sx: 10, sy: 0 },
-  crate:               { sx: 0, sy: 10 },
-  barrel:              { sx: 1, sy: 10 },
+  // Decorations
+  torch_wall:     tileId(10, 0),
+  crate:          tileId(0, 10),
+  barrel:         tileId(1, 10),
 };
 
 const enemyNames = [
