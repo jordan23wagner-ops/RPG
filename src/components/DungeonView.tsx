@@ -127,30 +127,29 @@ export function DungeonView({
   // ========== Constants ==========
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 480;
-  // World size now matches the tile grid exactly at native 16px tiles
-  // This prevents tile stretching and keeps the tileset looking correct
-  const WORLD_WIDTH = DUNGEON_COLS * TILE_SIZE;  // 30 * 16 = 480
-  const WORLD_HEIGHT = DUNGEON_ROWS * TILE_SIZE; // 20 * 16 = 320
-  // Render tiles at their native size (no stretching)
+  // Original large world dimensions
+  const WORLD_WIDTH = 4000;
+  const WORLD_HEIGHT = 3000;
+  // Render tiles at their native 16px size, tiling across the world
   const RENDER_TILE_SIZE_X = TILE_SIZE;
   const RENDER_TILE_SIZE_Y = TILE_SIZE;
-  const MOVE_SPEED = 3;
+  const MOVE_SPEED = 5;
   // const BOUNDARY_PADDING = 50; // deprecated with world bounds
   const ATTACK_COOLDOWN_MS = 400;
   const MAX_CHASE_DISTANCE = 450;
   const ENEMY_SPEED = 2.2;
   const ATTACK_RANGE = 120;
   const MIN_PLAYER_ENEMY_DISTANCE = 10; // Prevents overlap
-  // Town gate world position (near initial spawn, at tile 2,2)
-  const TOWN_GATE_POS = { x: 2 * TILE_SIZE, y: 2 * TILE_SIZE };
+  // Town gate world position (near initial spawn)
+  const TOWN_GATE_POS = { x: 100, y: 100 };
 
   // ========== Ref Storage for Game State ==========
   // Using refs to avoid 60fps React re-renders and maintain state across frames
 
   // Player and enemy positions (updated each frame)
-  // World positions - start player at tile (3, 3) which is inside the walkable area
-  const playerPosRef = useRef({ x: 3 * TILE_SIZE, y: 3 * TILE_SIZE });
-  const enemyPosRef = useRef({ x: 10 * TILE_SIZE, y: 8 * TILE_SIZE });
+  // World positions - start player in the center-left of the world
+  const playerPosRef = useRef({ x: 400, y: 450 });
+  const enemyPosRef = useRef({ x: 600, y: 400 });
   const hasSpawnedThisFloorRef = useRef(false);
 
   // Camera state: top-left world coordinates of the visible viewport
@@ -182,8 +181,8 @@ export function DungeonView({
     if (entryLadderPos && floor > 1) {
       playerPosRef.current = { x: entryLadderPos.x, y: entryLadderPos.y };
     } else {
-      // Start at tile (3, 3) inside the walkable area
-      playerPosRef.current = { x: 3 * TILE_SIZE, y: 3 * TILE_SIZE };
+      // Start in the center-left area of the world
+      playerPosRef.current = { x: 400, y: 450 };
     }
     hasSpawnedThisFloorRef.current = true;
   }, [floor, entryLadderPos]);
@@ -758,18 +757,26 @@ export function DungeonView({
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Tiles rendered from logical DungeonTileId[][] at native 16x16 size.
+      // Tiles rendered at native 16x16 size, tiled across the entire world.
+      // The 30x20 tile pattern repeats across the 4000x3000 world.
       const cols = DUNGEON_COLS;
       const rows = DUNGEON_ROWS;
-      const startCol = Math.max(0, Math.floor(camX / RENDER_TILE_SIZE_X) - 1);
-      const endCol = Math.min(cols, Math.ceil((camX + CANVAS_WIDTH) / RENDER_TILE_SIZE_X) + 1);
-      const startRow = Math.max(0, Math.floor(camY / RENDER_TILE_SIZE_Y) - 1);
-      const endRow = Math.min(rows, Math.ceil((camY + CANVAS_HEIGHT) / RENDER_TILE_SIZE_Y) + 1);
-      for (let r = startRow; r < endRow; r++) {
-        for (let c = startCol; c < endCol; c++) {
+      
+      // Calculate world tile range to render (based on camera position)
+      const worldTileStartCol = Math.floor(camX / RENDER_TILE_SIZE_X);
+      const worldTileEndCol = Math.ceil((camX + CANVAS_WIDTH) / RENDER_TILE_SIZE_X) + 1;
+      const worldTileStartRow = Math.floor(camY / RENDER_TILE_SIZE_Y);
+      const worldTileEndRow = Math.ceil((camY + CANVAS_HEIGHT) / RENDER_TILE_SIZE_Y) + 1;
+      
+      for (let worldRow = worldTileStartRow; worldRow < worldTileEndRow; worldRow++) {
+        for (let worldCol = worldTileStartCol; worldCol < worldTileEndCol; worldCol++) {
+          // Use modulo to wrap the tile pattern indices
+          const r = ((worldRow % rows) + rows) % rows;  // Handle negative modulo
+          const c = ((worldCol % cols) + cols) % cols;
+          
           let tileId: DungeonTileId = dungeonLayout[r]?.[c] ?? 'floor_basic';
-          const worldX = c * RENDER_TILE_SIZE_X;
-          const worldY = r * RENDER_TILE_SIZE_Y;
+          const worldX = worldCol * RENDER_TILE_SIZE_X;
+          const worldY = worldRow * RENDER_TILE_SIZE_Y;
           const screenX = worldX - camX;
           const screenY = worldY - camY;
 
@@ -1272,9 +1279,11 @@ export function DungeonView({
       }
 
       // Coarse tile-based collision using the same grid that's used for rendering.
-      // This ensures tiles stretch across the entire world properly.
-      const col = Math.floor(newX / RENDER_TILE_SIZE_X);
-      const row = Math.floor(newY / RENDER_TILE_SIZE_Y);
+      // Use modulo to wrap tile indices (same as rendering) so collision matches the tiled pattern.
+      const worldCol = Math.floor(newX / RENDER_TILE_SIZE_X);
+      const worldRow = Math.floor(newY / RENDER_TILE_SIZE_Y);
+      const col = ((worldCol % DUNGEON_COLS) + DUNGEON_COLS) % DUNGEON_COLS;
+      const row = ((worldRow % DUNGEON_ROWS) + DUNGEON_ROWS) % DUNGEON_ROWS;
       const tileId = dungeonLayout[row]?.[col];
       if (tileId && isBlockingTile(tileId)) {
         newX = prev.x;
