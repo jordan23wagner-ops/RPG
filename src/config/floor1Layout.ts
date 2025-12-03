@@ -2,8 +2,8 @@
 import type { DungeonTileId } from '../utils/gameLogic';
 import { dungeonTileMap } from '../utils/gameLogic';
 
-export const FLOOR1_COLS = 30;
-export const FLOOR1_ROWS = 20;
+export const FLOOR1_COLS = 40;
+export const FLOOR1_ROWS = 30;
 
 type Room = {
   x: number;

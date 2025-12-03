@@ -6,9 +6,10 @@ import {
   loadDungeonTileset,
   generateFloor1,
   drawDungeon,
-  canMoveTo,
   type DungeonGrid,
 } from '../dungeonConfig';
+import { isWalkableTile } from '../utils/gameLogic';
+import type { DungeonTileId } from '../utils/gameLogic';
 import { preloadEnemySprites } from '../lib/sprites';
 import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
@@ -114,9 +115,6 @@ export function DungeonView({
   // ========== Constants ==========
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 480;
-  // Large world dimensions for camera to pan around
-  const WORLD_WIDTH = 4000;
-  const WORLD_HEIGHT = 3000;
   const MOVE_SPEED = 5;
   // const BOUNDARY_PADDING = 50; // deprecated with world bounds
   const ATTACK_COOLDOWN_MS = 400;
@@ -152,6 +150,31 @@ export function DungeonView({
   const damageNumbersRef = useRef(damageNumbers);
   const characterRef = useRef(character);
 
+  function canMoveToWorldPosition(grid: DungeonTileId[][], x: number, y: number): boolean {
+    const tileX = Math.floor(x / TILE_SIZE);
+    const tileY = Math.floor(y / TILE_SIZE);
+
+    if (tileY < 0 || tileY >= grid.length || tileX < 0 || tileX >= grid[0].length) {
+      return false;
+    }
+
+    return isWalkableTile(grid[tileY][tileX]);
+  }
+
+  function findFirstWalkableTile(grid: DungeonTileId[][]) {
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[0].length; x++) {
+        if (isWalkableTile(grid[y][x])) {
+          return {
+            x: x * TILE_SIZE + TILE_SIZE / 2,
+            y: y * TILE_SIZE + TILE_SIZE / 2,
+          };
+        }
+      }
+    }
+    return { x: TILE_SIZE, y: TILE_SIZE };
+  }
+
   // Initialize dungeon tileset + grid once
   useEffect(() => {
     let cancelled = false;
@@ -160,7 +183,11 @@ export function DungeonView({
         const img = await loadDungeonTileset();
         if (cancelled) return;
         tilesetImageRef.current = img;
-        dungeonGridRef.current = generateFloor1();
+        const grid = generateFloor1();
+        dungeonGridRef.current = grid;
+        // Ensure player spawns on a walkable tile when entering the dungeon
+        const spawn = findFirstWalkableTile(grid as DungeonTileId[][]);
+        playerPosRef.current = { x: spawn.x, y: spawn.y };
       } catch (err) {
         console.error('Failed to init dungeon', err);
       }
@@ -180,11 +207,10 @@ export function DungeonView({
   useEffect(() => {
     floorRef.current = floor;
     hasSpawnedThisFloorRef.current = false; // Reset spawn flag on floor change
-    // Spawn player at entry ladder if it exists (floor > 1), else at default spawn
-    if (entryLadderPos && floor > 1) {
-      playerPosRef.current = { x: entryLadderPos.x, y: entryLadderPos.y };
-    } else {
-      playerPosRef.current = { x: 400, y: 450 };
+    const grid = dungeonGridRef.current as DungeonTileId[][] | null;
+    if (grid) {
+      const spawn = findFirstWalkableTile(grid);
+      playerPosRef.current = { x: spawn.x, y: spawn.y };
     }
     hasSpawnedThisFloorRef.current = true;
   }, [floor, entryLadderPos]);
@@ -710,8 +736,8 @@ export function DungeonView({
       const cameraGrid = dungeonGridRef.current;
       const worldWidthPx = cameraGrid && cameraGrid[0]
         ? cameraGrid[0].length * TILE_SIZE
-        : WORLD_WIDTH;
-      const worldHeightPx = cameraGrid ? cameraGrid.length * TILE_SIZE : WORLD_HEIGHT;
+        : CANVAS_WIDTH;
+      const worldHeightPx = cameraGrid ? cameraGrid.length * TILE_SIZE : CANVAS_HEIGHT;
 
       const camX = Math.max(
         0,
@@ -729,8 +755,8 @@ export function DungeonView({
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       // ---- Central ritual chamber (carpet + altar) in world space ----
-      const centerX = WORLD_WIDTH / 2;
-      const centerY = WORLD_HEIGHT / 2;
+      const centerX = worldWidthPx / 2;
+      const centerY = worldHeightPx / 2;
       const rugWidth = 520;
       const rugHeight = 360;
       const rugX = centerX - rugWidth / 2;
@@ -1188,32 +1214,40 @@ export function DungeonView({
         ctx.fillRect(miniX, miniY, miniW, miniH);
         ctx.strokeStyle = '#334155';
         ctx.strokeRect(miniX, miniY, miniW, miniH);
+
+        const cameraGridForMini = dungeonGridRef.current;
+        const worldWidthMini = cameraGridForMini && cameraGridForMini[0]
+          ? cameraGridForMini[0].length * TILE_SIZE
+          : CANVAS_WIDTH;
+        const worldHeightMini = cameraGridForMini
+          ? cameraGridForMini.length * TILE_SIZE
+          : CANVAS_HEIGHT;
         // Viewport rectangle based on camera
-        const vpW = (CANVAS_WIDTH / WORLD_WIDTH) * miniW;
-        const vpH = (CANVAS_HEIGHT / WORLD_HEIGHT) * miniH;
-        const vpX = miniX + (cameraRef.current.x / WORLD_WIDTH) * miniW;
-        const vpY = miniY + (cameraRef.current.y / WORLD_HEIGHT) * miniH;
+        const vpW = (CANVAS_WIDTH / worldWidthMini) * miniW;
+        const vpH = (CANVAS_HEIGHT / worldHeightMini) * miniH;
+        const vpX = miniX + (cameraRef.current.x / worldWidthMini) * miniW;
+        const vpY = miniY + (cameraRef.current.y / worldHeightMini) * miniH;
         ctx.strokeStyle = theme.minimapViewport;
         ctx.lineWidth = 2;
         ctx.strokeRect(vpX, vpY, vpW, vpH);
         // Player dot
-        const pMiniX = miniX + (playerPos.x / WORLD_WIDTH) * miniW;
-        const pMiniY = miniY + (playerPos.y / WORLD_HEIGHT) * miniH;
+        const pMiniX = miniX + (playerPos.x / worldWidthMini) * miniW;
+        const pMiniY = miniY + (playerPos.y / worldHeightMini) * miniH;
         ctx.fillStyle = theme.player;
         ctx.beginPath();
         ctx.arc(pMiniX, pMiniY, 3, 0, Math.PI * 2);
         ctx.fill();
         // Town Gate marker
-        const tMiniX = miniX + (TOWN_GATE_POS.x / WORLD_WIDTH) * miniW;
-        const tMiniY = miniY + (TOWN_GATE_POS.y / WORLD_HEIGHT) * miniH;
+        const tMiniX = miniX + (TOWN_GATE_POS.x / worldWidthMini) * miniW;
+        const tMiniY = miniY + (TOWN_GATE_POS.y / worldHeightMini) * miniH;
         ctx.fillStyle = '#f59e0b';
         ctx.beginPath();
         ctx.arc(tMiniX, tMiniY, 3, 0, Math.PI * 2);
         ctx.fill();
         // Ladder icon only if discovered
         if (exitLadderPos && ladderDiscoveredRef.current) {
-          const lMiniX = miniX + (exitLadderPos.x / WORLD_WIDTH) * miniW;
-          const lMiniY = miniY + (exitLadderPos.y / WORLD_HEIGHT) * miniH;
+          const lMiniX = miniX + (exitLadderPos.x / worldWidthMini) * miniW;
+          const lMiniY = miniY + (exitLadderPos.y / worldHeightMini) * miniH;
           ctx.fillStyle = theme.hudAccent;
           ctx.beginPath();
           ctx.arc(lMiniX, lMiniY, 3, 0, Math.PI * 2);
@@ -1276,11 +1310,9 @@ export function DungeonView({
     let animationFrameId: number;
 
     const movePlayer = () => {
-      let newX = 0;
-      let newY = 0;
       const player = playerPosRef.current;
-      newX = player.x;
-      newY = player.y;
+      let newX = player.x;
+      let newY = player.y;
 
       const keys = keysPressed.current;
       const grid = dungeonGridRef.current;
@@ -1290,9 +1322,6 @@ export function DungeonView({
         animationFrameId = requestAnimationFrame(movePlayer);
         return;
       }
-
-      const dungeonWidthPx = grid[0].length * TILE_SIZE;
-      const dungeonHeightPx = grid.length * TILE_SIZE;
 
       // ----- 1. Base movement intent (no collision yet) -----
       if (keys['ArrowUp'] || keys['w'] || keys['W']) {
@@ -1308,20 +1337,9 @@ export function DungeonView({
         newX += MOVE_SPEED;
       }
 
-      // Clamp to dungeon bounds so we never step outside the grid
-      newX = Math.max(0, Math.min(dungeonWidthPx, newX));
-      newY = Math.max(0, Math.min(dungeonHeightPx, newY));
-
-      // ----- 2. Tile collision check -----
-      const tileX = Math.floor(newX / TILE_SIZE);
-      const tileY = Math.floor(newY / TILE_SIZE);
-
-      if (canMoveTo(grid, tileX, tileY)) {
-        // Floor tile: commit the move
+      // ----- 2. Tile collision check using extended walkability -----
+      if (canMoveToWorldPosition(grid as DungeonTileId[][], newX, newY)) {
         playerPosRef.current = { x: newX, y: newY };
-      } else {
-        // Blocked (wall, door, crate, water, etc.): stay put
-        playerPosRef.current = { x: player.x, y: player.y };
       }
 
       animationFrameId = requestAnimationFrame(movePlayer);
