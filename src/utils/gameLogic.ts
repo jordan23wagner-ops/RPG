@@ -158,15 +158,14 @@ function fromGrid(col: number, row: number) {
 }
 
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // FINAL stone floor tiles (row 8, cols 0-2)
-  floor_stone_main:  fromGrid(0, 8),
-  floor_stone_alt1:  fromGrid(1, 8),
-  floor_stone_alt2:  fromGrid(2, 8),
+  // Use the real solid stone floor tiles from row 6
+  floor_stone_main:  fromGrid(0, 6),
+  floor_stone_alt1:  fromGrid(1, 6),
+  floor_stone_alt2:  fromGrid(2, 6),
 
-  // alias older floor types to the same row
-  floor_basic:       fromGrid(0, 8),
-  floor_cracked:     fromGrid(1, 8),
-  floor_moss:        fromGrid(2, 8),
+  floor_basic:       fromGrid(0, 6),
+  floor_cracked:     fromGrid(1, 6),
+  floor_moss:        fromGrid(2, 6),
 
   // Walls
   wall_top:          fromGrid(0, 3),  // (0,3) top wall cap
