@@ -106,7 +106,8 @@ export function DungeonView({
         minimapViewport: '#10b981',
       },
     ];
-    const idx = f % 4; // cycle themes every floor
+    // Floor 1 uses dungeon theme (index 0), other floors cycle through themes
+    const idx = f === 1 ? 0 : (f % 4);
     return themes[idx];
   };
 
