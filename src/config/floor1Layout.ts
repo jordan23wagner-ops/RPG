@@ -12,18 +12,26 @@ type Room = {
   h: number;
 };
 
+// Helper function declared before use in the IIFE
+function randomFloorTileId(): DungeonTileId {
+  const roll = Math.random();
+  if (roll < 0.6) return 'floor_stone_main';
+  if (roll < 0.85) return 'floor_stone_alt1';
+  return 'floor_stone_alt2';
+}
+
 // Randomized Floor 1: multiple rooms, corridors, and decorations
 export const floor1Layout: DungeonTileId[][] = (() => {
   const cols = FLOOR1_COLS;
   const rows = FLOOR1_ROWS;
 
-  // Start with stone floors and a wall_top border so the default interior is clean stone
+  // Start with random stone floors and a wall_top border
   const grid: DungeonTileId[][] = Array.from({ length: rows }, (_, y) =>
     Array.from({ length: cols }, (_, x) => {
       if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) {
         return 'wall_top';
       }
-      return 'floor_stone_main';
+      return randomFloorTileId();
     }),
   );
 
@@ -103,13 +111,6 @@ export const floor1Layout: DungeonTileId[][] = (() => {
 
 function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomFloorTileId(): DungeonTileId {
-  const roll = Math.random();
-  if (roll < 0.6) return 'floor_stone_main';
-  if (roll < 0.85) return 'floor_stone_alt1';
-  return 'floor_stone_alt2';
 }
 
 function createRandomRoom(cols: number, rows: number): Room {
