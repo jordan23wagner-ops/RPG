@@ -14,10 +14,15 @@ type Room = {
 
 // Helper function declared before use in the IIFE
 function randomFloorTileId(): DungeonTileId {
-  const roll = Math.random();
-  if (roll < 0.6) return 'floor_stone_main';
-  if (roll < 0.85) return 'floor_stone_alt1';
-  return 'floor_stone_alt2';
+  const floors: DungeonTileId[] = [
+    'floor_stone_main',
+    'floor_stone_alt1',
+    'floor_stone_alt2',
+    'floor_basic',
+    'floor_cracked',
+    'floor_moss',
+  ];
+  return floors[Math.floor(Math.random() * floors.length)];
 }
 
 // Randomized Floor 1: multiple rooms, corridors, and decorations
@@ -432,6 +437,9 @@ function isFloorTile(tile: DungeonTileId): boolean {
     tile === 'floor_stone_main' ||
     tile === 'floor_stone_alt1' ||
     tile === 'floor_stone_alt2' ||
+    tile === 'floor_basic' ||
+    tile === 'floor_cracked' ||
+    tile === 'floor_moss' ||
     tile === 'grate_floor'
   );
 }

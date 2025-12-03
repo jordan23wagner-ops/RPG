@@ -45,16 +45,14 @@ function fromGrid(col: number, row: number) {
 }
 
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Floors – grey cobblestone cluster starting at (36, 291) in the PNG
-  // 36px / 16px = col 2, 291px / 16px = row 18 (rounded)
+  // Floors – use a 3x2 cluster of cobblestone tiles
   floor_stone_main:  fromGrid(2, 18),
   floor_stone_alt1:  fromGrid(3, 18),
   floor_stone_alt2:  fromGrid(4, 18),
 
-  // legacy aliases all point to the same 3 tiles
-  floor_basic:       fromGrid(2, 18),
-  floor_cracked:     fromGrid(3, 18),
-  floor_moss:        fromGrid(4, 18),
+  floor_basic:       fromGrid(2, 19),
+  floor_cracked:     fromGrid(3, 19),
+  floor_moss:        fromGrid(4, 19),
 
   // Walls
   wall_top:          fromGrid(0, 3),  // (0,3) top wall cap
