@@ -109,29 +109,25 @@ export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> =
   // Basic floors
   floor_basic:         { sx: 2, sy: 1 }, // clean floor
   floor_cracked:       { sx: 3, sy: 1 }, // cracked variant
-  floor_moss:          { sx: 4, sy: 1 }, // mossy variant
 
-  // Brick floors
-  brick_floor_basic:        { sx: 0, sy: 3 },
-  brick_floor_large_crack:  { sx: 1, sy: 3 },
-  brick_floor_small_crack:  { sx: 2, sy: 3 },
+  // Walls (used in floor1Layout)
+  wall_top:            { sx: 0, sy: 0 }, // top wall tile
+  wall_inner:          { sx: 1, sy: 0 }, // inner wall
+  wall_corner:         { sx: 2, sy: 0 }, // corner wall
 
-  // Walls
-  wall_stone:          { sx: 0, sy: 0 }, // stone wall
-  wall_cobble:         { sx: 1, sy: 0 }, // cobble wall
-  wall_brick:          { sx: 2, sy: 0 }, // brick wall top
-  wall_brick_large_crack: { sx: 3, sy: 0 }, // cracked top
+  // Door
+  door_closed:         { sx: 5, sy: 0 }, // closed door
+
+  // Hazards
+  pit:                 { sx: 6, sy: 2 }, // pit/hole tile
 
   // Liquids
   water:               { sx: 5, sy: 7 }, // water-looking tile
-  lava:                { sx: 6, sy: 7 }, // lava tile
 
-  // Hazards
-  spikes:              { sx: 6, sy: 2 }, // spike tile from props row
-
-  // Stairs (we pick visually reasonable tiles)
-  stairs_up:           { sx: 7, sy: 2 },
-  stairs_down:         { sx: 8, sy: 2 },
+  // Decorations
+  torch_wall:          { sx: 8, sy: 0 }, // torch on wall
+  crate:               { sx: 0, sy: 4 }, // wooden crate
+  barrel:              { sx: 1, sy: 4 }, // barrel
 };
 
 const enemyNames = [
