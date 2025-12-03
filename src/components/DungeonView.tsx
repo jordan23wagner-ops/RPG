@@ -787,9 +787,7 @@ export function DungeonView({
               drawRockProp(ctx, screenX + 40, screenY + 58);
             }
           } else if (theme.name === 'lava') {
-            if (pr < 0.08) {
-              drawRockProp(ctx, screenX + 40, screenY + 56);
-            }
+            // Lava theme: no scattered rocks (clean floor for Floor 1)
           } else if (theme.name === 'ice') {
             if (pr < 0.06) {
               drawRockProp(ctx, screenX + 38, screenY + 55);
