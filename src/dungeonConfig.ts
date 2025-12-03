@@ -112,17 +112,51 @@ export function generateFloor1(): DungeonGrid {
 // Rendering
 // -----------------------------------------------------
 
+// Floor tile source coordinates from the tileset atlas
+// These point to a 48x48 region containing the solid stone floor
+const FLOOR_TILE_SX = 36;
+const FLOOR_TILE_SY = 291;
+const FLOOR_TILE_SW = 48;
+const FLOOR_TILE_SH = 48;
+
+/**
+ * Draws a solid floor layer across the entire dungeon grid.
+ * Uses a specific 48x48 tile region from the tileset, scaled to TILE_SIZE.
+ * Call this BEFORE drawing walls, objects, enemies, or player.
+ */
+export function drawFloor(
+  ctx: CanvasRenderingContext2D,
+  tilesetImage: HTMLImageElement,
+  grid: DungeonGrid,
+  camX: number,
+  camY: number,
+) {
+  const rows = grid.length;
+  const cols = rows > 0 ? grid[0].length : 0;
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const screenX = x * TILE_SIZE - camX;
+      const screenY = y * TILE_SIZE - camY;
+
+      ctx.drawImage(
+        tilesetImage,
+        FLOOR_TILE_SX,
+        FLOOR_TILE_SY,
+        FLOOR_TILE_SW,
+        FLOOR_TILE_SH,
+        screenX,
+        screenY,
+        TILE_SIZE,
+        TILE_SIZE
+      );
+    }
+  }
+}
+
 // Whitelist of structural dungeon tiles that should render as-is.
 // Any tile NOT in this list will be normalized to floor_stone_main.
 const STRUCTURAL_TILES: DungeonTileId[] = [
-  // Floors
-  'floor_stone_main',
-  'floor_stone_alt1',
-  'floor_stone_alt2',
-  'floor_basic',
-  'floor_cracked',
-  'floor_moss',
-  'grate_floor',
   // Walls
   'wall_top',
   'wall_inner',
@@ -139,6 +173,7 @@ const STRUCTURAL_TILES: DungeonTileId[] = [
   'water',
   // Bars/grates
   'bars_vertical',
+  'grate_floor',
   // Decorations that are intentional (torches on walls)
   'torch_wall',
   // Props (crates, barrels, tables) - these are structural/intentional
@@ -150,15 +185,19 @@ const STRUCTURAL_TILES: DungeonTileId[] = [
 /**
  * Normalize a dungeon tile ID for rendering.
  * If the tile is in the STRUCTURAL_TILES whitelist, it renders as-is.
- * Otherwise, it's treated as floor_stone_main (removes rubble/rocks visually).
+ * Otherwise, it's skipped (floor is already drawn by drawFloor).
  */
-function normalizeDungeonTileIdForRender(tileId: DungeonTileId): DungeonTileId {
+function normalizeDungeonTileIdForRender(tileId: DungeonTileId): DungeonTileId | null {
   if (STRUCTURAL_TILES.includes(tileId)) {
     return tileId;
   }
-  return 'floor_stone_main';
+  return null; // Skip non-structural tiles (floors, rubble, etc.)
 }
 
+/**
+ * Draws walls, props, doors, stairs, and other non-floor tiles on top of the floor layer.
+ * Call this AFTER drawFloor().
+ */
 export function drawDungeon(
   ctx: CanvasRenderingContext2D,
   tilesetImage: HTMLImageElement,
@@ -169,53 +208,16 @@ export function drawDungeon(
   const rows = grid.length;
   const cols = rows > 0 ? grid[0].length : 0;
 
-  // Get the base floor sprite (stone floor at row 15, col 11)
-  const baseFloorSprite = DUNGEON_TILE_SPRITES['floor_stone_main'];
-
-  // PASS 1: Draw base floor layer across the entire grid
-  // This ensures every cell has a visible floor tile as the background
-  if (baseFloorSprite) {
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const screenX = x * TILE_SIZE - camX;
-        const screenY = y * TILE_SIZE - camY;
-
-        ctx.drawImage(
-          tilesetImage,
-          baseFloorSprite.sx,
-          baseFloorSprite.sy,
-          baseFloorSprite.sw,
-          baseFloorSprite.sh,
-          screenX,
-          screenY,
-          TILE_SIZE,
-          TILE_SIZE
-        );
-      }
-    }
-  }
-
-  // PASS 2: Draw actual tiles on top (walls, props, doors, stairs, etc.)
+  // Draw walls, props, doors, stairs on top of the floor layer
   for (let y = 0; y < rows; y++) {
     const row = grid[y];
     for (let x = 0; x < cols; x++) {
       const rawId = row[x];
 
-      // Normalize tile ID: only structural tiles render as-is,
-      // everything else (rubble, rocks, debris) becomes floor_stone_main
+      // Normalize tile ID: only structural tiles render,
+      // everything else (floors, rubble, rocks, debris) is skipped
       const safeTileId = normalizeDungeonTileIdForRender(rawId);
-
-      // Skip floor tiles in pass 2 since they're already drawn in pass 1
-      if (
-        safeTileId === 'floor_stone_main' ||
-        safeTileId === 'floor_stone_alt1' ||
-        safeTileId === 'floor_stone_alt2' ||
-        safeTileId === 'floor_basic' ||
-        safeTileId === 'floor_cracked' ||
-        safeTileId === 'floor_moss'
-      ) {
-        continue;
-      }
+      if (!safeTileId) continue;
 
       const sprite = DUNGEON_TILE_SPRITES[safeTileId];
       if (!sprite) continue;
