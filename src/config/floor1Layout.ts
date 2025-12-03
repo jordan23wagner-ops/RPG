@@ -4,23 +4,13 @@ import type { DungeonTileId } from '../utils/gameLogic';
 export const FLOOR1_COLS = 30;
 export const FLOOR1_ROWS = 20;
 
-// Weighted floor tile selection for variety
-const FLOOR_TILES: { id: DungeonTileId; weight: number }[] = [
-  { id: 'floor_basic', weight: 0.6 },
-  { id: 'floor_cracked', weight: 0.25 },
-  { id: 'floor_moss', weight: 0.15 },
-];
-
+// Returns a random floor tileId with weighted probability
+// 60% floor_basic, 25% floor_cracked, 15% floor_moss
 function randomFloorTileId(): DungeonTileId {
-  const roll = Math.random();
-  let cumulative = 0;
-  for (const tile of FLOOR_TILES) {
-    cumulative += tile.weight;
-    if (roll < cumulative) {
-      return tile.id;
-    }
-  }
-  return 'floor_basic'; // fallback
+  const r = Math.random();
+  if (r < 0.6) return 'floor_basic';       // 60%
+  if (r < 0.85) return 'floor_cracked';    // next 25%
+  return 'floor_moss';                     // remaining 15%
 }
 
 // Floor 1 layout:
