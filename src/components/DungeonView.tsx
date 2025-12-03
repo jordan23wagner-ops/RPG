@@ -858,7 +858,7 @@ export function DungeonView({
           }
 
           // Wall torches along some upper tiles to avoid UI overlap
-          if (r <= startRow + 1 && pr > 0.65 && pr < 0.75) {
+          if (worldRow <= worldTileStartRow + 1 && pr > 0.65 && pr < 0.75) {
             const torchWorldX = worldX + 30;
             const torchWorldY = worldY - 10;
             const tx = torchWorldX - camX;
