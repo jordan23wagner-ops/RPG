@@ -5,7 +5,6 @@ import {
   TILE_SIZE,
   loadDungeonTileset,
   generateFloor1,
-  drawFloor,
   drawDungeon,
   type DungeonGrid,
 } from '../dungeonConfig';
@@ -760,9 +759,6 @@ export function DungeonView({
       const grid = dungeonGridRef.current;
       const tilesetImage = tilesetImageRef.current;
       if (grid && tilesetImage) {
-        // Draw floor layer first (solid stone floor across entire grid)
-        drawFloor(ctx, tilesetImage, grid, camX, camY);
-        // Draw walls, props, doors, stairs on top
         drawDungeon(ctx, tilesetImage, grid, camX, camY);
       }
 
