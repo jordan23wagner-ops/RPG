@@ -4,7 +4,7 @@
 // -----------------------------------------------------
 //
 // 1) Make sure this file exists in your project.
-// 2) Put your atlas in: public/darkdungeon_tileset_allinone.png
+// 2) Put your atlas in: public/darkdungeon_tileset_allinone_v2.png
 // 3) Import and use:
 //    - loadDungeonTileset()
 //    - generateFloor1()
@@ -69,29 +69,15 @@ export const DUNGEON_TILE_SPRITES: Record<TileId, TileSprite> = Object.fromEntri
 ) as Record<TileId, TileSprite>;
 
 // -----------------------------------------------------
-// Tileset loader (uses /public/darkdungeon_tileset_allinone.png)
+// Tileset loader (uses DUNGEON_TILESET_URL)
 // -----------------------------------------------------
 
 export function loadDungeonTileset(): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.src = '/darkdungeon_tileset_allinone.png'; // served from /public
-
-    img.onload = () => {
-      console.log(
-        '\ud83e\udde9 Tileset loaded:',
-        img.src,
-        img.width,
-        img.height
-      );
-      // We expect 336 x 624 here. If not, youre using a different file.
-      resolve(img);
-    };
-
-    img.onerror = (err) => {
-      console.error(' Failed to load dungeon tileset', img.src, err);
-      reject(err);
-    };
+    img.src = DUNGEON_TILESET_URL;
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(err);
   });
 }
 

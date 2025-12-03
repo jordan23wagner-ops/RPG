@@ -1,15 +1,15 @@
 // src/utils/gameLogic.ts
 import { Enemy, Item, Affix } from '../types/game';
+import { DUNGEON_TILESET_URL } from '../dungeonConfig';
 
 // ----------------- DUNGEON TILESET HELPER -----------------
 
 /**
  * Lightweight helper for drawing top-down dungeon tiles from a spritesheet.
  *
- * The sheet is expected at `/darkdungeon_tileset_allinone.png` (served from
- * your Vite `/public` folder). Adjust the URL below if your dev server
- * serves from a different base, but keep the same filename, and
- * organized as a grid of 16x16 pixel tiles.
+ * The sheet is expected at the path defined by DUNGEON_TILESET_URL (served from
+ * your Vite `/public` folder). Adjust the URL in dungeonConfig.ts if your dev server
+ * serves from a different base, and organized as a grid of 16x16 pixel tiles.
  */
 export class DungeonTileset {
   private image: HTMLImageElement | null = null;
@@ -19,8 +19,8 @@ export class DungeonTileset {
   private loadPromise: Promise<void> | null = null;
 
   constructor(
-    /** Optional override for the tilesheet URL. Defaults to `/darkdungeon_tileset_allinone.png`. */
-    private readonly src: string = '/darkdungeon_tileset_allinone.png',
+    /** Optional override for the tilesheet URL. Defaults to DUNGEON_TILESET_URL. */
+    private readonly src: string = DUNGEON_TILESET_URL,
     tileWidth = 16,
     tileHeight = 16,
   ) {
@@ -118,7 +118,7 @@ export function drawTilesetDebug(
 
 // ------------------------------------------------------------
 // Dungeon tiles: logical IDs used by the layout + their sheet coords
-// Sheet: public/darkdungeon_tileset_allinone.png (16x16 tiles, 336×624 full sheet)
+// Sheet: public/darkdungeon_tileset_allinone_v2.png (16x16 tiles, 336×624 full sheet)
 // sx / sy are PIXEL offsets on the big sheet.
 // ------------------------------------------------------------
 
