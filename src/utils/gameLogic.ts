@@ -158,15 +158,15 @@ function fromGrid(col: number, row: number) {
 }
 
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Floors (bottom-right colored blocks)
-  floor_basic:       fromGrid(14, 32), // (14,32) blue
-  floor_cracked:     fromGrid(16, 32), // (16,32) red / broken
-  floor_moss:        fromGrid(18, 32), // (18,32) green
+  // Floors – all mapped to subtle stone tiles (no bright colored pads)
+  floor_basic:       fromGrid(11, 15), // main stone floor
+  floor_cracked:     fromGrid(12, 15), // alt stone floor 1
+  floor_moss:        fromGrid(13, 15), // alt stone floor 2
 
-  // New stone floors for main rooms/corridors
-  floor_stone_main:  fromGrid(11, 15), // (11,15) main stone floor
-  floor_stone_alt1:  fromGrid(12, 15), // (12,15) alt stone floor 1
-  floor_stone_alt2:  fromGrid(13, 15), // (13,15) alt stone floor 2
+  // Dedicated stone floor variants for main rooms/corridors
+  floor_stone_main:  fromGrid(11, 15), // main stone floor
+  floor_stone_alt1:  fromGrid(12, 15), // alt stone floor 1
+  floor_stone_alt2:  fromGrid(13, 15), // alt stone floor 2
 
   // Walls
   wall_top:          fromGrid(0, 3),  // (0,3) top wall cap

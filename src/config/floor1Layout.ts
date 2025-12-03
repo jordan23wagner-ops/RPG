@@ -12,7 +12,7 @@ type Room = {
   h: number;
 };
 
-// Randomized Floor 1: 2–4 rooms, corridors, and decorations
+// Randomized Floor 1: multiple rooms, corridors, and decorations
 export const floor1Layout: DungeonTileId[][] = (() => {
   const cols = FLOOR1_COLS;
   const rows = FLOOR1_ROWS;
@@ -29,7 +29,7 @@ export const floor1Layout: DungeonTileId[][] = (() => {
 
   const rooms: Room[] = [];
 
-  const roomCount = randomInt(2, 4);
+  const roomCount = randomInt(5, 8);
   for (let i = 0; i < roomCount; i++) {
     const room = createRandomRoom(cols, rows);
     if (!roomIntersects(room, rooms)) {
@@ -216,7 +216,7 @@ function addTorchesToRoom(grid: DungeonTileId[][], room: Room): void {
 
 function addPropsToRoom(grid: DungeonTileId[][], room: Room): void {
   const { x, y, w, h } = room;
-  const maxProps = randomInt(2, 5);
+  const maxProps = randomInt(0, 2);
   let placed = 0;
 
   for (let iy = y + 1; iy < y + h - 1; iy++) {
@@ -224,7 +224,7 @@ function addPropsToRoom(grid: DungeonTileId[][], room: Room): void {
       if (placed >= maxProps) return;
       const tile = grid[iy][ix];
       if (!isFloorTile(tile)) continue;
-      if (Math.random() < 0.12) {
+      if (Math.random() < 0.05) {
         const prop = pickRoomProp();
         grid[iy][ix] = prop;
         placed++;
@@ -235,10 +235,10 @@ function addPropsToRoom(grid: DungeonTileId[][], room: Room): void {
 
 function addBarsAndGrates(grid: DungeonTileId[][], rooms: Room[]): void {
   // Add a short bars section somewhere near the middle of the map
-  if (Math.random() < 0.7) {
+  if (Math.random() < 0.3) {
     const y = randomInt(2, grid.length - 3);
     const xStart = randomInt(2, grid[0].length - 6);
-    const length = randomInt(3, 6);
+    const length = randomInt(2, 4);
     for (let i = 0; i < length; i++) {
       const x = xStart + i;
       if (isFloorTile(grid[y][x])) {
