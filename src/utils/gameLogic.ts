@@ -128,15 +128,27 @@ export type DungeonTileId =
   | 'floor_basic'
   | 'floor_cracked'
   | 'floor_moss'
+  | 'floor_stone_main'
+  | 'floor_stone_alt1'
+  | 'floor_stone_alt2'
   | 'wall_inner'
   | 'wall_top'
+  | 'wall_side'
+  | 'wall_corner_inner'
+  | 'wall_corner_outer'
   | 'wall_column'
   | 'door_closed'
   | 'pit'
   | 'water'
+  | 'bars_vertical'
+  | 'grate_floor'
+  | 'stairs_down'
   | 'torch_wall'
+  | 'rubble_small'
+  | 'rubble_large'
   | 'crate'
-  | 'barrel';
+  | 'barrel'
+  | 'table';
 
 function fromGrid(col: number, row: number) {
   return {
@@ -147,26 +159,42 @@ function fromGrid(col: number, row: number) {
 
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
   // Floors (bottom-right colored blocks)
-  floor_basic:   fromGrid(14, 32), // blue
-  floor_cracked: fromGrid(16, 32), // red / broken
-  floor_moss:    fromGrid(18, 32), // green
+  floor_basic:       fromGrid(14, 32), // (14,32) blue
+  floor_cracked:     fromGrid(16, 32), // (16,32) red / broken
+  floor_moss:        fromGrid(18, 32), // (18,32) green
+
+  // New stone floors for main rooms/corridors
+  floor_stone_main:  fromGrid(11, 15), // (11,15) main stone floor
+  floor_stone_alt1:  fromGrid(12, 15), // (12,15) alt stone floor 1
+  floor_stone_alt2:  fromGrid(13, 15), // (13,15) alt stone floor 2
 
   // Walls
-  wall_top:      fromGrid(0, 3),
-  wall_inner:    fromGrid(0, 4),
-  wall_column:   fromGrid(6, 7),
+  wall_top:          fromGrid(0, 3),  // (0,3) top wall cap
+  wall_inner:        fromGrid(0, 4),  // (0,4) solid inner wall
+  wall_side:         fromGrid(1, 4),  // (1,4) vertical wall / side
+  wall_corner_inner: fromGrid(2, 4),  // (2,4) inner corner
+  wall_corner_outer: fromGrid(3, 4),  // (3,4) outer corner
+  wall_column:       fromGrid(6, 7),  // (6,7) column
 
   // Door
-  door_closed:   fromGrid(7, 4),
+  door_closed:       fromGrid(7, 4),  // (7,4) closed door
 
   // Hazards / liquids
-  pit:           fromGrid(10, 19),
-  water:         fromGrid(2, 17),
+  pit:               fromGrid(10, 19), // (10,19) pit
+  water:             fromGrid(2, 17),  // (2,17) water
+
+  // Bars / grates / stairs
+  bars_vertical:     fromGrid(9, 12),  // (9,12) jail bars
+  grate_floor:       fromGrid(10, 12), // (10,12) floor grate
+  stairs_down:       fromGrid(5, 23),  // (5,23) stairs down
 
   // Deco
-  torch_wall:    fromGrid(9, 30),
-  crate:         fromGrid(6, 37),
-  barrel:        fromGrid(10, 37),
+  torch_wall:        fromGrid(9, 30),  // (9,30) wall torch
+  rubble_small:      fromGrid(4, 27),  // (4,27) small rubble/skulls
+  rubble_large:      fromGrid(5, 27),  // (5,27) larger rubble
+  crate:             fromGrid(6, 37),  // (6,37) crate
+  barrel:            fromGrid(10, 37), // (10,37) barrel
+  table:             fromGrid(8, 36),  // (8,36) table / furniture
 };
 
 const enemyNames = [
@@ -1563,4 +1591,44 @@ export function isTwoHanded(item: Item): boolean {
 
   const last = item.name.split(' ').slice(-1)[0].toLowerCase();
   return ['bow', 'longbow', 'shortbow', 'crossbow', 'staff', 'warhammer'].includes(last);
+}
+
+// ----------------- DUNGEON WALKABILITY -----------------
+
+export function isWalkableTile(tile: DungeonTileId): boolean {
+  switch (tile) {
+    // All basic and stone floor variants are walkable
+    case 'floor_basic':
+    case 'floor_cracked':
+    case 'floor_moss':
+    case 'floor_stone_main':
+    case 'floor_stone_alt1':
+    case 'floor_stone_alt2':
+    case 'grate_floor':
+    case 'stairs_down':
+      return true;
+
+    // Everything below is blocking / not walkable
+    case 'wall_inner':
+    case 'wall_top':
+    case 'wall_side':
+    case 'wall_corner_inner':
+    case 'wall_corner_outer':
+    case 'wall_column':
+    case 'door_closed':
+    case 'pit':
+    case 'water':
+    case 'bars_vertical':
+    case 'torch_wall':
+    case 'rubble_small':
+    case 'rubble_large':
+    case 'crate':
+    case 'barrel':
+    case 'table':
+      return false;
+
+    // Fallback: treat unknown as blocking for safety
+    default:
+      return false;
+  }
 }
