@@ -146,10 +146,10 @@ function fromGrid(col: number, row: number) {
 }
 
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Floors (bottom-right colored blocks)
-  floor_basic:   fromGrid(14, 32), // blue
-  floor_cracked: fromGrid(16, 32), // red / broken
-  floor_moss:    fromGrid(18, 32), // green
+  // Floors (brown/gray dungeon stone tiles from the tileset)
+  floor_basic:   fromGrid(0, 16),  // brown dungeon floor
+  floor_cracked: fromGrid(2, 16),  // cracked dungeon floor
+  floor_moss:    fromGrid(3, 16),  // mossy/varied dungeon floor
 
   // Walls
   wall_top:      fromGrid(0, 3),
