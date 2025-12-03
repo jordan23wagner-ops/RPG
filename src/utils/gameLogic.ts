@@ -84,6 +84,10 @@ export class DungeonTileset {
 
 // ----------------- DUNGEON TILE CONFIG -----------------
 
+// Helper to convert (col, row) coordinates to a numeric tileId
+const TILESET_COLUMNS = 21;
+const tileId = (col: number, row: number) => row * TILESET_COLUMNS + col;
+
 /**
  * Logical identifiers for dungeon tiles in the 16x16 spritesheet.
  * Tile (0,0) is the top-left of `/assets/tiles/darkdungeon_tileset_allinone.png`.
@@ -91,10 +95,13 @@ export class DungeonTileset {
 export type DungeonTileId =
   | 'floor_basic'
   | 'floor_cracked'
+  | 'floor_moss'
   | 'wall_top'
+  | 'wall_side'
   | 'wall_inner'
   | 'wall_corner'
   | 'door_closed'
+  | 'door_open'
   | 'pit'
   | 'water'
   | 'torch_wall'
@@ -102,37 +109,41 @@ export type DungeonTileId =
   | 'barrel';
 
 /**
- * Mapping from logical tile ids to their spritesheet coordinates.
- * `sx`/`sy` are tile indices (not pixel positions).
+ * Mapping from logical tile ids to their numeric tileId.
  * The tileset is 336x624 pixels = 21 columns x 39 rows of 16x16 tiles.
  * 
- * To find correct tiles: Open the tileset image and count 16px squares
- * from top-left. sx is the column (0-20), sy is the row (0-38).
+ * Renderer uses:
+ *   sx = (tileId % 21) * 16
+ *   sy = Math.floor(tileId / 21) * 16
+ * 
+ * Coordinates below come from tileset inspector (col, row):
  */
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Each tile uses a different position across the tileset for visibility
-  // Adjust these coordinates to match actual tile art in the tileset
-  floor_basic:         { sx: 0, sy: 2 },   // row 2, col 0 - hopefully a floor tile
-  floor_cracked:       { sx: 1, sy: 2 },   // row 2, col 1 - floor variant
+  // Floors (row 2)
+  floor_basic:         { sx: 3, sy: 2 },   // (3, 2)
+  floor_cracked:       { sx: 4, sy: 2 },   // (4, 2)
+  floor_moss:          { sx: 5, sy: 2 },   // (5, 2)
 
-  // Walls - typically darker/solid tiles
-  wall_top:            { sx: 0, sy: 0 },   // row 0, col 0 - top-left often a wall
-  wall_inner:          { sx: 1, sy: 0 },   // row 0, col 1
-  wall_corner:         { sx: 2, sy: 0 },   // row 0, col 2
+  // Walls (row 0)
+  wall_top:            { sx: 0, sy: 0 },   // (0, 0)
+  wall_side:           { sx: 1, sy: 0 },   // (1, 0)
+  wall_inner:          { sx: 2, sy: 0 },   // (2, 0)
+  wall_corner:         { sx: 2, sy: 0 },   // same as wall_inner for now
 
-  // Door
-  door_closed:         { sx: 4, sy: 3 },   // row 3, col 4 - possible door area
+  // Doors (row 3)
+  door_closed:         { sx: 0, sy: 3 },   // (0, 3)
+  door_open:           { sx: 1, sy: 3 },   // (1, 3)
 
   // Hazards
-  pit:                 { sx: 6, sy: 6 },   // row 6, col 6 - pit/dark area
+  pit:                 { sx: 6, sy: 6 },   // (6, 6)
 
   // Liquids
-  water:               { sx: 0, sy: 8 },   // row 8, col 0 - water area
+  water:               { sx: 0, sy: 8 },   // (0, 8)
 
-  // Decorations
-  torch_wall:          { sx: 10, sy: 0 },  // row 0, col 10
-  crate:               { sx: 0, sy: 10 },  // row 10, col 0
-  barrel:              { sx: 1, sy: 10 },  // row 10, col 1
+  // Decorations (keeping existing coords for now)
+  torch_wall:          { sx: 10, sy: 0 },
+  crate:               { sx: 0, sy: 10 },
+  barrel:              { sx: 1, sy: 10 },
 };
 
 const enemyNames = [
