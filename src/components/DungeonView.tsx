@@ -15,6 +15,62 @@ import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 import { useGame } from '../contexts/GameContext';
 
+const FLOOR_TILE_IDS = new Set<DungeonTileId>([
+  'floor_stone_main',
+  'floor_stone_alt1',
+  'floor_stone_alt2',
+  'floor_basic',
+  'floor_cracked',
+  'floor_moss',
+]);
+
+const TOWN_TILE_SIZE = 80;
+
+// Reuse the chunky 80px town paving silhouette as a dungeon base for Floor 1.
+function drawTownStyleFloor(
+  ctx: CanvasRenderingContext2D,
+  camX: number,
+  camY: number,
+  worldWidthPx: number,
+  worldHeightPx: number,
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  const tile = TOWN_TILE_SIZE;
+  const cols = Math.ceil(worldWidthPx / tile);
+  const rows = Math.ceil(worldHeightPx / tile);
+  const startC = Math.max(0, Math.floor(camX / tile) - 1);
+  const endC = Math.min(cols, Math.ceil((camX + canvasWidth) / tile) + 1);
+  const startR = Math.max(0, Math.floor(camY / tile) - 1);
+  const endR = Math.min(rows, Math.ceil((camY + canvasHeight) / tile) + 1);
+
+  for (let r = startR; r < endR; r++) {
+    for (let c = startC; c < endC; c++) {
+      const wx = c * tile;
+      const wy = r * tile;
+      const sx = wx - camX;
+      const sy = wy - camY;
+      const alt = (r + c) % 2 === 0;
+      const base = alt ? '#0e1526' : '#0b1220';
+      const inset = 3;
+      const inner = tile - inset * 2;
+      // Subtle center glow so the pattern doesn't feel flat.
+      const centerDist = Math.hypot(wx - worldWidthPx / 2, wy - worldHeightPx / 2);
+      const glowStrength = Math.max(0, 1 - centerDist / Math.max(worldWidthPx, worldHeightPx));
+
+      ctx.fillStyle = base;
+      ctx.fillRect(sx + inset, sy + inset, inner, inner);
+
+      ctx.fillStyle = `rgba(124, 58, 237, ${(0.04 + glowStrength * 0.05).toFixed(3)})`;
+      ctx.fillRect(sx + inset + 6, sy + inset + 6, inner - 12, inner - 12);
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx + inset + 0.5, sy + inset + 0.5, inner - 1, inner - 1);
+    }
+  }
+}
+
 interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
@@ -754,6 +810,19 @@ export function DungeonView({
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // Floor 1 uses the same chunky 80px tile silhouette as the town hub.
+      if (currentFloor === 1 && cameraGrid) {
+        drawTownStyleFloor(
+          ctx,
+          camX,
+          camY,
+          worldWidthPx,
+          worldHeightPx,
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT,
+        );
+      }
+
       // ---- Central ritual chamber (carpet + altar) in world space ----
       const centerX = worldWidthPx / 2;
       const centerY = worldHeightPx / 2;
@@ -850,7 +919,11 @@ export function DungeonView({
       const grid = dungeonGridRef.current;
       const tilesetImage = tilesetImageRef.current;
       if (grid && tilesetImage) {
-        drawDungeon(ctx, tilesetImage, grid, camX, camY);
+        if (currentFloor === 1) {
+          drawDungeon(ctx, tilesetImage, grid, camX, camY, { skipTileIds: FLOOR_TILE_IDS });
+        } else {
+          drawDungeon(ctx, tilesetImage, grid, camX, camY);
+        }
       }
 
       // Deterministic pseudo-random per tile for ambient props over rug area
