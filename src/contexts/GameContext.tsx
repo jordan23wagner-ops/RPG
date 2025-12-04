@@ -7,6 +7,11 @@ import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '
 // Debug flag for verbose world enemy lifecycle logging
 const DEBUG_WORLD_ENEMIES = true;
 
+function seededRandom(seed: number) {
+  const x = Math.sin(seed++) * 10000;
+  return x - Math.floor(x);
+}
+
 export interface DamageNumber {
   id: string;
   damage: number;
@@ -587,11 +592,6 @@ export function GameProvider({
     }
     const killedSet = killedWorldEnemiesRef.current.get(floor)!;
     setKilledEnemyIds(new Set(killedSet)); // Sync state with ref
-    // Use seeded random for deterministic enemy positions per floor
-    const seededRandom = (seed: number) => {
-      const x = Math.sin(seed++) * 10000;
-      return x - Math.floor(x);
-    };
     for (let g = 0; g < groupCount; g++) {
       const groupSeed = floor * 5000 + g * 137 + worldSpawnVersion * 100000;
       let center = {
