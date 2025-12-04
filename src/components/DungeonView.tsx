@@ -161,6 +161,7 @@ export function DungeonView({
 }: DungeonViewProps) {
   const {
     enemiesInWorld,
+    engagedWorldEnemyId,
     killedEnemyIds,
     killedWorldEnemiesRef,
     entryLadderPos,
@@ -948,7 +949,7 @@ export function DungeonView({
         const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
         const visibleEnemies = enemiesInWorld.filter(
           (e: Enemy & { id: string; x: number; y: number }) =>
-            !killedSet.has(e.id) && e.id !== currentlyEngagedIdRef.current,
+            !killedSet.has(e.id) && (!engagedWorldEnemyId || e.id !== engagedWorldEnemyId),
         );
 
         if (killedEnemyIds.size > 0) {
@@ -985,7 +986,7 @@ export function DungeonView({
           // Auto-engage if close (only after initial floor spawn is complete)
           if (!hasSpawnedThisFloorRef.current) continue; // Wait for floor to fully load
           // Don't engage if already in combat or if this specific enemy is already engaged
-          if (currentlyEngagedIdRef.current !== null) continue;
+          if (engagedWorldEnemyId || currentlyEngagedIdRef.current !== null) continue;
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx * dx + dy * dy);
@@ -993,7 +994,7 @@ export function DungeonView({
             console.log(`[AutoEngage] Attempting to engage ${ew.id} at distance ${d.toFixed(0)}px`);
             // Set enemy position to world enemy position for combat
             enemyPosRef.current = { x: ew.x, y: ew.y };
-            currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately
+            currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately (render debounce)
             onEngageEnemy(ew.id);
             engagedThisFrame = true; // Prevent engaging multiple enemies
             break; // Exit the loop immediately

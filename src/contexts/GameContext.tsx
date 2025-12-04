@@ -29,6 +29,7 @@ interface GameContextType {
   floorMap: FloorMap | null;
   currentRoomId: string | null;
   enemiesInWorld: Array<Enemy & { id: string; x: number; y: number }>;
+  engagedWorldEnemyId: string | null;
   entryLadderPos: { x: number; y: number } | null;
   exitLadderPos: { x: number; y: number } | null;
   loading: boolean;
@@ -94,6 +95,7 @@ export function GameProvider({
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
   const [merchantInventory, setMerchantInventory] = useState<Partial<Item>[]>([]);
   const [worldSpawnVersion, setWorldSpawnVersion] = useState(0); // bump to force respawn of world mobs
+  const [engagedWorldEnemyId, setEngagedWorldEnemyId] = useState<string | null>(null);
   const lastMerchantBucketRef = useRef<number>(-1);
   // Affix drop statistics tracking (in-memory)
   const affixStatsRef = useRef<{ total: number; withAffixes: number }>({
@@ -106,6 +108,7 @@ export function GameProvider({
   const lastEngagedWorldEnemyIdRef = useRef<string | null>(null);
   // Flag indicating current combat originated from a world enemy (not a room)
   const inWorldCombatRef = useRef<boolean>(false);
+  const engagedWorldEnemyIdRef = useRef<string | null>(null);
   const previousExitLadderPosRef = useRef<{ x: number; y: number } | null>(null);
   const initializedFloorRef = useRef<number | null>(null);
   const resetAffixStats = () => {
@@ -710,6 +713,8 @@ export function GameProvider({
     const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
     // Don't mark as killed yet; store ID and mark on actual death to be precise
     lastEngagedWorldEnemyIdRef.current = enemyWorldId;
+    engagedWorldEnemyIdRef.current = enemyWorldId;
+    setEngagedWorldEnemyId(enemyWorldId);
     killedWorldEnemiesRef.current.set(floor, killedSet);
     inWorldCombatRef.current = true;
     if (DEBUG_WORLD_ENEMIES) {
@@ -1081,6 +1086,8 @@ export function GameProvider({
           }
         }
         inWorldCombatRef.current = false;
+        engagedWorldEnemyIdRef.current = null;
+        setEngagedWorldEnemyId(null);
         setCurrentEnemy(null);
       }
     } else {
@@ -1463,6 +1470,7 @@ export function GameProvider({
         floorMap,
         currentRoomId,
         enemiesInWorld,
+        engagedWorldEnemyId,
         killedEnemyIds,
         killedWorldEnemiesRef,
         respawnWorldEnemies,
