@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_AVAILABLE } from '../lib/supabase';
 import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
 import { generateEnemyVariant } from '../utils/gameLogic';
 import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '../utils/gameLogic';
@@ -64,10 +64,13 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export function GameProvider({
   children,
   notifyDrop,
+  localOnly = false,
 }: {
   children: ReactNode;
   notifyDrop?: (rarity: string, itemName: string) => void;
+  localOnly?: boolean;
 }) {
+  const useLocal = localOnly || !SUPABASE_AVAILABLE;
   const [character, setCharacter] = useState<Character | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [currentEnemy, setCurrentEnemy] = useState<Enemy | null>(null);
@@ -123,6 +126,10 @@ export function GameProvider({
 
   // ---------------- Internal Load Helpers ----------------
   async function loadItems(characterId: string) {
+    if (useLocal) {
+      setItems([]);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('items')
@@ -139,9 +146,56 @@ export function GameProvider({
     }
   }
 
+  const createLocalCharacter = (): Character => {
+    const stored =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('local_guest_character')
+        : null;
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Character;
+      } catch {
+        /* ignore parse error */
+      }
+    }
+    const baseChar: Character = {
+      id: `local-guest-${Date.now()}`,
+      user_id: 'local',
+      name: 'Hero',
+      level: 1,
+      experience: 0,
+      health: 100,
+      max_health: 100,
+      mana: 50,
+      max_mana: 50,
+      strength: 10,
+      dexterity: 10,
+      intelligence: 10,
+      speed: 5,
+      crit_chance: 5,
+      crit_damage: 150,
+      stat_points: 0,
+      gold: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      max_floor: 1,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('local_guest_character', JSON.stringify(baseChar));
+    }
+    return baseChar;
+  };
+
   async function loadCharacter() {
     setLoading(true);
     try {
+      if (useLocal) {
+        const localChar = createLocalCharacter();
+        setCharacter(localChar);
+        setItems([]);
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -180,50 +234,54 @@ export function GameProvider({
 
       // Create new character if none found
       if (!char) {
-        const baseChar = {
-          user_id: user?.id ?? null,
-          name: 'Hero',
-          level: 1,
-          experience: 0,
-          health: 100,
-          max_health: 100,
-          mana: 50,
-          max_mana: 50,
-          strength: 10,
-          dexterity: 10,
-          intelligence: 10,
-          speed: 5,
-          crit_chance: 5,
-          crit_damage: 150,
-          stat_points: 0,
-          gold: 0,
-          max_floor: 1,
-        };
-        const { data: created, error: createErr } = await supabase
-          .from('characters')
-          .insert([baseChar as never])
-          .select()
-          .single();
-        if (createErr) throw createErr;
-        char = created as Character;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('guest_character_id', char.id);
+        if (useLocal) {
+          char = createLocalCharacter();
+        } else {
+          const baseChar = {
+            user_id: user?.id ?? null,
+            name: 'Hero',
+            level: 1,
+            experience: 0,
+            health: 100,
+            max_health: 100,
+            mana: 50,
+            max_mana: 50,
+            strength: 10,
+            dexterity: 10,
+            intelligence: 10,
+            speed: 5,
+            crit_chance: 5,
+            crit_damage: 150,
+            stat_points: 0,
+            gold: 0,
+            max_floor: 1,
+          };
+          const { data: created, error: createErr } = await supabase
+            .from('characters')
+            .insert([baseChar as never])
+            .select()
+            .single();
+          if (createErr) throw createErr;
+          char = created as Character;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('guest_character_id', char.id);
+          }
+          // Starter weapon
+          await supabase.from('items').insert([
+            {
+              character_id: char.id,
+              name: 'Rusty Sword',
+              type: 'melee_weapon',
+              rarity: 'common',
+              damage: 5,
+              value: 10,
+              equipped: true,
+              required_level: 1,
+              required_stats: { strength: 1 },
+              affixes: [],
+            },
+          ]);
         }
-        // Starter weapon
-        await supabase.from('items').insert([
-          {
-            character_id: char.id,
-            name: 'Rusty Sword',
-            type: 'melee_weapon',
-            rarity: 'common',
-            damage: 5,
-            value: 10,
-            equipped: true,
-            required_level: 1,
-            required_stats: { strength: 1 },
-            affixes: [],
-          },
-        ]);
       }
 
       setCharacter(char);
@@ -231,6 +289,9 @@ export function GameProvider({
     } catch (e: unknown) {
       const error = e as { message?: string };
       console.error('Error loading character:', error?.message || e);
+      const localChar = createLocalCharacter();
+      setCharacter(localChar);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -239,6 +300,7 @@ export function GameProvider({
   // Debug/dev: Equip all and unequip all items (now correctly scoped inside provider)
   const equipAll = async () => {
     if (!character) return;
+    if (useLocal) return;
     const unequippedIds = items.filter((i) => !i.equipped && i.type !== 'potion').map((i) => i.id);
     if (unequippedIds.length > 0) {
       await supabase
@@ -251,6 +313,7 @@ export function GameProvider({
 
   const unequipAll = async () => {
     if (!character) return;
+    if (useLocal) return;
     const equippedIds = items.filter((i) => i.equipped && i.type !== 'potion').map((i) => i.id);
     if (equippedIds.length > 0) {
       await supabase
@@ -305,6 +368,15 @@ export function GameProvider({
   }, [character, floor]);
 
   const createCharacter = async (name: string) => {
+    if (useLocal) {
+      const char = { ...createLocalCharacter(), name, updated_at: new Date().toISOString() };
+      setCharacter(char);
+      setItems([]);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('local_guest_character', JSON.stringify(char));
+      }
+      return;
+    }
     try {
       // Try to get the user, but don’t require it
       let userId: string | null = null;
@@ -702,7 +774,6 @@ export function GameProvider({
 
   const updateCharacter = async (updates: Partial<Character>) => {
     if (!character) return;
-
     const newChar: Character = {
       ...character,
       ...updates,
@@ -710,6 +781,13 @@ export function GameProvider({
     };
 
     setCharacter(newChar);
+
+    if (useLocal) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('local_guest_character', JSON.stringify(newChar));
+      }
+      return;
+    }
 
     const { error } = await supabase
       .from('characters')

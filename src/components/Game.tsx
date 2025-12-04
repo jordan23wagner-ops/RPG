@@ -56,7 +56,7 @@ export function Game() {
   }, []);
 
   return (
-    <GameProvider notifyDrop={showNotification}>
+    <GameProvider notifyDrop={showNotification} localOnly={guestMode}>
       <GameContent notification={notification} setNotification={setNotification} shopOpen={shopOpen} setShopOpen={setShopOpen} autoStart={autoStart} />
     </GameProvider>
   );
