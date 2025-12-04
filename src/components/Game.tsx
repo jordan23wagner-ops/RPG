@@ -22,12 +22,14 @@ export function Game() {
   } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
+  const [localOnly, setLocalOnly] = useState(false);
 
   // Check for auto-start flag on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('quickstart')) {
       setAutoStart(true);
+      setLocalOnly(true);
     }
   }, []);
 
@@ -56,7 +58,7 @@ export function Game() {
   }, []);
 
   return (
-    <GameProvider notifyDrop={showNotification} localOnly={guestMode}>
+    <GameProvider notifyDrop={showNotification} localOnly={localOnly}>
       <GameContent notification={notification} setNotification={setNotification} shopOpen={shopOpen} setShopOpen={setShopOpen} autoStart={autoStart} />
     </GameProvider>
   );

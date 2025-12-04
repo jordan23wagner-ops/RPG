@@ -8,12 +8,14 @@ import CharacterVisualTest from './components/CharacterVisualTest';
 function App() {
   const [session, setSession] = useState<boolean | null>(null);
   const [guestMode, setGuestMode] = useState(false);
+  const [localOnly, setLocalOnly] = useState(false);
 
   useEffect(() => {
     // Check for quickstart flag
     const params = new URLSearchParams(window.location.search);
     if (params.has('quickstart')) {
       setGuestMode(true);
+      setLocalOnly(true);
       setSession(true); // Treat guest as authenticated
       return;
     }
@@ -66,7 +68,7 @@ function App() {
   }
 
   return (
-    <GameProvider>
+    <GameProvider localOnly={localOnly}>
       <div className="relative min-h-screen">
         <Game />
         {/* Settings / Tools floating panel */}
