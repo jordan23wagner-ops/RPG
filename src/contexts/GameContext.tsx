@@ -717,21 +717,10 @@ export function GameProvider({
         `[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`,
       );
     }
-    // Set currentEnemy and remove from world list
-    // Include id so downstream canvas logic (animation seed, sprite cache) does not crash
-    const engagedEnemy = {
-      id: enemyWorldId,
-      name: found.name,
-      level: found.level,
-      damage: found.damage,
-      health: found.health,
-      max_health: found.max_health,
-      experience: found.experience,
-      gold: found.gold,
-      rarity: found.rarity,
-    } as Enemy;
-    console.log(`[Engage] Setting currentEnemy:`, engagedEnemy);
-    setCurrentEnemy(engagedEnemy);
+    // Set currentEnemy with full enemy data (keep type/rarity/etc.) but drop world coords
+    const { x: _x, y: _y, ...enemyData } = found as Enemy & { x: number; y: number };
+    console.log(`[Engage] Setting currentEnemy:`, enemyData);
+    setCurrentEnemy(enemyData as Enemy);
     // Don't remove from enemiesInWorld - let rendering filter it out based on engagement status
   };
 
