@@ -98,6 +98,15 @@ function drawTownStyleFloor(
   }
 }
 
+// Make an open, fully-walkable grid with the same dimensions as the source.
+function createOpenGrid(source: DungeonTileId[][]): DungeonTileId[][] {
+  const rows = source.length;
+  const cols = source[0]?.length || 0;
+  return Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => 'floor_stone_main' as DungeonTileId),
+  );
+}
+
 // Match the town dungeon orb visuals for portals.
 function drawDungeonPortal(ctx: CanvasRenderingContext2D, x: number, y: number, time: number) {
   const timePulse = Math.sin(time / 600);
@@ -301,7 +310,8 @@ export function DungeonView({
         const img = await loadDungeonTileset();
         if (cancelled) return;
         tilesetImageRef.current = img;
-        const grid = generateFloor1();
+        const baseGrid = generateFloor1();
+        const grid = floor === 1 ? createOpenGrid(baseGrid as DungeonTileId[][]) : baseGrid;
         dungeonGridRef.current = grid;
         // Ensure player spawns on a walkable tile when entering the dungeon
         const spawn = findFirstWalkableTile(grid as DungeonTileId[][]);
@@ -325,9 +335,14 @@ export function DungeonView({
   useEffect(() => {
     floorRef.current = floor;
     hasSpawnedThisFloorRef.current = false; // Reset spawn flag on floor change
-    const grid = dungeonGridRef.current as DungeonTileId[][] | null;
+    let grid = dungeonGridRef.current as DungeonTileId[][] | null;
     if (grid) {
-      const spawn = findFirstWalkableTile(grid);
+      // Floor 1 should be fully open/walkable
+      if (floor === 1) {
+        grid = createOpenGrid(grid);
+        dungeonGridRef.current = grid;
+      }
+      const spawn = findFirstWalkableTile(grid as DungeonTileId[][]);
       playerPosRef.current = { x: spawn.x, y: spawn.y };
     }
     hasSpawnedThisFloorRef.current = true;
@@ -1008,7 +1023,7 @@ export function DungeonView({
         if (dL < 140) {
           ctx.font = 'bold 14px Arial';
           ctx.fillStyle = theme.hudAccent;
-          ctx.fillText('Press E to descend', lx, ly + 40);
+          ctx.fillText('Press E to commune', lx, ly + 40);
         }
         const offscreen = lx < 0 || ly < 0 || lx > CANVAS_WIDTH || ly > CANVAS_HEIGHT;
         if (offscreen && ladderDiscoveredRef.current) {
@@ -1057,7 +1072,7 @@ export function DungeonView({
         ctx.font = '11px Arial';
         ctx.fillStyle = theme.hudAccent;
         ctx.textAlign = 'center';
-        ctx.fillText('Town Portal', gx, gy - 46);
+        ctx.fillText('Dungeon Portal', gx, gy - 46);
         // Hint when close
         const dx = playerPos.x - worldPos.x;
         const dy = playerPos.y - worldPos.y;
@@ -1065,7 +1080,7 @@ export function DungeonView({
         if (d < 150) {
           ctx.font = 'bold 14px Arial';
           ctx.fillStyle = theme.hudAccent;
-          ctx.fillText('Press E or T to return', gx, gy + 40);
+          ctx.fillText('Press E to commune', gx, gy + 40);
         }
       };
       drawTownGate(TOWN_GATE_POS);
