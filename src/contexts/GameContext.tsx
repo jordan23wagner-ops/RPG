@@ -133,7 +133,7 @@ export function GameProvider({
   // ---------------- Internal Load Helpers ----------------
   async function loadItems(characterId: string) {
     if (useLocal) {
-      setItems([]);
+      // Keep existing local items; no remote reload in local/offline mode
       return;
     }
     try {
@@ -198,7 +198,6 @@ export function GameProvider({
       if (useLocal) {
         const localChar = createLocalCharacter();
         setCharacter(localChar);
-        setItems([]);
         return;
       }
 
