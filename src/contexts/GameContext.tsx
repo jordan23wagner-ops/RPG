@@ -32,6 +32,7 @@ interface GameContextType {
   rarityFilter: Set<string>;
   killedEnemyIds: Set<string>;
   killedWorldEnemiesRef: React.MutableRefObject<Map<number, Set<string>>>;
+  respawnWorldEnemies: () => void;
   increaseZoneHeat: (amount?: number) => void;
   resetZoneHeat: () => void;
   toggleRarityFilter: (rarity: string) => void;
@@ -84,6 +85,7 @@ export function GameProvider({
   const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
   const [merchantInventory, setMerchantInventory] = useState<Partial<Item>[]>([]);
+  const [worldSpawnVersion, setWorldSpawnVersion] = useState(0); // bump to force respawn of world mobs
   const lastMerchantBucketRef = useRef<number>(-1);
   // Affix drop statistics tracking (in-memory)
   const affixStatsRef = useRef<{ total: number; withAffixes: number }>({
@@ -102,6 +104,13 @@ export function GameProvider({
     affixStatsRef.current = { total: 0, withAffixes: 0 };
   };
   // No waves: encounters are single per room; respawns only for non-boss rooms
+
+  const respawnWorldEnemies = () => {
+    // Clear kill markers and bump version to force re-roll of world mobs
+    killedWorldEnemiesRef.current.set(floor, new Set<string>());
+    setKilledEnemyIds(new Set());
+    setWorldSpawnVersion((v) => v + 1);
+  };
 
   const toggleRarityFilter = (rarity: string) => {
     setRarityFilter((prev: Set<string>) => {
@@ -469,15 +478,8 @@ export function GameProvider({
   };
 
   useEffect(() => {
-    // Only initialize each floor once to prevent regenerating enemies
-    if (initializedFloorRef.current === floor) {
-      if (DEBUG_WORLD_ENEMIES) {
-        console.log(`[WorldGen] Floor ${floor} already initialized, skipping`);
-      }
-      return;
-    }
     if (DEBUG_WORLD_ENEMIES) {
-      console.log(`[WorldGen] Initializing floor ${floor} for the first time`);
+      console.log(`[WorldGen] Initializing floor ${floor} (version ${worldSpawnVersion})`);
     }
     initializedFloorRef.current = floor;
 
@@ -507,7 +509,7 @@ export function GameProvider({
     };
     for (let i = 0; i < count; i++) {
       // Generate deterministic position based on floor and index
-      const seed = floor * 1000 + i;
+      const seed = floor * 1000 + i + worldSpawnVersion * 10000;
       let pos = {
         x: Math.floor(seededRandom(seed) * WORLD_WIDTH),
         y: Math.floor(seededRandom(seed + 500) * WORLD_HEIGHT),
@@ -538,7 +540,7 @@ export function GameProvider({
       } else if (roll < mimicThreshold + miniBossSpread + rareSpread) type = 'rareEnemy';
       const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
       // Use sequential ID that's truly unique per floor
-      const enemyId = `floor${floor}-enemy${i}`;
+      const enemyId = `floor${floor}-enemy${worldSpawnVersion}-${i}`;
       if (!killedSet.has(enemyId)) {
         arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
         if (DEBUG_WORLD_ENEMIES) {
@@ -573,14 +575,14 @@ export function GameProvider({
     const MIN_DIST_FROM_ENTRY = 600;
     while (dist(exitLadder, reference) < MIN_DIST_FROM_ENTRY && guardL < 150) {
       exitLadder = {
-        x: Math.floor(Math.random() * WORLD_WIDTH),
-        y: Math.floor(Math.random() * WORLD_HEIGHT),
+        x: Math.floor(seededRandom(worldSpawnVersion + guardL * 3) * WORLD_WIDTH),
+        y: Math.floor(seededRandom(worldSpawnVersion + guardL * 3 + 500) * WORLD_HEIGHT),
       };
       guardL++;
     }
     setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [floor]);
+  }, [floor, worldSpawnVersion]);
   const onEngageEnemy = (enemyWorldId: string) => {
     const found = enemiesInWorld.find(
       (e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId,
@@ -1338,6 +1340,7 @@ export function GameProvider({
         enemiesInWorld,
         killedEnemyIds,
         killedWorldEnemiesRef,
+        respawnWorldEnemies,
         entryLadderPos,
         exitLadderPos,
         loading,

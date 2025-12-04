@@ -157,12 +157,20 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     setFloorDirect,
     merchantInventory,
     buyMerchantItem,
+    respawnWorldEnemies,
   } = useGame();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.reload();
   };
+
+  // Respawn world enemies whenever re-entering the dungeon mode
+  useEffect(() => {
+    if (mode === 'dungeon') {
+      respawnWorldEnemies();
+    }
+  }, [mode, respawnWorldEnemies]);
 
   // Listen for dungeon-descend custom event from canvas to trigger nextFloor (must be top-level hook)
   useEffect(() => {
