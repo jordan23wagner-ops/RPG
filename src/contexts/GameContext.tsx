@@ -703,7 +703,7 @@ export function GameProvider({
     }
     setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [floor, worldSpawnVersion]);
+  }, [floor, worldSpawnVersion, character, zoneHeat]);
   const onEngageEnemy = (enemyWorldId: string) => {
     const found = enemiesInWorld.find(
       (e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId,
