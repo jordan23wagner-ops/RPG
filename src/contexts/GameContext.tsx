@@ -1072,13 +1072,17 @@ export function GameProvider({
         setCurrentEnemy(null);
       } else {
         // World encounter finished: mark last engaged world enemy as killed to prevent respawn
-        const lastId = lastEngagedWorldEnemyIdRef.current;
+        const lastId = lastEngagedWorldEnemyIdRef.current || currentEnemy.id;
         if (lastId) {
           const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
           killedSet.add(lastId);
           killedWorldEnemiesRef.current.set(floor, killedSet);
           const newKilledIds = new Set(killedSet);
           setKilledEnemyIds(newKilledIds); // Update state for rendering
+          // Actively prune the killed world enemy from the active list to avoid visual respawns
+          setEnemiesInWorld((prev) =>
+            prev.filter((ew: Enemy & { id: string }) => ew.id !== lastId),
+          );
           console.log(`[Kill] Updating killedEnemyIds state:`, Array.from(newKilledIds));
           lastEngagedWorldEnemyIdRef.current = null;
           if (DEBUG_WORLD_ENEMIES) {
