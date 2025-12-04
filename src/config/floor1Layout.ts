@@ -12,95 +12,6 @@ type Room = {
   h: number;
 };
 
-// Randomized Floor 1: multiple rooms, corridors, and decorations
-export const floor1Layout: DungeonTileId[][] = (() => {
-  const cols = FLOOR1_COLS;
-  const rows = FLOOR1_ROWS;
-
-  // Start with stone floors and a wall_top border so the default interior is clean stone
-  const grid: DungeonTileId[][] = Array.from({ length: rows }, (_, y) =>
-    Array.from({ length: cols }, (_, x) => {
-      if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) {
-        return 'wall_top';
-      }
-      return 'floor_stone_main';
-    }),
-  );
-
-  const rooms: Room[] = [];
-
-  // Many rooms so Floor 1 uses most of the 120x90 space
-  const roomCount = randomInt(20, 35);
-  for (let i = 0; i < roomCount; i++) {
-    const room = createRandomRoom(cols, rows);
-    if (!roomIntersects(room, rooms)) {
-      carveRoom(grid, room);
-      rooms.push(room);
-    }
-  }
-
-  // Ensure at least two rooms
-  if (rooms.length < 2) {
-    while (rooms.length < 2) {
-      const room = createRandomRoom(cols, rows);
-      if (!roomIntersects(room, rooms)) {
-        carveRoom(grid, room);
-        rooms.push(room);
-      }
-    }
-  }
-
-  // Connect rooms with simple L-shaped corridors in a chain
-  for (let i = 0; i < rooms.length - 1; i++) {
-    const a = rooms[i];
-    const b = rooms[i + 1];
-    connectRooms(grid, roomCenter(a), roomCenter(b));
-  }
-
-  // Add extra random connections so more of the map gets carved
-  connectAdditionalRooms(grid, rooms);
-
-  // Cleanup pass: convert any interior wall_* that aren't borders into floors
-  cleanInteriorWalls(grid, rooms);
-
-  // Place stairs_down in the last room near its center
-  if (rooms.length > 0) {
-    const last = rooms[rooms.length - 1];
-    const center = roomCenter(last);
-    const sx = clamp(center.x, last.x + 1, last.x + last.w - 2);
-    const sy = clamp(center.y, last.y + 1, last.y + last.h - 2);
-    grid[sy][sx] = 'stairs_down';
-  }
-
-  // Decorate rooms: torches and props
-  decorateRooms(grid, rooms);
-
-  // Optionally add bars/grates in one corridor or room
-  addBarsAndGrates(grid, rooms);
-
-  // Add pillars and environmental hazards (pits, water)
-  addPillars(grid, rooms);
-  addHazards(grid, rooms);
-
-  // Final cleanup: convert isolated wall tiles that look like loose rocks back into floor
-  for (let y = 1; y < rows - 1; y++) {
-    for (let x = 1; x < cols - 1; x++) {
-      const tile = grid[y][x];
-      if (
-        (tile === 'wall_top' || tile === 'wall_side' || tile === 'wall_column') &&
-        isFloorTile(grid[y][x - 1]) &&
-        isFloorTile(grid[y][x + 1]) &&
-        isFloorTile(grid[y - 1][x]) &&
-        isFloorTile(grid[y + 1][x])
-      ) {
-        grid[y][x] = randomFloorTileId();
-      }
-    }
-  }
-
-  return grid;
-})();
-
 function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -455,3 +366,95 @@ function shuffle<T>(arr: T[]): void {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 }
+
+// Build floor layout only after helpers are declared to avoid TDZ/cycle issues
+function buildFloor1Layout(): DungeonTileId[][] {
+  const cols = FLOOR1_COLS;
+  const rows = FLOOR1_ROWS;
+
+  // Start with stone floors and a wall_top border so the default interior is clean stone
+  const grid: DungeonTileId[][] = Array.from({ length: rows }, (_, y) =>
+    Array.from({ length: cols }, (_, x) => {
+      if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) {
+        return 'wall_top';
+      }
+      return 'floor_stone_main';
+    }),
+  );
+
+  const rooms: Room[] = [];
+
+  // Many rooms so Floor 1 uses most of the 120x90 space
+  const roomCount = randomInt(20, 35);
+  for (let i = 0; i < roomCount; i++) {
+    const room = createRandomRoom(cols, rows);
+    if (!roomIntersects(room, rooms)) {
+      carveRoom(grid, room);
+      rooms.push(room);
+    }
+  }
+
+  // Ensure at least two rooms
+  if (rooms.length < 2) {
+    while (rooms.length < 2) {
+      const room = createRandomRoom(cols, rows);
+      if (!roomIntersects(room, rooms)) {
+        carveRoom(grid, room);
+        rooms.push(room);
+      }
+    }
+  }
+
+  // Connect rooms with simple L-shaped corridors in a chain
+  for (let i = 0; i < rooms.length - 1; i++) {
+    const a = rooms[i];
+    const b = rooms[i + 1];
+    connectRooms(grid, roomCenter(a), roomCenter(b));
+  }
+
+  // Add extra random connections so more of the map gets carved
+  connectAdditionalRooms(grid, rooms);
+
+  // Cleanup pass: convert any interior wall_* that aren't borders into floors
+  cleanInteriorWalls(grid, rooms);
+
+  // Place stairs_down in the last room near its center
+  if (rooms.length > 0) {
+    const last = rooms[rooms.length - 1];
+    const center = roomCenter(last);
+    const sx = clamp(center.x, last.x + 1, last.x + last.w - 2);
+    const sy = clamp(center.y, last.y + 1, last.y + last.h - 2);
+    grid[sy][sx] = 'stairs_down';
+  }
+
+  // Decorate rooms: torches and props
+  decorateRooms(grid, rooms);
+
+  // Optionally add bars/grates in one corridor or room
+  addBarsAndGrates(grid, rooms);
+
+  // Add pillars and environmental hazards (pits, water)
+  addPillars(grid, rooms);
+  addHazards(grid, rooms);
+
+  // Final cleanup: convert isolated wall tiles that look like loose rocks back into floor
+  for (let y = 1; y < rows - 1; y++) {
+    for (let x = 1; x < cols - 1; x++) {
+      const tile = grid[y][x];
+      if (
+        (tile === 'wall_top' || tile === 'wall_side' || tile === 'wall_column') &&
+        isFloorTile(grid[y][x - 1]) &&
+        isFloorTile(grid[y][x + 1]) &&
+        isFloorTile(grid[y - 1][x]) &&
+        isFloorTile(grid[y + 1][x])
+      ) {
+        grid[y][x] = randomFloorTileId();
+      }
+    }
+  }
+
+  return grid;
+}
+
+// Randomized Floor 1: multiple rooms, corridors, and decorations
+export const floor1Layout: DungeonTileId[][] = buildFloor1Layout();
