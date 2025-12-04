@@ -204,7 +204,9 @@ export function GameProvider({
       if (user) {
         const { data, error } = await supabase
           .from('characters')
-          .select('*')
+          .select(
+            'id, user_id, name, level, experience, health, max_health, mana, max_mana, strength, dexterity, intelligence, speed, crit_chance, crit_damage, stat_points, gold, max_floor, created_at, updated_at',
+          )
           .eq('user_id', user.id)
           .limit(1)
           .maybeSingle();
@@ -213,6 +215,9 @@ export function GameProvider({
           throw error;
         }
         if (data) char = data as Character;
+        if (char && (!char.max_floor || char.max_floor < 1)) {
+          char.max_floor = 1;
+        }
       }
 
       // Guest fallback using localStorage
@@ -222,12 +227,17 @@ export function GameProvider({
         if (guestId) {
           const { data, error } = await supabase
             .from('characters')
-            .select('*')
+            .select(
+              'id, user_id, name, level, experience, health, max_health, mana, max_mana, strength, dexterity, intelligence, speed, crit_chance, crit_damage, stat_points, gold, max_floor, created_at, updated_at',
+            )
             .eq('id', guestId)
             .limit(1)
             .maybeSingle();
           if (!error && data) {
             char = data as Character;
+            if (!char.max_floor || char.max_floor < 1) {
+              char.max_floor = 1;
+            }
           }
         }
       }
@@ -418,6 +428,7 @@ export function GameProvider({
             crit_damage: 150,
             stat_points: 0,
             gold: 0,
+            max_floor: 1,
           },
         ])
         .select()
@@ -426,6 +437,9 @@ export function GameProvider({
       if (error) throw error;
 
       const char = data as Character;
+      if (!char.max_floor || char.max_floor < 1) {
+        char.max_floor = 1;
+      }
       setCharacter(char);
       // World enemies spawned via floor useEffect
 

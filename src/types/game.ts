@@ -57,7 +57,7 @@ export interface Character {
   created_at: string;
   updated_at: string;
   /** Highest unlocked floor milestone (1 + multiples of 5). */
-  max_floor?: number;
+  max_floor: number;
 }
 
 export interface Affix {

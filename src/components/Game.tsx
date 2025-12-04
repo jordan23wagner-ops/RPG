@@ -231,6 +231,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
   const potionItems = items.filter((i: Item) => i.type === 'potion');
   const potionCount = potionItems.length;
   const firstPotion = potionItems[0];
+  const maxFloor = character?.max_floor ?? 1;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 p-3 text-[13px]">
@@ -335,7 +336,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
               <span className="text-[11px] font-semibold text-yellow-200">{character.gold}</span>
             </div>
           </div>
-          <div className="mb-2 text-[11px] text-gray-300 flex justify-between"><span>Floor {floor}</span><span>Max {character.max_floor || 1}</span></div>
+          <div className="mb-2 text-[11px] text-gray-300 flex justify-between"><span>Floor {floor}</span><span>Max {maxFloor}</span></div>
           <div className="h-72 overflow-y-auto border border-gray-700 rounded-md p-1.5 bg-gray-950/50 space-y-1">
             {items.filter((i: Item) => !i.equipped && i.type !== 'potion').length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">No items</div>
@@ -546,7 +547,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
       {showFloorSelect && (
         <FloorSelectOverlay
           currentFloor={floor}
-          maxUnlocked={character.max_floor || 1}
+          maxUnlocked={maxFloor}
           onClose={() => setShowFloorSelect(false)}
           onSelect={(target) => {
             setShowFloorSelect(false);
