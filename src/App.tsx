@@ -18,17 +18,39 @@ function App() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(!!session);
-    });
+    let cancelled = false;
+    const failSafe = setTimeout(() => {
+      if (!cancelled && session === null) {
+        console.warn('[Auth] Session check timed out; showing auth screen.');
+        setSession(false);
+      }
+    }, 2000);
+
+    const fetchSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (error) throw error;
+        setSession(!!data.session);
+      } catch (err) {
+        console.error('[Auth] Failed to fetch session, falling back to login/guest', err);
+        if (!cancelled) setSession(false);
+      }
+    };
+
+    fetchSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
-        setSession(!!session);
+        if (!cancelled) setSession(!!session);
       })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      clearTimeout(failSafe);
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (session === null) {
