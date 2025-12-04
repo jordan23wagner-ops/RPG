@@ -1518,7 +1518,7 @@ export function DungeonView({
       ref={canvasRef}
       width={CANVAS_WIDTH}
       height={CANVAS_HEIGHT}
-      className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-[1000px] h-[600px]"
+      className="bg-gray-900 border-4 border-yellow-600 rounded-lg w-full max-w-[900px] h-auto aspect-[5/3]"
     />
   );
 }
