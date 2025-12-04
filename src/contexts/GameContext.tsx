@@ -117,7 +117,8 @@ export function GameProvider({
     // Clear kill markers and bump version to force re-roll of world mobs
     killedWorldEnemiesRef.current.set(floor, new Set<string>());
     setKilledEnemyIds(new Set());
-    setWorldSpawnVersion((v) => v + 1);
+    // Keep spawn version stable so packs retain their composition after respawn
+    // and simply become active again when markers are cleared.
   };
 
   const toggleRarityFilter = (rarity: string) => {
@@ -1000,10 +1001,14 @@ export function GameProvider({
       // Insert all drops with affixes; if "affixes" column missing, retry without affixes
       let insertError: unknown = null;
       let inserted = false;
+      let insertedRows: Item[] | null = null;
       try {
-        const { error } = await supabase.from('items').insert(rows as never[]);
+        const { data, error } = await supabase.from('items').insert(rows as never[]).select();
         insertError = error;
         inserted = !error;
+        if (data && data.length > 0) {
+          insertedRows = data as unknown as Item[];
+        }
       } catch (e: unknown) {
         insertError = e;
       }
@@ -1037,10 +1042,14 @@ export function GameProvider({
           console.error('[DB Error] Failed to insert loot batch:', errorMessage, { rows });
         }
       } else {
-        console.log(
-          `[Inventory] Added ${rows.length} item(s): ${rows.map((r) => r.name).join(', ')}`,
-        );
-        await loadItems(character.id);
+        const addedNames = (insertedRows ?? rows).map((r) => r.name).join(', ');
+        console.log(`[Inventory] Added ${rows.length} item(s): ${addedNames}`);
+        // Optimistically add to local state if Supabase returned inserted rows; fall back to reload
+        if (insertedRows && insertedRows.length > 0) {
+          setItems((prev: Item[]) => [...prev, ...insertedRows!]);
+        } else {
+          await loadItems(character.id);
+        }
       }
 
       // Increase zone heat based on enemy rarity
