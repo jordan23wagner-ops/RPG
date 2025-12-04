@@ -24,6 +24,33 @@ const FLOOR_TILE_IDS = new Set<DungeonTileId>([
   'floor_moss',
 ]);
 
+const ALL_TILE_IDS = new Set<DungeonTileId>([
+  'floor_basic',
+  'floor_cracked',
+  'floor_moss',
+  'floor_stone_main',
+  'floor_stone_alt1',
+  'floor_stone_alt2',
+  'wall_inner',
+  'wall_top',
+  'wall_side',
+  'wall_corner_inner',
+  'wall_corner_outer',
+  'wall_column',
+  'door_closed',
+  'pit',
+  'water',
+  'bars_vertical',
+  'grate_floor',
+  'stairs_down',
+  'torch_wall',
+  'rubble_small',
+  'rubble_large',
+  'crate',
+  'barrel',
+  'table',
+]);
+
 const TOWN_TILE_SIZE = 80;
 
 // Reuse the chunky 80px town paving silhouette as a dungeon base for Floor 1.
@@ -51,7 +78,7 @@ function drawTownStyleFloor(
       const sx = wx - camX;
       const sy = wy - camY;
       const alt = (r + c) % 2 === 0;
-      const base = alt ? '#0e1526' : '#0b1220';
+      const base = alt ? '#1f2937' : '#111827';
       const inset = 3;
       const inner = tile - inset * 2;
       // Subtle center glow so the pattern doesn't feel flat.
@@ -61,7 +88,7 @@ function drawTownStyleFloor(
       ctx.fillStyle = base;
       ctx.fillRect(sx + inset, sy + inset, inner, inner);
 
-      ctx.fillStyle = `rgba(124, 58, 237, ${(0.04 + glowStrength * 0.05).toFixed(3)})`;
+      ctx.fillStyle = `rgba(148, 163, 184, ${(0.05 + glowStrength * 0.06).toFixed(3)})`;
       ctx.fillRect(sx + inset + 6, sy + inset + 6, inner - 12, inner - 12);
 
       ctx.strokeStyle = 'rgba(0,0,0,0.35)';
@@ -69,6 +96,41 @@ function drawTownStyleFloor(
       ctx.strokeRect(sx + inset + 0.5, sy + inset + 0.5, inner - 1, inner - 1);
     }
   }
+}
+
+// Match the town dungeon orb visuals for portals.
+function drawDungeonPortal(ctx: CanvasRenderingContext2D, x: number, y: number, time: number) {
+  const timePulse = Math.sin(time / 600);
+  // Corrupted ground glow
+  ctx.save();
+  ctx.translate(x, y + 6);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 90, 40, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(76, 5, 120, 0.35)';
+  ctx.fill();
+  ctx.restore();
+  // Outer dark aura
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, 70 + timePulse * 4, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(88,0,120,0.25)';
+  ctx.fill();
+  // Middle swirling ring
+  ctx.strokeStyle = 'rgba(180,0,255,0.6)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x, y, 42 + timePulse * 3, 0, Math.PI * 2);
+  ctx.stroke();
+  // Core
+  ctx.beginPath();
+  ctx.arc(x, y, 26 + timePulse * 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#2d0a3d';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y, 18 + timePulse * 1.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#6a0dad';
+  ctx.fill();
+  ctx.restore();
 }
 
 interface DungeonViewProps {
@@ -802,12 +864,12 @@ export function DungeonView({
         );
       }
 
-      // Draw dungeon grid from atlas if loaded
+      // Draw dungeon grid from atlas if loaded (Floor 1 skips all tiles for a clean grey plane)
       const grid = dungeonGridRef.current;
       const tilesetImage = tilesetImageRef.current;
       if (grid && tilesetImage) {
         if (currentFloor === 1) {
-          drawDungeon(ctx, tilesetImage, grid, camX, camY, { skipTileIds: FLOOR_TILE_IDS });
+          drawDungeon(ctx, tilesetImage, grid, camX, camY, { skipTileIds: ALL_TILE_IDS });
         } else {
           drawDungeon(ctx, tilesetImage, grid, camX, camY);
         }
@@ -830,33 +892,36 @@ export function DungeonView({
           const seed = floorRef.current * 73856093 ^ (r * 19349663) ^ (c * 83492791);
           const pr = Math.abs(Math.sin(seed)) % 1;
 
-          if (theme.name === 'jungle') {
-            if (pr < 0.04) {
-              drawTree(ctx, screenX + 36, screenY + 18);
-            } else if (pr < 0.12) {
-              drawGrassPatch(ctx, screenX + 30, screenY + 60);
-            } else if (pr < 0.16) {
-              drawRockProp(ctx, screenX + 40, screenY + 58);
+          // Floor 1: no extra decorations; other themes retain minimal ambience
+          if (currentFloor !== 1) {
+            if (theme.name === 'jungle') {
+              if (pr < 0.04) {
+                drawTree(ctx, screenX + 36, screenY + 18);
+              } else if (pr < 0.12) {
+                drawGrassPatch(ctx, screenX + 30, screenY + 60);
+              } else if (pr < 0.16) {
+                // rocks intentionally removed from Floor 1, still allowed for other themes
+              }
+            } else if (theme.name === 'lava') {
+              // lava: leave blank for cleaner look
+            } else if (theme.name === 'ice') {
+              // ice: leave blank for cleaner look
+            } else {
+              // Classic dungeon: keep sparse moss only, no rubble
+              if (pr >= 0.08 && pr < 0.11) {
+                drawGrassPatch(ctx, screenX + 28, screenY + 62);
+              }
             }
-          } else if (theme.name === 'lava') {
-            // lava: leave blank for cleaner look
-          } else if (theme.name === 'ice') {
-            // ice: leave blank for cleaner look
-          } else {
-            // Classic dungeon: keep sparse moss only, no rubble
-            if (pr >= 0.08 && pr < 0.11) {
-              drawGrassPatch(ctx, screenX + 28, screenY + 62);
-            }
-          }
 
-          // Wall torches along some upper tiles to avoid UI overlap
-          if (r <= startRow + 1 && pr > 0.65 && pr < 0.75) {
-            const torchWorldX = worldX + 30;
-            const torchWorldY = worldY - 10;
-            const tx = torchWorldX - camX;
-            const ty = torchWorldY - camY;
-            if (ty > 40 && ty < CANVAS_HEIGHT - 80) {
-              drawTorch(ctx, tx, ty, nowTime);
+            // Wall torches along some upper tiles to avoid UI overlap
+            if (r <= startRow + 1 && pr > 0.65 && pr < 0.75) {
+              const torchWorldX = worldX + 30;
+              const torchWorldY = worldY - 10;
+              const tx = torchWorldX - camX;
+              const ty = torchWorldY - camY;
+              if (ty > 40 && ty < CANVAS_HEIGHT - 80) {
+                drawTorch(ctx, tx, ty, nowTime);
+              }
             }
           }
         }
@@ -921,7 +986,7 @@ export function DungeonView({
         }
       }
 
-      // Draw entry (non-interactive) and exit (interactive) ladders
+      // Draw entry (non-interactive) and exit (interactive) ladders as portals
       const drawLadder = (
         worldPos: { x: number; y: number } | null,
         label: string,
@@ -930,15 +995,11 @@ export function DungeonView({
         if (!worldPos) return;
         const lx = worldPos.x - camX;
         const ly = worldPos.y - camY;
-        ctx.fillStyle = interactive ? '#065f46' : '#374151';
-        ctx.fillRect(lx - 8, ly - 20, 16, 40);
-        ctx.strokeStyle = theme.hudAccent;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(lx - 8, ly - 20, 16, 40);
+        drawDungeonPortal(ctx, lx, ly, nowTime);
         ctx.font = '11px Arial';
         ctx.fillStyle = theme.hudAccent;
         ctx.textAlign = 'center';
-        ctx.fillText(label, lx, ly - 28);
+        ctx.fillText(label, lx, ly - 46);
         if (!interactive) return;
         const dxL = playerPos.x - worldPos.x;
         const dyL = playerPos.y - worldPos.y;
@@ -992,11 +1053,11 @@ export function DungeonView({
         ctx.beginPath();
         ctx.arc(gx, gy - 28, 14, Math.PI, 0);
         ctx.stroke();
-        // Label
+        drawDungeonPortal(ctx, gx, gy, nowTime);
         ctx.font = '11px Arial';
         ctx.fillStyle = theme.hudAccent;
         ctx.textAlign = 'center';
-        ctx.fillText('Town', gx, gy - 38);
+        ctx.fillText('Town Portal', gx, gy - 46);
         // Hint when close
         const dx = playerPos.x - worldPos.x;
         const dy = playerPos.y - worldPos.y;
