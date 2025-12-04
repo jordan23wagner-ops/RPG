@@ -1,124 +1,11 @@
 // src/utils/gameLogic.ts
 import { Enemy, Item, Affix } from '../types/game';
 
-// ----------------- DUNGEON TILESET HELPER -----------------
-
-/**
- * Lightweight helper for drawing top-down dungeon tiles from a spritesheet.
- *
- * The sheet is expected at `/darkdungeon_tileset_allinone.png` (served from
- * your Vite `/public` folder). Adjust the URL below if your dev server
- * serves from a different base, but keep the same filename, and
- * organized as a grid of 16x16 pixel tiles.
- */
-export class DungeonTileset {
-  private image: HTMLImageElement | null = null;
-  private readonly tileWidth: number;
-  private readonly tileHeight: number;
-  private _isLoaded = false;
-  private loadPromise: Promise<void> | null = null;
-
-  constructor(
-    /** Optional override for the tilesheet URL. Defaults to `/darkdungeon_tileset_allinone.png`. */
-    private readonly src: string = '/darkdungeon_tileset_allinone.png',
-    tileWidth = 16,
-    tileHeight = 16,
-  ) {
-    this.tileWidth = tileWidth;
-    this.tileHeight = tileHeight;
-  }
-
-  /** True once the underlying image has finished loading successfully. */
-  get isLoaded(): boolean {
-    return this._isLoaded;
-  }
-
-  /**
-   * Returns a Promise that resolves when the tileset image has loaded.
-   * Safe to call multiple times; returns the same in-flight Promise.
-   */
-  load(): Promise<void> {
-    if (this._isLoaded) return Promise.resolve();
-    if (this.loadPromise) return this.loadPromise;
-
-    this.loadPromise = new Promise<void>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        console.log('Tileset loaded:', img.src, img.width, img.height);
-        this.image = img;
-        this._isLoaded = true;
-        resolve();
-      };
-      img.onerror = (err) => {
-        console.error('Failed to load dungeon tileset:', err);
-        reject(err instanceof Error ? err : new Error('Failed to load dungeon tileset'));
-      };
-      img.src = this.src;
-    });
-
-    return this.loadPromise;
-  }
-
-  /**
-   * Draws a tile from the spritesheet to screenX/screenY.
-   * `sx`/`sy` are PIXEL offsets into the big sheet (not indices).
-   * Does nothing if the image is not yet loaded.
-   */
-  drawTile(
-    ctx: CanvasRenderingContext2D,
-    sx: number,
-    sy: number,
-    screenX: number,
-    screenY: number,
-    scale = 1,
-  ): void {
-    if (!this.image || !this._isLoaded) return;
-
-    const sw = this.tileWidth;
-    const sh = this.tileHeight;
-    const dw = this.tileWidth * scale;
-    const dh = this.tileHeight * scale;
-
-    ctx.drawImage(this.image, sx, sy, sw, sh, screenX, screenY, dw, dh);
-  }
-}
-
-// Optional debug helper: render the entire tileset with (col,row) labels so
-// you can map logical tile IDs to sheet indices.
-export function drawTilesetDebug(
-  ctx: CanvasRenderingContext2D,
-  tilesetImage: HTMLImageElement,
-  tileSize: number = TILE_SIZE,
-): void {
-  const cols = Math.floor(tilesetImage.width / tileSize);
-  const rows = Math.floor(tilesetImage.height / tileSize);
-
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-  ctx.font = '8px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'white';
-
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const sx = col * tileSize;
-      const sy = row * tileSize;
-      const dx = col * tileSize;
-      const dy = row * tileSize;
-
-      ctx.drawImage(tilesetImage, sx, sy, tileSize, tileSize, dx, dy, tileSize, tileSize);
-
-      ctx.fillText(`${col},${row}`, dx + tileSize / 2, dy + tileSize / 2);
-    }
-  }
-}
-
 // ----------------- DUNGEON TILE CONFIG -----------------
 
 // ------------------------------------------------------------
 // Dungeon tiles: logical IDs used by the layout + their sheet coords
-// Sheet: public/darkdungeon_tileset_allinone.png (16x16 tiles, 336×624 full sheet)
+// Sheet: public/darkdungeon_tileset_allinone_v2.png (16x16 tiles, 336×624 full sheet)
 // sx / sy are PIXEL offsets on the big sheet.
 // ------------------------------------------------------------
 
@@ -158,16 +45,14 @@ function fromGrid(col: number, row: number) {
 }
 
 export const dungeonTileMap: Record<DungeonTileId, { sx: number; sy: number }> = {
-  // Floors – all mapped to the grey stone floor row (no colored pads or carpets)
-  // main stone floor row
-  floor_stone_main:  fromGrid(11, 15),
-  floor_stone_alt1:  fromGrid(12, 15),
-  floor_stone_alt2:  fromGrid(13, 15),
+  // Floors – use a 3x2 cluster of cobblestone tiles
+  floor_stone_main:  fromGrid(2, 18),
+  floor_stone_alt1:  fromGrid(3, 18),
+  floor_stone_alt2:  fromGrid(4, 18),
 
-  // legacy names reused so nothing looks like carpet
-  floor_basic:       fromGrid(11, 15),
-  floor_cracked:     fromGrid(12, 15),
-  floor_moss:        fromGrid(13, 15),
+  floor_basic:       fromGrid(2, 19),
+  floor_cracked:     fromGrid(3, 19),
+  floor_moss:        fromGrid(4, 19),
 
   // Walls
   wall_top:          fromGrid(0, 3),  // (0,3) top wall cap

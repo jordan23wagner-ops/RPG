@@ -106,7 +106,8 @@ export function DungeonView({
         minimapViewport: '#10b981',
       },
     ];
-    const idx = f % 4; // cycle themes every floor
+    // Floor 1 uses dungeon theme (index 0), other floors cycle through themes
+    const idx = f === 1 ? 0 : (f % 4);
     return themes[idx];
   };
 
@@ -754,98 +755,6 @@ export function DungeonView({
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // ---- Central ritual chamber (carpet + altar) in world space ----
-      const centerX = worldWidthPx / 2;
-      const centerY = worldHeightPx / 2;
-      const rugWidth = 520;
-      const rugHeight = 360;
-      const rugX = centerX - rugWidth / 2;
-      const rugY = centerY - rugHeight / 2;
-
-      // Convert center chamber to screen space once per frame
-      const rugScreenX = rugX - camX;
-      const rugScreenY = rugY - camY;
-
-      // Dark stone platform under rug
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(rugScreenX - 40, rugScreenY - 40, rugWidth + 80, rugHeight + 80);
-
-      // Outer border stones for chamber (chunky walls)
-      ctx.strokeStyle = '#020617';
-      ctx.lineWidth = 10;
-      ctx.strokeRect(rugScreenX - 42, rugScreenY - 42, rugWidth + 84, rugHeight + 84);
-
-      // Main carpet body
-      ctx.fillStyle = '#7f1d1d';
-      ctx.fillRect(rugScreenX, rugScreenY, rugWidth, rugHeight);
-
-      // Inner glowing border
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(rugScreenX + 12, rugScreenY + 12, rugWidth - 24, rugHeight - 24);
-
-      // Subtle cross pattern on rug
-      ctx.strokeStyle = 'rgba(248, 250, 252, 0.12)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(rugScreenX + rugWidth / 2, rugScreenY + 18);
-      ctx.lineTo(rugScreenX + rugWidth / 2, rugScreenY + rugHeight - 18);
-      ctx.moveTo(rugScreenX + 18, rugScreenY + rugHeight / 2);
-      ctx.lineTo(rugScreenX + rugWidth - 18, rugScreenY + rugHeight / 2);
-      ctx.stroke();
-
-      // Altar block at top of rug
-      const altarWidth = 180;
-      const altarHeight = 80;
-      const altarX = rugScreenX + rugWidth / 2 - altarWidth / 2;
-      const altarY = rugScreenY + 38;
-      ctx.fillStyle = '#111827';
-      ctx.fillRect(altarX, altarY, altarWidth, altarHeight);
-      ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(altarX, altarY, altarWidth, altarHeight);
-
-      // Small glowing circle on altar center (summoning focus)
-      ctx.save();
-      ctx.shadowColor = 'rgba(248, 250, 252, 0.55)';
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = '#facc15';
-      ctx.beginPath();
-      ctx.arc(altarX + altarWidth / 2, altarY + altarHeight / 2, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // Side statues flanking the altar
-      const statueOffsetX = 140;
-      const statueY = altarY + altarHeight + 24;
-      const drawStatue = (sx: number) => {
-        ctx.save();
-        ctx.fillStyle = '#4b5563';
-        ctx.fillRect(sx - 10, statueY - 52, 20, 40);
-        ctx.fillRect(sx - 7, statueY - 70, 14, 18); // head
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillRect(sx - 3, statueY - 65, 6, 3); // eyes glow
-        ctx.restore();
-      };
-      drawStatue(rugScreenX + rugWidth / 2 - statueOffsetX);
-      drawStatue(rugScreenX + rugWidth / 2 + statueOffsetX);
-
-      // Bone piles at bottom corners
-      const drawBones = (bx: number, by: number) => {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(249, 250, 251, 0.9)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(bx - 10, by);
-        ctx.lineTo(bx + 10, by + 4);
-        ctx.moveTo(bx - 11, by + 5);
-        ctx.lineTo(bx + 9, by + 1);
-        ctx.stroke();
-        ctx.restore();
-      };
-      drawBones(rugScreenX + 40, rugScreenY + rugHeight - 36);
-      drawBones(rugScreenX + rugWidth - 40, rugScreenY + rugHeight - 48);
-
       // Draw dungeon grid from atlas if loaded
       const grid = dungeonGridRef.current;
       const tilesetImage = tilesetImageRef.current;
@@ -879,20 +788,13 @@ export function DungeonView({
               drawRockProp(ctx, screenX + 40, screenY + 58);
             }
           } else if (theme.name === 'lava') {
-            if (pr < 0.08) {
-              drawRockProp(ctx, screenX + 40, screenY + 56);
-            }
+            // Lava theme: no scattered rocks (clean floor for Floor 1)
           } else if (theme.name === 'ice') {
             if (pr < 0.06) {
               drawRockProp(ctx, screenX + 38, screenY + 55);
             }
           } else {
-            // Classic dungeon: sparse rocks and occasional mossy patch
-            if (pr < 0.08) {
-              drawRockProp(ctx, screenX + 38, screenY + 58);
-            } else if (pr < 0.11) {
-              drawGrassPatch(ctx, screenX + 28, screenY + 62);
-            }
+            // Classic dungeon: clean stone floors (no scattered rocks/rubble)
           }
 
           // Wall torches along some upper tiles to avoid UI overlap
