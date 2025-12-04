@@ -1,5 +1,5 @@
 // src/components/DungeonView.tsx
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { EQUIPMENT_VISUALS, ITEM_TYPE_TO_SLOT } from '../utils/equipmentVisuals';
 import {
   TILE_SIZE,
