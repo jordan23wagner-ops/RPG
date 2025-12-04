@@ -172,6 +172,10 @@ export function DungeonView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tilesetImageRef = useRef<HTMLImageElement | null>(null);
   const dungeonGridRef = useRef<DungeonGrid | null>(null);
+  const [playerPosState, setPlayerPosState] = useState<{ x: number; y: number }>({
+    x: 400,
+    y: 450,
+  });
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
@@ -317,6 +321,7 @@ export function DungeonView({
         // Ensure player spawns on a walkable tile when entering the dungeon
         const spawn = findFirstWalkableTile(grid as DungeonTileId[][]);
         playerPosRef.current = { x: spawn.x, y: spawn.y };
+        setPlayerPosState({ x: spawn.x, y: spawn.y });
       } catch (err) {
         console.error('Failed to init dungeon', err);
       }
@@ -345,6 +350,7 @@ export function DungeonView({
       }
       const spawn = findFirstWalkableTile(grid as DungeonTileId[][]);
       playerPosRef.current = { x: spawn.x, y: spawn.y };
+      setPlayerPosState({ x: spawn.x, y: spawn.y });
     }
     hasSpawnedThisFloorRef.current = true;
   }, [floor, entryLadderPos]);
@@ -365,6 +371,49 @@ export function DungeonView({
   useEffect(() => {
     damageNumbersRef.current = damageNumbers;
   }, [damageNumbers]);
+
+  // Auto-engage nearest alive world enemy when in range and not already in combat
+  useEffect(() => {
+    const ENGAGE_RADIUS = 140;
+    if (!hasSpawnedThisFloorRef.current) return;
+    if (enemy || engagedWorldEnemyId) return;
+    if (!enemiesInWorld || enemiesInWorld.length === 0) return;
+
+    const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
+    const alive = enemiesInWorld.filter(
+      (e: Enemy & { id: string; x: number; y: number }) =>
+        !killedSet.has(e.id) && !killedEnemyIds.has(e.id),
+    );
+    if (alive.length === 0) return;
+
+    const { x: px, y: py } = playerPosState;
+    let nearest: (Enemy & { id: string; x: number; y: number }) | null = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const e of alive) {
+      const dx = px - e.x;
+      const dy = py - e.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = e;
+      }
+    }
+
+    if (nearest && bestDist < ENGAGE_RADIUS) {
+      enemyPosRef.current = { x: nearest.x, y: nearest.y };
+      onEngageEnemy(nearest.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    playerPosState.x,
+    playerPosState.y,
+    enemiesInWorld,
+    killedEnemyIds,
+    enemy,
+    engagedWorldEnemyId,
+    onEngageEnemy,
+    floor,
+  ]);
 
   useEffect(() => {
     zoneHeatRef.current = zoneHeat;
@@ -952,18 +1001,13 @@ export function DungeonView({
             !killedSet.has(e.id) && (!engagedWorldEnemyId || e.id !== engagedWorldEnemyId),
         );
 
-        if (killedEnemyIds.size > 0) {
-          console.log(
-            `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
-          );
-        }
-
-        // Track if we've engaged an enemy this frame
-        let engagedThisFrame = false;
+      if (killedEnemyIds.size > 0) {
+        console.log(
+          `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
+        );
+      }
 
         for (const ew of visibleEnemies) {
-          if (engagedThisFrame) break; // Only engage one enemy per frame
-
           const sx = ew.x - camX;
           const sy = ew.y - camY;
           if (sx < -50 || sy < -50 || sx > CANVAS_WIDTH + 50 || sy > CANVAS_HEIGHT + 50) continue;
@@ -983,22 +1027,6 @@ export function DungeonView({
           ctx.fillStyle = theme.hudAccent;
           ctx.textAlign = 'center';
           ctx.fillText(ew.name, sx, sy - 16);
-          // Auto-engage if close (only after initial floor spawn is complete)
-          if (!hasSpawnedThisFloorRef.current) continue; // Wait for floor to fully load
-          // Don't engage if already in combat or if this specific enemy is already engaged
-          if (engagedWorldEnemyId || currentlyEngagedIdRef.current !== null) continue;
-          const dx = playerPos.x - ew.x;
-          const dy = playerPos.y - ew.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          if (d < 140) {
-            console.log(`[AutoEngage] Attempting to engage ${ew.id} at distance ${d.toFixed(0)}px`);
-            // Set enemy position to world enemy position for combat
-            enemyPosRef.current = { x: ew.x, y: ew.y };
-            currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately (render debounce)
-            onEngageEnemy(ew.id);
-            engagedThisFrame = true; // Prevent engaging multiple enemies
-            break; // Exit the loop immediately
-          }
         }
       }
 
@@ -1363,6 +1391,10 @@ export function DungeonView({
       // ----- 2. Tile collision check using extended walkability -----
       if (canMoveToWorldPosition(grid as DungeonTileId[][], newX, newY)) {
         playerPosRef.current = { x: newX, y: newY };
+        setPlayerPosState((prev) => {
+          if (prev.x === newX && prev.y === newY) return prev;
+          return { x: newX, y: newY };
+        });
       }
 
       animationFrameId = requestAnimationFrame(movePlayer);
