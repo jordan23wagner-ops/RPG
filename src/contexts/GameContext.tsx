@@ -491,11 +491,10 @@ export function GameProvider({
     const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
       Math.hypot(a.x - b.x, a.y - b.y);
     const minDistFromSpawn = 300;
-    const baseCount = 12 + Math.floor(floor * 1.5); // more mobs for grindy feel
-    const count = Math.min(30, Math.max(12, baseCount)); // cap to avoid overdraw
-    let miniBosses = 0;
-    const MAX_MINI_BOSSES = Math.min(4, 1 + Math.floor(floor / 3));
+    const groupCountBase = 6 + Math.floor(seededRandom(worldSpawnVersion + 777) * 2); // 6-7 groups
+    const groupCount = Math.max(6, Math.min(10, groupCountBase + Math.floor(floor / 6)));
     const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
+    const groupCenters: { x: number; y: number }[] = [];
     // Get or initialize killed enemies for this floor
     if (!killedWorldEnemiesRef.current.has(floor)) {
       killedWorldEnemiesRef.current.set(floor, new Set<string>());
@@ -507,47 +506,80 @@ export function GameProvider({
       const x = Math.sin(seed++) * 10000;
       return x - Math.floor(x);
     };
-    for (let i = 0; i < count; i++) {
-      // Generate deterministic position based on floor and index
-      const seed = floor * 1000 + i + worldSpawnVersion * 10000;
-      let pos = {
-        x: Math.floor(seededRandom(seed) * WORLD_WIDTH),
-        y: Math.floor(seededRandom(seed + 500) * WORLD_HEIGHT),
+    for (let g = 0; g < groupCount; g++) {
+      const groupSeed = floor * 5000 + g * 137 + worldSpawnVersion * 100000;
+      let center = {
+        x: Math.floor(seededRandom(groupSeed) * WORLD_WIDTH),
+        y: Math.floor(seededRandom(groupSeed + 1234) * WORLD_HEIGHT),
       };
-      // Keep away from spawn
-      let guard = 0;
-      while (dist(pos, spawn) < minDistFromSpawn && guard < 50) {
-        pos = {
-          x: Math.floor(seededRandom(seed + guard * 10) * WORLD_WIDTH),
-          y: Math.floor(seededRandom(seed + guard * 10 + 500) * WORLD_HEIGHT),
+      let guardCenter = 0;
+      // Keep groups away from spawn and from each other
+      while (
+        (dist(center, spawn) < minDistFromSpawn + 120 ||
+          groupCenters.some((c) => dist(c, center) < 280)) &&
+        guardCenter < 80
+      ) {
+        center = {
+          x: Math.floor(seededRandom(groupSeed + guardCenter * 17) * WORLD_WIDTH),
+          y: Math.floor(seededRandom(groupSeed + guardCenter * 17 + 321) * WORLD_HEIGHT),
         };
-        guard++;
+        guardCenter++;
       }
-      // Pick enemy type with deterministic roll
-      const roll = seededRandom(seed + 1000);
-      let type: RoomEventType = 'enemy';
-      // World enemy mix: plenty of fodder with a rising chance of elites.
-      // Low floors keep specials rare; deeper floors add more mini-boss/rare density.
-      const depthFactor = Math.min(1, floor / 10); // 0..1 by floor 10
-      const mimicThreshold = 0.01 + depthFactor * 0.02; // up to 3%
-      const miniBossSpread = 0.02 + depthFactor * 0.05; // up to ~7%
-      const rareSpread = 0.12 + depthFactor * 0.15; // 12% -> 27%
+      groupCenters.push(center);
 
-      if (roll < mimicThreshold) type = 'mimic';
-      else if (roll < mimicThreshold + miniBossSpread && miniBosses < MAX_MINI_BOSSES) {
-        type = 'miniBoss';
-        miniBosses++;
-      } else if (roll < mimicThreshold + miniBossSpread + rareSpread) type = 'rareEnemy';
-      const e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
-      // Use sequential ID that's truly unique per floor
-      const enemyId = `floor${floor}-enemy${worldSpawnVersion}-${i}`;
-      if (!killedSet.has(enemyId)) {
-        arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
-        if (DEBUG_WORLD_ENEMIES) {
-          console.log(`[WorldGen] Spawned ${enemyId} type=${type} lvl=${e.level} hp=${e.health}`);
+      const members = 3 + Math.floor(seededRandom(groupSeed + 222) * 3); // 3-5 per group
+      const eliteChance = 0.25 + Math.min(0.2, floor * 0.02); // 25% base, scales slightly with depth
+      const eliteIndex = seededRandom(groupSeed + 999) < eliteChance ? Math.floor(seededRandom(groupSeed + 888) * members) : -1;
+      const depthFactor = Math.min(1, floor / 10); // 0..1 by floor 10
+
+      for (let m = 0; m < members; m++) {
+        const seed = groupSeed + m * 100;
+        const jitterR = 60 + seededRandom(seed) * 80;
+        const jitterA = seededRandom(seed + 55) * Math.PI * 2;
+        const pos = {
+          x: Math.floor(center.x + Math.cos(jitterA) * jitterR),
+          y: Math.floor(center.y + Math.sin(jitterA) * jitterR),
+        };
+
+        // Pick enemy type with deterministic roll
+        const roll = seededRandom(seed + 1000);
+        let type: RoomEventType = 'enemy';
+        const mimicThreshold = 0.005 + depthFactor * 0.01; // up to 1.5%
+        const miniBossSpread = 0.015 + depthFactor * 0.04; // up to ~5.5%
+        const rareSpread = 0.14 + depthFactor * 0.16; // 14% -> 30%
+
+        if (roll < mimicThreshold) type = 'mimic';
+        else if (roll < mimicThreshold + miniBossSpread) {
+          type = 'miniBoss';
+        } else if (roll < mimicThreshold + miniBossSpread + rareSpread) type = 'rareEnemy';
+
+        let e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
+        const isElite = m === eliteIndex && type === 'enemy';
+        if (isElite) {
+          e = {
+            ...e,
+            name: `Elite ${e.name}`,
+            health: Math.floor(e.health * 1.8),
+            max_health: Math.floor(e.max_health * 1.8),
+            damage: Math.floor(e.damage * 1.6),
+            experience: Math.floor(e.experience * 1.4),
+            gold: Math.floor(e.gold * 1.5),
+            rarity: 'elite',
+          };
         }
-      } else if (DEBUG_WORLD_ENEMIES) {
-        console.log(`[WorldGen] Skipped previously killed ${enemyId}`);
+
+        // Use sequential ID that's unique per group/member/version
+        const enemyId = `floor${floor}-g${g}-m${m}-v${worldSpawnVersion}`;
+        if (!killedSet.has(enemyId)) {
+          arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
+          if (DEBUG_WORLD_ENEMIES) {
+            console.log(
+              `[WorldGen] Spawned ${enemyId} type=${type}${isElite ? ' (elite)' : ''} lvl=${e.level} hp=${e.health}`,
+            );
+          }
+        } else if (DEBUG_WORLD_ENEMIES) {
+          console.log(`[WorldGen] Skipped previously killed ${enemyId}`);
+        }
       }
     }
     setEnemiesInWorld(arr);
