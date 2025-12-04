@@ -1059,15 +1059,7 @@ export function DungeonView({
       const drawTownGate = (worldPos: { x: number; y: number }) => {
         const gx = worldPos.x - camX;
         const gy = worldPos.y - camY;
-        ctx.fillStyle = '#1f2937';
-        ctx.fillRect(gx - 14, gy - 28, 28, 56);
-        ctx.strokeStyle = theme.hudAccent;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(gx - 14, gy - 28, 28, 56);
-        // Arch
-        ctx.beginPath();
-        ctx.arc(gx, gy - 28, 14, Math.PI, 0);
-        ctx.stroke();
+        // Only render the unified portal; remove legacy gate frame
         drawDungeonPortal(ctx, gx, gy, nowTime);
         ctx.font = '11px Arial';
         ctx.fillStyle = theme.hudAccent;
