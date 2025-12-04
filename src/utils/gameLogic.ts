@@ -685,6 +685,16 @@ function pickRarity(
   }
 
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
+
+  // Early-floor dampening so legendary+ almost never appears at start.
+  if (floor <= 3) {
+    const damp = 0.35 + floor * 0.15; // floor1=>0.5, floor3=>0.8
+    weights.legendary *= damp;
+    weights.mythic *= damp * 0.5;
+    weights.set *= damp * 0.6;
+    weights.radiant *= damp * 0.4;
+  }
+
   let roll = Math.random() * total;
 
   for (const key of Object.keys(weights) as (keyof typeof BASE_RARITY_WEIGHTS)[]) {
@@ -971,6 +981,30 @@ export function generateLoot(
     return generateSetItem(enemyLevel, floor);
   }
 
+  // Ultra-rare progression orb/stone that helps unlock deeper runs.
+  const keystoneChance =
+    (enemyRarity === 'boss' ? 0.02 : 0.004) * (1 + depthNorm * 0.6 + heatBoost * 0.4);
+  if (floor >= 2 && Math.random() < keystoneChance) {
+    const rarity: RarityKey = enemyRarity === 'boss' ? 'legendary' : 'epic';
+    const { requiredLevel, requiredStats } = calculateItemRequirements(
+      'trinket',
+      rarity,
+      enemyLevel,
+      floor,
+    );
+    return {
+      name: enemyRarity === 'boss' ? 'Ascension Stone' : 'Aether Orb Shard',
+      type: 'trinket',
+      rarity,
+      armor: Math.round((enemyLevel + floor) * (enemyRarity === 'boss' ? 2.2 : 1.6)),
+      value: Math.round((enemyLevel + floor) * (enemyRarity === 'boss' ? 150 : 90)),
+      equipped: false,
+      required_level: requiredLevel,
+      required_stats: requiredStats,
+      affixes: generateAffixesForItem(rarity, 'trinket'),
+    };
+  }
+
   const rarity = pickRarity(enemyRarity, zoneHeat, floor);
   if (rarity === 'common' || rarity === 'magic') {
     // Sentinel from pickRarity meaning "no rare+ item"; caller already
@@ -990,25 +1024,42 @@ export function generateLoot(
   if (isWeapon) {
     const weighted: Item['type'][] = [];
     if (theme === 'lava') {
-      weighted.push('melee_weapon', 'melee_weapon', 'melee_weapon', 'ranged_weapon', 'mage_weapon');
+      weighted.push(
+        'melee_weapon',
+        'melee_weapon',
+        'melee_weapon',
+        'ranged_weapon',
+        'mage_weapon',
+        'trinket',
+      );
     } else if (theme === 'ice') {
-      weighted.push('mage_weapon', 'mage_weapon', 'ranged_weapon', 'melee_weapon');
+      weighted.push('mage_weapon', 'mage_weapon', 'ranged_weapon', 'melee_weapon', 'trinket');
     } else if (theme === 'jungle') {
-      weighted.push('ranged_weapon', 'ranged_weapon', 'melee_weapon', 'mage_weapon');
+      weighted.push('ranged_weapon', 'ranged_weapon', 'melee_weapon', 'mage_weapon', 'trinket');
     } else {
-      weighted.push('melee_weapon', 'ranged_weapon', 'mage_weapon');
+      weighted.push('melee_weapon', 'ranged_weapon', 'mage_weapon', 'trinket');
     }
     type = randomFrom(weighted);
   } else {
     const weighted: Item['type'][] = [];
     if (theme === 'lava') {
-      weighted.push('melee_armor', 'gloves', 'belt', 'boots', 'ring');
+      weighted.push('melee_armor', 'helmet', 'gloves', 'belt', 'boots', 'ring', 'chest');
     } else if (theme === 'ice') {
-      weighted.push('mage_armor', 'amulet', 'ring', 'boots');
+      weighted.push('mage_armor', 'helmet', 'amulet', 'ring', 'boots', 'trinket');
     } else if (theme === 'jungle') {
-      weighted.push('ranged_armor', 'boots', 'gloves', 'belt');
+      weighted.push('ranged_armor', 'helmet', 'boots', 'gloves', 'belt', 'ring');
     } else {
-      weighted.push('melee_armor', 'boots', 'gloves', 'belt', 'ring', 'amulet');
+      weighted.push(
+        'melee_armor',
+        'helmet',
+        'boots',
+        'gloves',
+        'belt',
+        'ring',
+        'amulet',
+        'trinket',
+        'chest',
+      );
     }
     type = randomFrom(weighted);
   }
@@ -1018,54 +1069,54 @@ export function generateLoot(
   const prefixes =
     type === 'melee_weapon'
       ? theme === 'lava'
-        ? ['Molten', 'Blazing', 'Charred', 'Infernal']
+        ? ['Molten', 'Blazing', 'Charred', 'Infernal', 'Cinderforged']
         : theme === 'ice'
-          ? ['Frosted', 'Glacial', 'Icy', 'Snowbound']
+          ? ['Frosted', 'Glacial', 'Icy', 'Snowbound', 'Cold-iron']
           : theme === 'jungle'
-            ? ['Vinewoven', 'Hunter', 'Wild', 'Primal']
-            : ['Rusty', 'Jagged', 'Savage', 'Dread']
+            ? ['Vinewoven', 'Hunter', 'Wild', 'Primal', 'Thorned']
+            : ['Rusty', 'Jagged', 'Savage', 'Dread', 'Grim']
       : type === 'ranged_weapon'
         ? theme === 'jungle'
-          ? ["Hunter's", "Stalker's", 'Sharpshot', 'Wild']
+          ? ["Hunter's", "Stalker's", 'Sharpshot', 'Wild', 'Bramble']
           : theme === 'ice'
-            ? ['Cold', 'Aurora', 'Storm', 'Glacial']
+            ? ['Cold', 'Aurora', 'Storm', 'Glacial', 'Snowfall']
             : theme === 'lava'
-              ? ['Smoldering', 'Ashen', 'Storm', 'Scorching']
-              : ['Cracked', "Hunter's", 'Sharpshot', 'Storm']
+              ? ['Smoldering', 'Ashen', 'Storm', 'Scorching', 'Cinder']
+              : ['Cracked', "Hunter's", 'Sharpshot', 'Storm', 'Gale']
         : type === 'mage_weapon'
           ? theme === 'ice'
-            ? ['Frostweaver', 'Mystic', 'Arcane', 'Eldritch']
+            ? ['Frostweaver', 'Mystic', 'Arcane', 'Eldritch', 'Aurora']
             : theme === 'lava'
-              ? ["Pyromancer's", 'Mystic', 'Infernal', 'Eldritch']
-              : ['Apprentice', 'Mystic', 'Arcane', 'Eldritch']
+              ? ["Pyromancer's", 'Mystic', 'Infernal', 'Eldritch', 'Cinderseer']
+              : ['Apprentice', 'Mystic', 'Arcane', 'Eldritch', 'Umbral']
           : type === 'ring'
-            ? ['Mystic', 'Arcane', 'Enchanted', 'Ethereal']
+            ? ['Mystic', 'Arcane', 'Enchanted', 'Ethereal', 'Celestial']
             : type === 'gloves'
-              ? ['Leather', 'Iron', 'Reinforced', 'Blessed']
+              ? ['Leather', 'Iron', 'Reinforced', 'Blessed', 'Spellwoven']
               : type === 'belt'
-                ? ['Sturdy', 'Reinforced', "Guardian's", "Warden's"]
+                ? ['Sturdy', 'Reinforced', "Guardian's", "Warden's", 'Starbound']
                 : type === 'boots'
-                  ? ['Worn', 'Sturdy', 'Swift', "Guardian's"]
-                  : ['Worn', 'Sturdy', "Guardian's", 'Ward'];
+                  ? ['Worn', 'Sturdy', 'Swift', "Guardian's", 'Silent']
+                  : ['Worn', 'Sturdy', "Guardian's", 'Ward', 'Runed'];
 
   const bases =
     type === 'melee_weapon'
-      ? ['Sword', 'Axe', 'Mace', 'Warhammer']
+      ? ['Sword', 'Axe', 'Mace', 'Warhammer', 'Cleaver', 'Glaive']
       : type === 'ranged_weapon'
-        ? ['Bow', 'Crossbow', 'Longbow']
+        ? ['Bow', 'Crossbow', 'Longbow', 'Repeater', 'Shortbow']
         : type === 'mage_weapon'
-          ? ['Wand', 'Staff', 'Tome', 'Scepter']
+          ? ['Wand', 'Staff', 'Tome', 'Scepter', 'Orb', 'Focus']
           : type === 'amulet'
-            ? ['Charm', 'Amulet', 'Talisman']
-            : type === 'ring'
-              ? ['Ring', 'Band', 'Signet', 'Loop']
-              : type === 'gloves'
-                ? ['Gloves', 'Gauntlets', 'Mitts', 'Bracers']
-                : type === 'belt'
-                  ? ['Belt', 'Girdle', 'Sash', 'Cinch']
-                  : type === 'boots'
-                    ? ['Boots', 'Footgear', 'Treads', 'Sabatons']
-                    : ['Breastplate', 'Chainmail', 'Plate Armor'];
+            ? ['Charm', 'Amulet', 'Talisman', 'Pendant']
+          : type === 'ring'
+            ? ['Ring', 'Band', 'Signet', 'Loop', 'Seal']
+            : type === 'gloves'
+              ? ['Gloves', 'Gauntlets', 'Mitts', 'Bracers', 'Wraps']
+            : type === 'belt'
+                ? ['Belt', 'Girdle', 'Sash', 'Cinch', 'Cord']
+                : type === 'boots'
+                  ? ['Boots', 'Footgear', 'Treads', 'Sabatons', 'Greaves']
+                  : ['Breastplate', 'Chainmail', 'Plate Armor', 'Brigandine', 'Vestments'];
 
   const suffixes =
     theme === 'lava'

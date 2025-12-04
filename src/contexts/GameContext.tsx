@@ -489,9 +489,10 @@ export function GameProvider({
     const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
       Math.hypot(a.x - b.x, a.y - b.y);
     const minDistFromSpawn = 300;
-    const count = Math.floor(Math.random() * 6) + 5; // 5..10
+    const baseCount = 12 + Math.floor(floor * 1.5); // more mobs for grindy feel
+    const count = Math.min(30, Math.max(12, baseCount)); // cap to avoid overdraw
     let miniBosses = 0;
-    const MAX_MINI_BOSSES = 2;
+    const MAX_MINI_BOSSES = Math.min(4, 1 + Math.floor(floor / 3));
     const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
     // Get or initialize killed enemies for this floor
     if (!killedWorldEnemiesRef.current.has(floor)) {
@@ -523,13 +524,12 @@ export function GameProvider({
       // Pick enemy type with deterministic roll
       const roll = seededRandom(seed + 1000);
       let type: RoomEventType = 'enemy';
-      // World enemy mix: keep specials quite rare on early floors.
-      // Floor 1: ~1% mimics, ~2% mini-bosses max, ~10% rares.
-      // Deeper floors slowly ramp these up but with hard caps.
-      const isLowFloor = floor <= 3;
-      const mimicThreshold = isLowFloor ? 0.01 : 0.03; // up to 3%
-      const miniBossSpread = isLowFloor ? 0.02 : 0.05; // extra window for mini-bosses
-      const rareSpread = isLowFloor ? 0.10 : 0.22; // extra window for rare enemies
+      // World enemy mix: plenty of fodder with a rising chance of elites.
+      // Low floors keep specials rare; deeper floors add more mini-boss/rare density.
+      const depthFactor = Math.min(1, floor / 10); // 0..1 by floor 10
+      const mimicThreshold = 0.01 + depthFactor * 0.02; // up to 3%
+      const miniBossSpread = 0.02 + depthFactor * 0.05; // up to ~7%
+      const rareSpread = 0.12 + depthFactor * 0.15; // 12% -> 27%
 
       if (roll < mimicThreshold) type = 'mimic';
       else if (roll < mimicThreshold + miniBossSpread && miniBosses < MAX_MINI_BOSSES) {
