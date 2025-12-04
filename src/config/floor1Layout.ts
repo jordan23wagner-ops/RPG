@@ -1,6 +1,5 @@
 // src/config/floor1Layout.ts
 import type { DungeonTileId } from '../utils/gameLogic';
-import { dungeonTileMap } from '../utils/gameLogic';
 
 export const FLOOR1_COLS = 120;
 export const FLOOR1_ROWS = 90;
@@ -368,7 +367,7 @@ function shuffle<T>(arr: T[]): void {
 }
 
 // Build floor layout only after helpers are declared to avoid TDZ/cycle issues
-function buildFloor1Layout(): DungeonTileId[][] {
+export function buildFloor1Layout(): DungeonTileId[][] {
   const cols = FLOOR1_COLS;
   const rows = FLOOR1_ROWS;
 
@@ -457,4 +456,6 @@ function buildFloor1Layout(): DungeonTileId[][] {
 }
 
 // Randomized Floor 1: multiple rooms, corridors, and decorations
-export const floor1Layout: DungeonTileId[][] = buildFloor1Layout();
+export function createFloor1Layout(): DungeonTileId[][] {
+  return buildFloor1Layout();
+}
