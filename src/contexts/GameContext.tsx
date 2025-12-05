@@ -28,6 +28,26 @@ function seededRandom(seed: number) {
   return x - Math.floor(x);
 }
 
+// Simple test enemy factory for reset-foundation.
+// Lets us exercise combat without re-enabling full world spawning.
+const createTestEnemy = (level: number): Enemy => {
+  const clampedLevel = Math.max(1, level);
+  const baseLife = 25 + clampedLevel * 5;
+  const baseDamage = 4 + Math.floor(clampedLevel * 0.8);
+
+  return {
+    id: `test_fallen_${clampedLevel}`,
+    name: 'Fallen Runt (Test)',
+    level: clampedLevel,
+    health: baseLife,
+    max_health: baseLife,
+    damage: baseDamage,
+    experience: 10 + clampedLevel * 2,
+    gold: 5 + clampedLevel,
+    rarity: 'normal',
+  };
+};
+
 export interface DamageNumber {
   id: string;
   damage: number;
@@ -582,15 +602,26 @@ export function GameProvider({
 
   useEffect(() => {
     if (DEBUG_WORLD_ENEMIES) {
-      console.log(`[WorldGen] Initializing floor ${floor} (version ${worldSpawnVersion})`);
+      console.log(
+        `[WorldGen] Initializing floor ${floor} (version ${worldSpawnVersion}) on reset-foundation`,
+      );
     }
     initializedFloorRef.current = floor;
+
     // Keep floor map/tile layout, but strip world enemies/portals for the reset foundation.
     initFloorIfNeeded();
     setEnemiesInWorld([]);
-    setCurrentEnemy(null);
     setEntryLadderPos(null);
     setExitLadderPos(null);
+
+    // For reset-foundation, always spawn a single test enemy so we can exercise combat.
+    if (character) {
+      const enemy = createTestEnemy(character.level);
+      console.log('[TestCombat] Spawning test enemy for floor:', floor, enemy);
+      setCurrentEnemy(enemy);
+    } else {
+      setCurrentEnemy(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor, worldSpawnVersion, character, zoneHeat]);
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
