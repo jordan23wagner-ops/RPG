@@ -23,6 +23,11 @@ import {
 // Debug flag for verbose world enemy lifecycle logging
 const DEBUG_WORLD_ENEMIES = true;
 
+// Toggle for always having a test enemy present on reset-foundation.
+// When false, the test enemy will not auto-respawn on heat changes; it only
+// appears on floor/worldSpawn changes (or character change).
+const AUTO_RESPAWN_TEST_ENEMY = false;
+
 function seededRandom(seed: number) {
   const x = Math.sin(seed++) * 10000;
   return x - Math.floor(x);
@@ -614,16 +619,28 @@ export function GameProvider({
     setEntryLadderPos(null);
     setExitLadderPos(null);
 
-    // For reset-foundation, always spawn a single test enemy so we can exercise combat.
-    if (character) {
-      const enemy = createTestEnemy(character.level);
-      console.log('[TestCombat] Spawning test enemy for floor:', floor, enemy);
-      setCurrentEnemy(enemy);
+    if (!AUTO_RESPAWN_TEST_ENEMY) {
+      // One-shot spawn behavior: let combat / heat changes kill the enemy permanently
+      // until the floor/world spawn version or character changes.
+      if (character) {
+        const enemy = createTestEnemy(character.level);
+        console.log('[TestCombat] Spawning test enemy for floor:', floor, enemy);
+        setCurrentEnemy(enemy);
+      } else {
+        setCurrentEnemy(null);
+      }
     } else {
-      setCurrentEnemy(null);
+      // Legacy behavior (punching bag): always ensure a test enemy exists.
+      if (!currentEnemy && character) {
+        const enemy = createTestEnemy(character.level);
+        console.log('[TestCombat] Auto-respawning test enemy for floor:', floor, enemy);
+        setCurrentEnemy(enemy);
+      } else if (!character) {
+        setCurrentEnemy(null);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [floor, worldSpawnVersion, character, zoneHeat]);
+  }, [floor, worldSpawnVersion, character]);
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
     console.log('[EngageNearestEnemy] Disabled in reset-foundation', { x, y, radius });
     // World enemies are turned off in reset-foundation.
