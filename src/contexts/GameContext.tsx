@@ -1,8 +1,24 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase, SUPABASE_AVAILABLE } from '../lib/supabase';
-import { Character, Item, Enemy, WorldEnemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
+import {
+  Character,
+  Item,
+  Enemy,
+  WorldEnemy,
+  FloorMap,
+  FloorRoom,
+  RoomEventType,
+  Affix,
+} from '../types/game';
 import { generateEnemyVariant } from '../utils/gameLogic';
 import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '../utils/gameLogic';
+import { resolveAttack } from '../logic/combat';
+import {
+  createPlayerCombatant,
+  createEnemyCombatant,
+  createWeaponSnapshotFromItem,
+  createWeaponSnapshotFromEnemy,
+} from '../logic/combatAdapters';
 
 // Debug flag for verbose world enemy lifecycle logging
 const DEBUG_WORLD_ENEMIES = true;
@@ -578,99 +594,25 @@ export function GameProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor, worldSpawnVersion, character, zoneHeat]);
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
-    console.log('[EngageNearestEnemy] Disabled in reset-foundation');
-    return;
-    if (!enemiesInWorld.length) return;
-    const alive = enemiesInWorld.filter((e) => !killedEnemyIds.has(e.id));
-    if (!alive.length) return;
-    let nearest: WorldEnemy | null = null;
-    let minDist = Infinity;
-    for (const e of alive) {
-      const dx = e.x - x;
-      const dy = e.y - y;
-      const d = Math.hypot(dx, dy);
-      if (d < minDist) {
-        minDist = d;
-        nearest = e;
-      }
-    }
-    if (!nearest || minDist > radius) return;
-    setEngagedWorldEnemyId(nearest.id);
-    const { x: _x, y: _y, ...enemyData } = nearest;
-    setCurrentEnemy(enemyData as Enemy);
+    console.log('[EngageNearestEnemy] Disabled in reset-foundation', { x, y, radius });
+    // World enemies are turned off in reset-foundation.
   };
 
   const onEngageEnemy = (enemyWorldId: string) => {
-    console.log('[Engage] Disabled in reset-foundation');
-    return;
-    const found = enemiesInWorld.find((e) => e.id === enemyWorldId);
-    if (!found) return;
-    setEngagedWorldEnemyId(enemyWorldId);
-    const { x: _x, y: _y, ...enemyData } = found;
-    console.log('[Engage] Setting currentEnemy to world enemy:', {
-      id: enemyData.id,
-      name: enemyData.name,
-      level: enemyData.level,
-      health: enemyData.health,
-      max_health: enemyData.max_health,
-    });
-    setCurrentEnemy(enemyData as Enemy);
+    console.log('[Engage] Disabled in reset-foundation', { enemyWorldId });
+    // No-op for reset-foundation.
   };
 
   const onKillCurrentEnemy = () => {
     console.log('[KillEnemy] Disabled in reset-foundation');
-    return;
-    if (!currentEnemy || !engagedWorldEnemyId) return;
-    setKilledEnemyIds((prev) => {
-      const next = new Set(prev);
-      next.add(engagedWorldEnemyId);
-      return next;
-    });
-    setEnemiesInWorld((prev) => prev.filter((e) => e.id !== engagedWorldEnemyId));
-    setEngagedWorldEnemyId(null);
-    setCurrentEnemy(null);
+    // No-op for reset-foundation.
   };
 
   const exploreRoom = (roomId: string) => {
-    console.log('[ExploreRoom] Disabled in reset-foundation');
-    setCurrentEnemy(null);
-    return;
-    if (!floorMap) return;
-    const room = floorMap.rooms.find((r: FloorRoom) => r.id === roomId);
-    if (!room) return;
+    console.log('[ExploreRoom] Disabled in reset-foundation', { roomId });
     setCurrentRoomId(roomId);
-    if (!room.explored) {
-      room.explored = true;
-    }
-    // Single encounter per room; no respawns after cleared
-    if (['enemy', 'rareEnemy', 'miniBoss', 'mimic', 'boss'].includes(room.type)) {
-      if (room.cleared) {
-        // Already cleared: no enemy
-        setCurrentEnemy(null);
-      } else {
-        // First exploration: trigger mimic trap if applicable
-        if (room.type === 'mimic' && character) {
-          const trapPct = 0.2;
-          const trapDamage = Math.floor(character.max_health * trapPct);
-          const newHealth = Math.max(1, character.health - trapDamage);
-          updateCharacter({ health: newHealth });
-          console.log(`[Trap] Mimic chest bit you for ${trapDamage} HP!`);
-        }
-        const variantEnemy = generateEnemyVariant(
-          room.type as RoomEventType,
-          floor,
-          character?.level || 1,
-          zoneHeat,
-        );
-        setCurrentEnemy(variantEnemy);
-      }
-    } else if (room.type === 'empty') {
-      setCurrentEnemy(null);
-    } else if (room.type === 'ladder') {
-      setCurrentEnemy(null);
-    }
-    // Force re-render map update
-    setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
+    setCurrentEnemy(null);
+    // Old room/encounter logic removed for reset-foundation.
   };
 
   const addDamageNumber = (damage: number, x: number, y: number, isCrit?: boolean) => {
@@ -713,12 +655,34 @@ export function GameProvider({
   // --------------- Combat / Loot ---------------
 
   const enemyMeleeAttack = () => {
-    console.log('[EnemyMeleeAttack] Disabled in reset-foundation');
+    if (!character || !currentEnemy) return;
+
+    const playerCombatant = createPlayerCombatant(character);
+    const enemyCombatant = createEnemyCombatant(currentEnemy);
+    const enemyWeapon = createWeaponSnapshotFromEnemy(currentEnemy);
+
+    const result = resolveAttack({
+      attacker: enemyCombatant,
+      defender: { ...playerCombatant, currentLife: character.health },
+      weapon: enemyWeapon,
+      flatDamageBonus: 0,
+    });
+
+    const damage = result.damageFinal;
+    const newHealth = result.defenderLifeAfter;
+
+    setCharacter((prev) => {
+      if (!prev) return prev;
+      return { ...prev, health: newHealth };
+    });
+
+    // Optional: later we can add player damage numbers; for now we keep it simple.
+    if (newHealth <= 0) {
+      console.log('[EnemyMeleeAttack] Player died.');
+    }
   };
 
   const attack = async () => {
-    console.log('[Attack] Disabled in reset-foundation');
-    return;
     if (!character || !currentEnemy) {
       console.log('[Attack] aborted: missing character or currentEnemy.', {
         hasCharacter: !!character,
@@ -736,12 +700,11 @@ export function GameProvider({
           i.type === 'mage_weapon'),
     );
 
-    const weaponDamage = equippedWeapon?.damage || 0;
     // Equipped items & aggregated affixes
     const equippedItems = items.filter((i: Item) => i.equipped);
     const setBonuses = computeSetBonuses(equippedItems);
     const allAffixes = equippedItems.flatMap((i: Item) => i.affixes || []);
-    // Aggregate affix-provided stat bonuses
+
     const affixStatBonus = {
       strength: 0,
       dexterity: 0,
@@ -753,44 +716,51 @@ export function GameProvider({
       ice_damage: 0,
       lightning_damage: 0,
     } as Record<string, number>;
+
     for (const a of allAffixes) {
       affixStatBonus[a.stat] = (affixStatBonus[a.stat] || 0) + a.value;
     }
 
     const effectiveStrength =
       character.strength + setBonuses.strength + (affixStatBonus.strength || 0);
+
     const elementalFlat =
       (affixStatBonus.fire_damage || 0) +
       (affixStatBonus.ice_damage || 0) +
       (affixStatBonus.lightning_damage || 0);
-    const baseDamage = effectiveStrength * 0.5 + weaponDamage + elementalFlat;
 
-    // Apply crit mechanics: base 5% crit chance, 150% crit damage
-    const critChance = ((character.crit_chance || 5) + (affixStatBonus.crit_chance || 0)) / 100;
-    const critDamage = ((character.crit_damage || 150) + (affixStatBonus.crit_damage || 0)) / 100;
-    const isCrit = Math.random() < critChance;
-    const critMultiplier = isCrit ? critDamage : 1.0;
+    const flatDamageBonus =
+      effectiveStrength * 0.5 +
+      elementalFlat +
+      setBonuses.damage;
 
-    const playerDamage = Math.floor(
-      (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier,
-    );
+    const playerCombatant = createPlayerCombatant(character);
+    const enemyCombatant = createEnemyCombatant(currentEnemy);
+    const weaponSnapshot = createWeaponSnapshotFromItem(equippedWeapon);
 
-    console.log('[Attack] Player attacking enemy:', {
+    const result = resolveAttack({
+      attacker: playerCombatant,
+      defender: { ...enemyCombatant, currentLife: currentEnemy.health },
+      weapon: weaponSnapshot,
+      flatDamageBonus,
+      percentDamageBonus: 0,
+    });
+
+    const playerDamage = result.damageFinal;
+    const isCrit = result.crit;
+    const newEnemyHealth = result.defenderLifeAfter;
+
+    console.log('[Attack] Player attacking enemy with combat engine:', {
       enemyId: currentEnemy.id,
       enemyName: currentEnemy.name,
       enemyHealthBefore: currentEnemy.health,
       playerDamage,
+      isCrit,
     });
 
-    const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
-    console.log('[Attack] Enemy health after hit:', {
-      enemyId: currentEnemy.id,
-      newEnemyHealth,
-    });
     const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
     setCurrentEnemy(enemyAfterHit);
 
-    // Add damage number near enemy world position (fallback to center if unknown)
     const enemyWorld = enemiesInWorld.find(
       (e: Enemy & { id: string; x: number; y: number }) => e.id === currentEnemy.id,
     );
@@ -798,7 +768,6 @@ export function GameProvider({
     const dmgY = enemyWorld ? enemyWorld.y : 220;
     addDamageNumber(playerDamage, dmgX, dmgY, isCrit);
 
-    // Enemy died
     if (newEnemyHealth <= 0) {
       const gainedExp = currentEnemy.experience;
       const gainedGold = currentEnemy.gold;
@@ -810,8 +779,6 @@ export function GameProvider({
       let finalExp = rawExp;
       let leveled = false;
 
-      // Support multiple level-ups at once and only fire the
-      // notification when we actually cross at least one threshold.
       while (finalExp >= expForNextLevel) {
         leveled = true;
         finalExp -= expForNextLevel;
@@ -855,44 +822,37 @@ export function GameProvider({
 
       await updateCharacter(updates);
 
-      // Determine room context for special loot logic
       const room = floorMap?.rooms.find((r: FloorRoom) => r.id === currentRoomId);
       const isBossRoom = room?.type === 'boss';
       const isMimicRoom = room?.type === 'mimic';
 
       let lootDrops: Partial<Item>[] = [];
       if (isBossRoom) {
-        // Boss: multiple guaranteed rare+ drops
         const { generateBossLoot } = await import('../utils/lootLogic');
         lootDrops = generateBossLoot(currentEnemy.level, floor, zoneHeat);
       } else if (isMimicRoom) {
-        // Mimic: magic+ guaranteed, chance second drop
         const { generateMimicLoot } = await import('../utils/lootLogic');
         lootDrops = generateMimicLoot(currentEnemy.level, floor, zoneHeat);
       } else {
-        // Standard single roll
         const single = generateLoot(currentEnemy.level, floor, currentEnemy.rarity, zoneHeat);
         if (single) lootDrops = [single];
       }
 
-      // Filter drops by rarity preferences; if this results in none,
-      // the enemy simply drops nothing (gold/XP only).
       lootDrops = lootDrops.filter((ld) => ld.rarity && !rarityFilter.has(ld.rarity));
 
-      // Affix stats logging
       affixStatsRef.current.total += lootDrops.length;
       affixStatsRef.current.withAffixes += lootDrops.filter((d) => {
         const itemWithAffixes = d as Partial<Item> & { affixes?: Affix[] };
         return itemWithAffixes.affixes && itemWithAffixes.affixes.length > 0;
       }).length;
       if (affixStatsRef.current.total % 20 === 0) {
-        const pct = (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100;
+        const pct =
+          (affixStatsRef.current.withAffixes / affixStatsRef.current.total) * 100;
         console.log(
           `[AffixStats] ${affixStatsRef.current.withAffixes}/${affixStatsRef.current.total} items (${pct.toFixed(1)}% with affixes)`,
         );
       }
 
-      // Insert all drops
       const rows = lootDrops.map((ld) => {
         const itemWithMeta = ld as Partial<Item> & {
           required_level?: number;
@@ -923,7 +883,6 @@ export function GameProvider({
         });
       }
 
-      // Insert all drops with affixes; if "affixes" column missing, retry without affixes
       let insertError: unknown = null;
       let inserted = false;
       let insertedRows: Item[] | null = null;
@@ -942,7 +901,6 @@ export function GameProvider({
         const msg = String(errorObj.message || insertError);
         if (msg.includes('affixes') && msg.includes('column')) {
           const fallbackRows = rows.map((r) => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { affixes, ...rest } = r;
             return rest;
           });
@@ -958,7 +916,9 @@ export function GameProvider({
               '[DB] Affixes column missing — inserted items without affixes. Consider running the migration to add affixes jsonb.',
             );
             console.log(
-              `[Inventory] Added ${fallbackRows.length} item(s): ${fallbackRows.map((r) => r.name).join(', ')}`,
+              `[Inventory] Added ${fallbackRows.length} item(s): ${fallbackRows
+                .map((r) => r.name)
+                .join(', ')}`,
             );
             await loadItems(character.id);
           }
@@ -969,7 +929,6 @@ export function GameProvider({
       } else {
         const addedNames = (insertedRows ?? rows).map((r) => r.name).join(', ');
         console.log(`[Inventory] Added ${rows.length} item(s): ${addedNames}`);
-        // Optimistically add to local state if Supabase returned inserted rows; fall back to reload
         if (insertedRows && insertedRows.length > 0) {
           setItems((prev: Item[]) => [...prev, ...insertedRows!]);
         } else {
@@ -977,7 +936,6 @@ export function GameProvider({
         }
       }
 
-      // Increase zone heat based on enemy rarity
       const heatGainMap: Record<string, number> = {
         normal: 3,
         rare: 8,
@@ -987,7 +945,6 @@ export function GameProvider({
       const gainedHeat = heatGainMap[currentEnemy.rarity] || 3;
       setZoneHeat((prev: number) => Math.min(100, prev + gainedHeat));
 
-      // Mark room cleared after kill; respawns only if revisited (non-boss)
       if (!engagedWorldEnemyId && floorMap && currentRoomId) {
         const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
         if (room) {
@@ -1003,7 +960,6 @@ export function GameProvider({
         enemyId: currentEnemy.id,
         enemyName: currentEnemy.name,
       });
-      // Enemy counter-attack
       setTimeout(() => {
         enemyMeleeAttack();
       }, 500);
@@ -1011,18 +967,19 @@ export function GameProvider({
   };
 
   // Enemy attacks player on a fixed interval while engaged
-  useEffect(() => {
-    if (!currentEnemy) return;
-    const interval = setInterval(() => {
-      setCharacter((prev) => {
-        if (!prev) return prev;
-        const damage = Math.max(1, currentEnemy.damage || 1);
-        const newHealth = Math.max(0, prev.health - damage);
-        return { ...prev, health: newHealth };
-      });
-    }, 1500);
-    return () => clearInterval(interval);
-  }, [currentEnemy]);
+  // useEffect(() => {
+  //   if (!currentEnemy) return;
+  //   const interval = setInterval(() => {
+  //     setCharacter((prev) => {
+  //       if (!prev) return prev;
+  //       const damage = Math.max(1, currentEnemy.damage || 1);
+  //       const newHealth = Math.max(0, prev.health - damage);
+  //       return { ...prev, health: newHealth };
+  //     });
+  //   }, 1500);
+  //   return () => clearInterval(interval);
+  // }, [currentEnemy]);
+  // ^ this old effect block is removed entirely
 
   // --------------- Items / Potions / Shop ---------------
 

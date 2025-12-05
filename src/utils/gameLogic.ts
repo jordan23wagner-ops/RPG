@@ -1112,7 +1112,7 @@ export function generateLoot(
             ? ['Ring', 'Band', 'Signet', 'Loop', 'Seal']
             : type === 'gloves'
               ? ['Gloves', 'Gauntlets', 'Mitts', 'Bracers', 'Wraps']
-            : type === 'belt'
+              : type === 'belt'
                 ? ['Belt', 'Girdle', 'Sash', 'Cinch', 'Cord']
                 : type === 'boots'
                   ? ['Boots', 'Footgear', 'Treads', 'Sabatons', 'Greaves']
