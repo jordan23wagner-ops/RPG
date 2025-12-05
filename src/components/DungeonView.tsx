@@ -166,7 +166,6 @@ export function DungeonView({
     entryLadderPos,
     exitLadderPos,
     onEngageEnemy,
-    onKillCurrentEnemy,
     items,
   } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -364,44 +363,6 @@ export function DungeonView({
   useEffect(() => {
     damageNumbersRef.current = damageNumbers;
   }, [damageNumbers]);
-
-  // Auto-engage nearest alive world enemy when in range and not already in combat
-  useEffect(() => {
-    const ENGAGE_RADIUS = 150;
-    if (enemy || engagedWorldEnemyId) return;
-    if (!enemiesInWorld || enemiesInWorld.length === 0) return;
-
-    const alive = enemiesInWorld.filter(
-      (e: Enemy & { id: string; x: number; y: number }) => !killedEnemyIds.has(e.id),
-    );
-    if (alive.length === 0) return;
-
-    const { x: px, y: py } = playerPosState;
-    let nearest: (Enemy & { id: string; x: number; y: number }) | null = null;
-    let bestDist = Number.POSITIVE_INFINITY;
-    for (const e of alive) {
-      const dx = px - e.x;
-      const dy = py - e.y;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < bestDist) {
-        bestDist = d;
-        nearest = e;
-      }
-    }
-
-    if (nearest && bestDist < ENGAGE_RADIUS) {
-      enemyPosRef.current = { x: nearest.x, y: nearest.y };
-      onEngageEnemy(nearest.id);
-    }
-  }, [
-    playerPosState.x,
-    playerPosState.y,
-    enemiesInWorld,
-    killedEnemyIds,
-    enemy,
-    engagedWorldEnemyId,
-    onEngageEnemy,
-  ]);
 
   useEffect(() => {
     zoneHeatRef.current = zoneHeat;
@@ -1442,19 +1403,59 @@ export function DungeonView({
 
       // Handle attacks separately
       if (e.code === 'Space') {
-        // ❗ Ignore key-repeat when holding Space
+        // Ignore key-repeat when holding Space
         if (e.repeat) return;
 
+        e.preventDefault();
+
+        const playerPos = playerPosRef.current;
+
+        // 1) If we are NOT currently in combat, try to engage the nearest world enemy
+        if (!enemyRef.current || enemyRef.current.health <= 0) {
+          const ENGAGE_RADIUS = ATTACK_RANGE * 1.5;
+
+          if (!enemiesInWorld || enemiesInWorld.length === 0) return;
+
+          const alive = enemiesInWorld.filter(
+            (we: Enemy & { id: string; x: number; y: number }) => !killedEnemyIds.has(we.id),
+          );
+          if (alive.length === 0) return;
+
+          let nearest: (Enemy & { id: string; x: number; y: number }) | null = null;
+          let bestDist = Number.POSITIVE_INFINITY;
+
+          for (const we of alive) {
+            const dx = playerPos.x - we.x;
+            const dy = playerPos.y - we.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < bestDist) {
+              bestDist = d;
+              nearest = we;
+            }
+          }
+
+          if (!nearest || bestDist > ENGAGE_RADIUS) {
+            return; // no enemy close enough to engage
+          }
+
+          // Set initial world position for the engaged enemy
+          enemyPosRef.current = { x: nearest.x, y: nearest.y };
+
+          // Tell the context which world enemy we engaged
+          onEngageEnemy(nearest.id);
+
+          // Don't immediately attack this frame; next SPACE press will attack
+          return;
+        }
+
+        // 2) Already in combat: run the existing attack logic
         const now = Date.now();
         // Only attack if cooldown has elapsed
         if (now < nextAttackTimeRef.current) return;
 
-        e.preventDefault();
-
         const enemy = enemyRef.current;
         if (!enemy || enemy.health <= 0) return;
 
-        const playerPos = playerPosRef.current;
         const enemyPos = enemyPosRef.current;
 
         const distX = playerPos.x - enemyPos.x;
@@ -1530,7 +1531,7 @@ export function DungeonView({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [enemiesInWorld, killedEnemyIds, exitLadderPos, entryLadderPos, onEngageEnemy]);
 
   // ---------- Component render ----------
   return (
@@ -1542,3 +1543,4 @@ export function DungeonView({
     />
   );
 }
+

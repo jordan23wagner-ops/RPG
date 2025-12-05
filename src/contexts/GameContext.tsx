@@ -53,6 +53,7 @@ interface GameContextType {
   setFloorDirect: (target: number) => void;
   exploreRoom: (roomId: string) => void;
   onEngageEnemy: (enemyWorldId: string) => void;
+  engageNearestEnemyAtPosition: (x: number, y: number, radius: number) => void;
   onKillCurrentEnemy: () => void;
   updateCharacter: (updates: Partial<Character>) => Promise<void>;
   sellItem: (itemId: string) => Promise<void>;
@@ -615,8 +616,29 @@ export function GameProvider({
     setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor, worldSpawnVersion, character, zoneHeat]);
+  const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
+    if (!enemiesInWorld.length) return;
+    const alive = enemiesInWorld.filter((e) => !killedEnemyIds.has(e.id));
+    if (!alive.length) return;
+    let nearest: WorldEnemy | null = null;
+    let minDist = Infinity;
+    for (const e of alive) {
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d = Math.hypot(dx, dy);
+      if (d < minDist) {
+        minDist = d;
+        nearest = e;
+      }
+    }
+    if (!nearest || minDist > radius) return;
+    setEngagedWorldEnemyId(nearest.id);
+    const { x: _x, y: _y, ...enemyData } = nearest;
+    setCurrentEnemy(enemyData as Enemy);
+  };
+
   const onEngageEnemy = (enemyWorldId: string) => {
-    const found = enemiesInWorld.find((e: WorldEnemy) => e.id === enemyWorldId);
+    const found = enemiesInWorld.find((e) => e.id === enemyWorldId);
     if (!found) return;
     setEngagedWorldEnemyId(enemyWorldId);
     const { x: _x, y: _y, ...enemyData } = found;
@@ -1387,6 +1409,7 @@ export function GameProvider({
         setFloorDirect,
         exploreRoom,
         onEngageEnemy,
+        engageNearestEnemyAtPosition,
         onKillCurrentEnemy,
         updateCharacter,
         sellItem,
