@@ -714,6 +714,12 @@ export function GameProvider({
   };
 
   const attack = async () => {
+    console.log('[DEBUG] attack() called', {
+      characterExists: !!character,
+      enemyExists: !!currentEnemy,
+      enemyHP: currentEnemy?.health,
+    });
+
     if (!character || !currentEnemy) {
       console.log('[Attack] aborted: missing character or currentEnemy.', {
         hasCharacter: !!character,

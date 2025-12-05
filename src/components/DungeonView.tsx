@@ -1442,50 +1442,20 @@ export function DungeonView({
       keysPressed.current[e.key] = true;
 
       // Handle attacks separately
-if (e.code === 'Space') {
-  // Ignore key-repeat when holding Space
-  if (e.repeat) return;
+      if (e.code === 'Space') {
+        // Ignore key-repeat when holding Space
+        if (e.repeat) return;
 
-  e.preventDefault();
+        e.preventDefault();
 
-  const playerPos = playerPosRef.current;
+        // Dev-simple: if we have a currentEnemy, just call attack().
+        // No world-enemy engagement, no distance checks.
+        if (currentEnemy) {
+          onAttackRef.current?.();
+        }
 
-  // 1) If we are NOT currently in combat, try to engage the nearest world enemy
-  if (!currentEnemy) {
-    // Use a reasonable engage radius; you can tweak this
-    const ENGAGE_RADIUS = ATTACK_RANGE * 1.5; // or a fixed value like 200
-
-    engageNearestEnemyAtPosition(playerPos.x, playerPos.y, ENGAGE_RADIUS);
-
-    // After engaging, don't immediately try to attack in the same keypress.
-    // The next SPACE press will run the attack logic below.
-    return;
-  }
-
-  // 2) Already in combat: run the existing attack logic
-
-  const now = Date.now();
-  // Only attack if cooldown has elapsed
-  if (now < nextAttackTimeRef.current) return;
-
-  const enemy = enemyRef.current;
-  if (!enemy || enemy.health <= 0) return;
-
-  const enemyPos = enemyPosRef.current;
-
-  const distX = playerPos.x - enemyPos.x;
-  const distY = playerPos.y - enemyPos.y;
-  const distance = Math.sqrt(distX * distX + distY * distY);
-
-  // Only attack if you're actually in melee range
-  if (distance < ATTACK_RANGE) {
-    nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
-    onAttackRef.current();
-  }
-
-  // Don’t do anything else for Space
-  return;
-}
+        return;
+      }
 
       // Toggle minimap with 'm' or 'M'
       if (e.key === 'm' || e.key === 'M') {
