@@ -148,7 +148,6 @@ interface DungeonViewProps {
   onAttack: () => void;
   damageNumbers: DamageNumber[];
   character?: Character | null;
-  zoneHeat?: number;
 }
 
 export function DungeonView({
@@ -157,7 +156,6 @@ export function DungeonView({
   onAttack,
   damageNumbers,
   character,
-  zoneHeat,
 }: DungeonViewProps) {
   const {
     enemiesInWorld,
@@ -181,7 +179,6 @@ export function DungeonView({
     (e: Enemy & { id: string }) => !killedEnemyIds.has(e.id) && e.id !== engagedWorldEnemyId,
   );
 
-  const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
   const ladderDiscoveredRef = useRef<boolean>(false);
 
@@ -245,7 +242,7 @@ export function DungeonView({
     return themes[idx];
   };
 
-  // keep zoneHeat prop in sync (set below via props)
+  // heat mechanic disabled; no zoneHeat tracking
 
   // ========== Constants ==========
   const CANVAS_WIDTH = 800;
@@ -404,9 +401,7 @@ export function DungeonView({
     onEngageEnemy,
   ]);
 
-  useEffect(() => {
-    zoneHeatRef.current = zoneHeat;
-  }, [zoneHeat]);
+  // heat mechanic disabled; no-op
 
   useEffect(() => {
     characterRef.current = character || null;
@@ -1186,7 +1181,7 @@ export function DungeonView({
       // Draw simplified action area: Heat bar + cooldown bar grouped at bottom center
       const padding = 18;
       const barHeight = 12;
-      const heatPercent = Math.max(0, Math.min(100, zoneHeatRef.current || 0));
+      const heatPercent = 0;
       const groupWidth = 300;
       const groupX = Math.round(CANVAS_WIDTH / 2 - groupWidth / 2);
       const groupY = CANVAS_HEIGHT - padding - barHeight * 2 - 28; // allow space for two bars + label

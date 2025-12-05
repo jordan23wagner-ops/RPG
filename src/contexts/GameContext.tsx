@@ -75,7 +75,7 @@ interface GameContextType {
   exitLadderPos: { x: number; y: number } | null;
   loading: boolean;
   damageNumbers: DamageNumber[];
-  zoneHeat: number;
+  zoneHeat: number; // legacy; kept for type compatibility but no-op
   rarityFilter: Set<string>;
   killedEnemyIds: Set<string>;
   respawnWorldEnemies: () => void;
@@ -132,7 +132,7 @@ export function GameProvider({
   const [exitLadderPos, setExitLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
-  const [zoneHeat, setZoneHeat] = useState<number>(0); // 0..100
+  const [zoneHeat, setZoneHeat] = useState<number>(0); // heat disabled; always 0
   const [rarityFilter, setRarityFilter] = useState<Set<string>>(new Set()); // rarities to exclude from pickup
   const [merchantInventory, setMerchantInventory] = useState<Partial<Item>[]>([]);
   const [worldSpawnVersion, setWorldSpawnVersion] = useState(0); // bump to force respawn of world mobs
@@ -376,15 +376,17 @@ export function GameProvider({
     }
   };
 
-  const increaseZoneHeat = (amount: number = 5) => {
-    setZoneHeat((prev: number) => Math.min(100, (prev || 0) + amount));
+  const increaseZoneHeat = (_amount: number = 5) => {
+    // heat disabled: no-op
+    setZoneHeat(0);
   };
   const resetZoneHeat = () => setZoneHeat(0);
 
   // Gradual decay: heat reduces over time to encourage active play to keep it high
   useEffect(() => {
     const interval = setInterval(() => {
-      setZoneHeat((prev: number) => Math.max(0, (prev || 0) - 1));
+      // heat disabled: keep at 0
+      setZoneHeat(0);
     }, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -883,12 +885,12 @@ export function GameProvider({
       let lootDrops: Partial<Item>[] = [];
       if (isBossRoom) {
         const { generateBossLoot } = await import('../utils/lootLogic');
-        lootDrops = generateBossLoot(currentEnemy.level, floor, zoneHeat);
+        lootDrops = generateBossLoot(currentEnemy.level, floor, 0);
       } else if (isMimicRoom) {
         const { generateMimicLoot } = await import('../utils/lootLogic');
-        lootDrops = generateMimicLoot(currentEnemy.level, floor, zoneHeat);
+        lootDrops = generateMimicLoot(currentEnemy.level, floor, 0);
       } else {
-        const single = generateLoot(currentEnemy.level, floor, currentEnemy.rarity, zoneHeat);
+        const single = generateLoot(currentEnemy.level, floor, currentEnemy.rarity, 0);
         if (single) lootDrops = [single];
       }
 
@@ -990,14 +992,8 @@ export function GameProvider({
         }
       }
 
-      const heatGainMap: Record<string, number> = {
-        normal: 3,
-        rare: 8,
-        elite: 15,
-        boss: 30,
-      };
-      const gainedHeat = heatGainMap[currentEnemy.rarity] || 3;
-      setZoneHeat((prev: number) => Math.min(100, prev + gainedHeat));
+      // heat disabled: do not change zoneHeat
+      setZoneHeat(0);
 
       if (!engagedWorldEnemyId && floorMap && currentRoomId) {
         const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
