@@ -183,7 +183,6 @@ export function DungeonView({
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
   const ladderDiscoveredRef = useRef<boolean>(false);
-  const currentlyEngagedIdRef = useRef<string | null>(null);
 
   // Floor theme palette helper
   const getFloorTheme = (f: number) => {
@@ -363,22 +362,12 @@ export function DungeonView({
   }, [onAttack]);
 
   useEffect(() => {
-    // Track current enemy engagement status
-    if (enemy) {
-      currentlyEngagedIdRef.current = enemy.id || null;
-    } else {
-      currentlyEngagedIdRef.current = null;
-    }
-  }, [enemy]);
-
-  useEffect(() => {
     damageNumbersRef.current = damageNumbers;
   }, [damageNumbers]);
 
   // Auto-engage nearest alive world enemy when in range and not already in combat
   useEffect(() => {
-    const ENGAGE_RADIUS = 140;
-    if (!hasSpawnedThisFloorRef.current) return;
+    const ENGAGE_RADIUS = 150;
     if (enemy || engagedWorldEnemyId) return;
     if (!enemiesInWorld || enemiesInWorld.length === 0) return;
 
@@ -404,7 +393,6 @@ export function DungeonView({
       enemyPosRef.current = { x: nearest.x, y: nearest.y };
       onEngageEnemy(nearest.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     playerPosState.x,
     playerPosState.y,
@@ -413,7 +401,6 @@ export function DungeonView({
     enemy,
     engagedWorldEnemyId,
     onEngageEnemy,
-    floor,
   ]);
 
   useEffect(() => {

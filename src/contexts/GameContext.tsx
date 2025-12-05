@@ -1002,6 +1002,20 @@ export function GameProvider({
     }
   };
 
+  // Enemy attacks player on a fixed interval while engaged
+  useEffect(() => {
+    if (!currentEnemy) return;
+    const interval = setInterval(() => {
+      setCharacter((prev) => {
+        if (!prev) return prev;
+        const damage = Math.max(1, currentEnemy.damage || 1);
+        const newHealth = Math.max(0, prev.health - damage);
+        return { ...prev, health: newHealth };
+      });
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [currentEnemy]);
+
   // --------------- Items / Potions / Shop ---------------
 
   const consumePotion = async (itemId: string) => {
