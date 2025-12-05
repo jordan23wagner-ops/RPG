@@ -44,6 +44,7 @@ interface GameContextType {
   createCharacter: (name: string) => Promise<void>;
   loadCharacter: () => Promise<void>;
   attack: () => Promise<void>;
+  enemyMeleeAttack: () => void;
   consumePotion: (itemId: string) => Promise<void>;
   equipItem: (itemId: string) => Promise<void>;
   equipAll: () => Promise<void>;
@@ -742,6 +743,32 @@ export function GameProvider({
 
   // --------------- Combat / Loot ---------------
 
+  const enemyMeleeAttack = () => {
+    if (!character || !currentEnemy) return;
+
+    const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
+
+    const totalArmor = items
+      .filter((i: Item) => i.equipped && i.armor)
+      .reduce((sum: number, i: Item) => sum + (i.armor || 0), 0);
+
+    const setBonusDef = computeSetBonuses(items.filter((i: Item) => i.equipped));
+    const effectiveArmor = totalArmor + setBonusDef.armor;
+
+    const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
+    const newHealth = Math.max(0, character.health - actualDamage);
+
+    if (newHealth <= 0) {
+      updateCharacter({
+        health: character.max_health,
+        gold: Math.floor(character.gold * 0.5),
+      });
+      setCurrentEnemy(null);
+    } else {
+      updateCharacter({ health: newHealth });
+    }
+  };
+
   const attack = async () => {
     if (!character || !currentEnemy) {
       console.log('[Attack] aborted: missing character or currentEnemy.', {
@@ -1029,52 +1056,7 @@ export function GameProvider({
       });
       // Enemy counter-attack
       setTimeout(() => {
-        if (!character || !currentEnemy) {
-          console.log('[EnemyAttack] aborted: missing character or currentEnemy.', {
-            hasCharacter: !!character,
-            hasEnemy: !!currentEnemy,
-          });
-          return;
-        }
-
-        // Recompute set bonuses for defense. Armor bonuses from sets reduce
-        // damage taken. Damage bonuses from sets do not apply here.
-        const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
-        const totalArmor = items
-          .filter((i: Item) => i.equipped && i.armor)
-          .reduce((sum: number, i: Item) => sum + (i.armor || 0), 0);
-        const setBonusDef = computeSetBonuses(items.filter((i: Item) => i.equipped));
-        const effectiveArmor = totalArmor + setBonusDef.armor;
-        console.log('[EnemyAttack] Raw enemy hit calculation:', {
-          enemyId: currentEnemy.id,
-          enemyName: currentEnemy.name,
-          enemyDamage,
-          effectiveArmor,
-        });
-
-        const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
-        const newHealth = Math.max(0, character.health - actualDamage);
-        console.log('[EnemyAttack] Applying damage to player:', {
-          playerHealthBefore: character.health,
-          actualDamage,
-          playerHealthAfter: newHealth,
-        });
-
-        if (newHealth <= 0) {
-          console.log('[EnemyAttack] Player died. Applying death penalty and resetting HP/gold.');
-          // "death" penalty: lose half gold, restore HP, same floor
-          updateCharacter({
-            health: character.max_health,
-            gold: Math.floor(character.gold * 0.5),
-          });
-          // Don't spawn new enemy; player can explore world to find more
-          setCurrentEnemy(null);
-        } else {
-          console.log('[EnemyAttack] Player survived enemy hit. Updating health only.', {
-            playerHealthAfter: newHealth,
-          });
-          updateCharacter({ health: newHealth });
-        }
+        enemyMeleeAttack();
       }, 500);
     }
   };
@@ -1458,6 +1440,7 @@ export function GameProvider({
         equipAll,
         unequipAll,
         attack,
+        enemyMeleeAttack,
         consumePotion,
         equipItem,
         nextFloor,

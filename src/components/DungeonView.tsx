@@ -146,6 +146,7 @@ interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
   onAttack: () => void;
+  onEnemyMeleeAttack: () => void;
   damageNumbers: DamageNumber[];
   character?: Character | null;
   zoneHeat?: number;
@@ -155,6 +156,7 @@ export function DungeonView({
   enemy,
   floor,
   onAttack,
+  onEnemyMeleeAttack,
   damageNumbers,
   character,
   zoneHeat,
@@ -254,6 +256,8 @@ export function DungeonView({
   const MAX_CHASE_DISTANCE = 450;
   const ENEMY_SPEED = 2.2;
   const ATTACK_RANGE = 120;
+  const ENEMY_ATTACK_RANGE = 120;
+  const ENEMY_ATTACK_COOLDOWN_MS = 1200;
   const MIN_PLAYER_ENEMY_DISTANCE = 10; // Prevents overlap
   // Town gate world position (near initial spawn)
   const TOWN_GATE_POS = { x: 340, y: 450 };
@@ -275,6 +279,7 @@ export function DungeonView({
 
   // Attack cooldown tracking (stores next allowed attack time in ms)
   const nextAttackTimeRef = useRef(Date.now());
+  const enemyAttackCooldownRef = useRef<number>(0);
 
   // Keep latest props in refs so effects don't depend on them (prevents unnecessary re-runs)
   const enemyRef = useRef<Enemy | null>(enemy);
@@ -1281,6 +1286,24 @@ export function DungeonView({
       });
 
       // (Removed legacy separate cooldown bar; unified in action panel.)
+
+      // Enemy melee AI: if enemy is close to the player, auto-attack on a cooldown
+      const enemyForAI = enemyRef.current;
+      if (enemyForAI && enemyForAI.health > 0) {
+        const nowAI = Date.now();
+        if (nowAI >= enemyAttackCooldownRef.current) {
+          const playerPosAI = playerPosRef.current;
+          const enemyPosAI = enemyPosRef.current;
+          const dxAI = playerPosAI.x - enemyPosAI.x;
+          const dyAI = playerPosAI.y - enemyPosAI.y;
+          const distanceAI = Math.sqrt(dxAI * dxAI + dyAI * dyAI);
+
+          if (distanceAI < ENEMY_ATTACK_RANGE) {
+            enemyAttackCooldownRef.current = nowAI + ENEMY_ATTACK_COOLDOWN_MS;
+            onEnemyMeleeAttack();
+          }
+        }
+      }
 
       animationFrameId = requestAnimationFrame(render);
     };
