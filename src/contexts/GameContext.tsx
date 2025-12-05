@@ -642,6 +642,13 @@ export function GameProvider({
     if (!found) return;
     setEngagedWorldEnemyId(enemyWorldId);
     const { x: _x, y: _y, ...enemyData } = found;
+    console.log('[Engage] Setting currentEnemy to world enemy:', {
+      id: enemyData.id,
+      name: enemyData.name,
+      level: enemyData.level,
+      health: enemyData.health,
+      max_health: enemyData.max_health,
+    });
     setCurrentEnemy(enemyData as Enemy);
   };
 
@@ -736,7 +743,13 @@ export function GameProvider({
   // --------------- Combat / Loot ---------------
 
   const attack = async () => {
-    if (!character || !currentEnemy) return;
+    if (!character || !currentEnemy) {
+      console.log('[Attack] aborted: missing character or currentEnemy.', {
+        hasCharacter: !!character,
+        hasEnemy: !!currentEnemy,
+      });
+      return;
+    }
 
     const equippedWeapon = items.find(
       (i: Item) =>
@@ -786,7 +799,18 @@ export function GameProvider({
       (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier,
     );
 
+    console.log('[Attack] Player attacking enemy:', {
+      enemyId: currentEnemy.id,
+      enemyName: currentEnemy.name,
+      enemyHealthBefore: currentEnemy.health,
+      playerDamage,
+    });
+
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
+    console.log('[Attack] Enemy health after hit:', {
+      enemyId: currentEnemy.id,
+      newEnemyHealth,
+    });
     const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
     setCurrentEnemy(enemyAfterHit);
 
@@ -818,6 +842,12 @@ export function GameProvider({
         newLevel += 1;
       }
 
+      console.log('[Attack] Enemy died:', {
+        enemyId: currentEnemy.id,
+        enemyName: currentEnemy.name,
+        gainedExp,
+        gainedGold,
+      });
       console.log(
         `[XP] Gained ${gainedExp} from ${currentEnemy.name}. Before=${character.experience}/${expForNextLevel}, raw=${rawExp}, final=${finalExp}, leveled=${leveled}`,
       );
@@ -993,9 +1023,19 @@ export function GameProvider({
         onKillCurrentEnemy();
       }
     } else {
+      console.log('[Attack] Enemy survived. Scheduling counter-attack in 500ms.', {
+        enemyId: currentEnemy.id,
+        enemyName: currentEnemy.name,
+      });
       // Enemy counter-attack
       setTimeout(() => {
-        if (!character || !currentEnemy) return;
+        if (!character || !currentEnemy) {
+          console.log('[EnemyAttack] aborted: missing character or currentEnemy.', {
+            hasCharacter: !!character,
+            hasEnemy: !!currentEnemy,
+          });
+          return;
+        }
 
         // Recompute set bonuses for defense. Armor bonuses from sets reduce
         // damage taken. Damage bonuses from sets do not apply here.
@@ -1005,11 +1045,23 @@ export function GameProvider({
           .reduce((sum: number, i: Item) => sum + (i.armor || 0), 0);
         const setBonusDef = computeSetBonuses(items.filter((i: Item) => i.equipped));
         const effectiveArmor = totalArmor + setBonusDef.armor;
+        console.log('[EnemyAttack] Raw enemy hit calculation:', {
+          enemyId: currentEnemy.id,
+          enemyName: currentEnemy.name,
+          enemyDamage,
+          effectiveArmor,
+        });
 
         const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
         const newHealth = Math.max(0, character.health - actualDamage);
+        console.log('[EnemyAttack] Applying damage to player:', {
+          playerHealthBefore: character.health,
+          actualDamage,
+          playerHealthAfter: newHealth,
+        });
 
         if (newHealth <= 0) {
+          console.log('[EnemyAttack] Player died. Applying death penalty and resetting HP/gold.');
           // "death" penalty: lose half gold, restore HP, same floor
           updateCharacter({
             health: character.max_health,
@@ -1018,6 +1070,9 @@ export function GameProvider({
           // Don't spawn new enemy; player can explore world to find more
           setCurrentEnemy(null);
         } else {
+          console.log('[EnemyAttack] Player survived enemy hit. Updating health only.', {
+            playerHealthAfter: newHealth,
+          });
           updateCharacter({ health: newHealth });
         }
       }, 500);

@@ -1398,6 +1398,7 @@ export function DungeonView({
   // ---------- Keyboard handlers ----------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('[KeyDown]', e.code, 'repeat=', e.repeat);
       // Track movement keys
       keysPressed.current[e.key] = true;
 
@@ -1406,12 +1407,21 @@ export function DungeonView({
         // Ignore key-repeat when holding Space
         if (e.repeat) return;
 
+        console.log('[Space] pressed, checking cooldown. now=', Date.now(), 'nextAttackTime=', nextAttackTimeRef.current);
         e.preventDefault();
+
+        const enemy = enemyRef.current;
+        console.log('[Space] enemyRef snapshot:', {
+          hasEnemy: !!enemy,
+          enemyHealth: enemy ? enemy.health : null,
+          enemyId: enemy ? enemy.id : null,
+        });
 
         const playerPos = playerPosRef.current;
 
         // 1) If we are NOT currently in combat, try to engage the nearest world enemy
-        if (!enemyRef.current || enemyRef.current.health <= 0) {
+        if (!enemy || enemy.health <= 0) {
+          console.log('[Space] No valid enemy in enemyRef (null or dead). Aborting attack.');
           const ENGAGE_RADIUS = ATTACK_RANGE * 1.5;
 
           if (!enemiesInWorld || enemiesInWorld.length === 0) return;
@@ -1450,10 +1460,10 @@ export function DungeonView({
 
         // 2) Already in combat: run the existing attack logic
         const now = Date.now();
+        console.log('[Space] now=', now, 'nextAttackTime=', nextAttackTimeRef.current);
         // Only attack if cooldown has elapsed
         if (now < nextAttackTimeRef.current) return;
 
-        const enemy = enemyRef.current;
         if (!enemy || enemy.health <= 0) return;
 
         const enemyPos = enemyPosRef.current;
@@ -1462,8 +1472,21 @@ export function DungeonView({
         const distY = playerPos.y - enemyPos.y;
         const distance = Math.sqrt(distX * distX + distY * distY);
 
+        console.log('[Space] attack distance check:', {
+          playerPos,
+          enemyPos,
+          distance,
+          ATTACK_RANGE,
+        });
+
         // Only attack if you're actually in melee range
         if (distance < ATTACK_RANGE) {
+          console.log('[Space] ATTACKING enemy via onAttackRef.current()', {
+            now,
+            nextAttackTimeBefore: nextAttackTimeRef.current,
+            attackRange: ATTACK_RANGE,
+            distance,
+          });
           nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
           onAttackRef.current();
         }
