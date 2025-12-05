@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase, SUPABASE_AVAILABLE } from '../lib/supabase';
-import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
+import { Character, Item, Enemy, WorldEnemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
 import { generateEnemyVariant } from '../utils/gameLogic';
 import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '../utils/gameLogic';
 
@@ -28,7 +28,7 @@ interface GameContextType {
   floor: number;
   floorMap: FloorMap | null;
   currentRoomId: string | null;
-  enemiesInWorld: Array<Enemy & { id: string; x: number; y: number }>;
+  enemiesInWorld: WorldEnemy[];
   engagedWorldEnemyId: string | null;
   entryLadderPos: { x: number; y: number } | null;
   exitLadderPos: { x: number; y: number } | null;
@@ -37,7 +37,6 @@ interface GameContextType {
   zoneHeat: number;
   rarityFilter: Set<string>;
   killedEnemyIds: Set<string>;
-  killedWorldEnemiesRef: React.MutableRefObject<Map<number, Set<string>>>;
   respawnWorldEnemies: () => void;
   increaseZoneHeat: (amount?: number) => void;
   resetZoneHeat: () => void;
@@ -54,6 +53,7 @@ interface GameContextType {
   setFloorDirect: (target: number) => void;
   exploreRoom: (roomId: string) => void;
   onEngageEnemy: (enemyWorldId: string) => void;
+  onKillCurrentEnemy: () => void;
   updateCharacter: (updates: Partial<Character>) => Promise<void>;
   sellItem: (itemId: string) => Promise<void>;
   sellAllItems: () => Promise<void>;
@@ -83,9 +83,7 @@ export function GameProvider({
   const [floor, setFloor] = useState(1);
   const [floorMap, setFloorMap] = useState<FloorMap | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
-  const [enemiesInWorld, setEnemiesInWorld] = useState<
-    Array<Enemy & { id: string; x: number; y: number }>
-  >([]);
+  const [enemiesInWorld, setEnemiesInWorld] = useState<WorldEnemy[]>([]);
   const [killedEnemyIds, setKilledEnemyIds] = useState<Set<string>>(new Set());
   const [entryLadderPos, setEntryLadderPos] = useState<{ x: number; y: number } | null>(null);
   const [exitLadderPos, setExitLadderPos] = useState<{ x: number; y: number } | null>(null);
@@ -102,13 +100,6 @@ export function GameProvider({
     total: 0,
     withAffixes: 0,
   });
-  // Track killed world enemies per floor to prevent respawning
-  const killedWorldEnemiesRef = useRef<Map<number, Set<string>>>(new Map());
-  // Track the last engaged world enemy id to mark as killed on death
-  const lastEngagedWorldEnemyIdRef = useRef<string | null>(null);
-  // Flag indicating current combat originated from a world enemy (not a room)
-  const inWorldCombatRef = useRef<boolean>(false);
-  const engagedWorldEnemyIdRef = useRef<string | null>(null);
   const previousExitLadderPosRef = useRef<{ x: number; y: number } | null>(null);
   const initializedFloorRef = useRef<number | null>(null);
   const resetAffixStats = () => {
@@ -118,10 +109,10 @@ export function GameProvider({
 
   const respawnWorldEnemies = () => {
     // Clear kill markers and bump version to force re-roll of world mobs
-    killedWorldEnemiesRef.current.set(floor, new Set<string>());
     setKilledEnemyIds(new Set());
-    // Keep spawn version stable so packs retain their composition after respawn
-    // and simply become active again when markers are cleared.
+    setEngagedWorldEnemyId(null);
+    setCurrentEnemy(null);
+    setWorldSpawnVersion((v) => v + 1);
   };
 
   const toggleRarityFilter = (rarity: string) => {
@@ -578,106 +569,37 @@ export function GameProvider({
     initializedFloorRef.current = floor;
 
     initFloorIfNeeded();
-    // Generate world enemies and ladder position per floor
     const WORLD_WIDTH = 4000;
     const WORLD_HEIGHT = 3000;
-    const spawn = { x: 400, y: 450 };
-    const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
-      Math.hypot(a.x - b.x, a.y - b.y);
-    const minDistFromSpawn = 300;
-    const groupCountBase = 6 + Math.floor(seededRandom(worldSpawnVersion + 777) * 2); // 6-7 groups
-    const groupCount = Math.max(6, Math.min(10, groupCountBase + Math.floor(floor / 6)));
-    const arr: Array<Enemy & { id: string; x: number; y: number }> = [];
-    const groupCenters: { x: number; y: number }[] = [];
-    // Get or initialize killed enemies for this floor
-    if (!killedWorldEnemiesRef.current.has(floor)) {
-      killedWorldEnemiesRef.current.set(floor, new Set<string>());
-    }
-    const killedSet = killedWorldEnemiesRef.current.get(floor)!;
-    setKilledEnemyIds(new Set(killedSet)); // Sync state with ref
-    for (let g = 0; g < groupCount; g++) {
-      const groupSeed = floor * 5000 + g * 137 + worldSpawnVersion * 100000;
-      let center = {
-        x: Math.floor(seededRandom(groupSeed) * WORLD_WIDTH),
-        y: Math.floor(seededRandom(groupSeed + 1234) * WORLD_HEIGHT),
-      };
-      let guardCenter = 0;
-      // Keep groups away from spawn and from each other
-      while (
-        (dist(center, spawn) < minDistFromSpawn + 120 ||
-          groupCenters.some((c) => dist(c, center) < 280)) &&
-        guardCenter < 80
-      ) {
-        center = {
-          x: Math.floor(seededRandom(groupSeed + guardCenter * 17) * WORLD_WIDTH),
-          y: Math.floor(seededRandom(groupSeed + guardCenter * 17 + 321) * WORLD_HEIGHT),
-        };
-        guardCenter++;
-      }
-      groupCenters.push(center);
+    const groupCount = 6 + Math.floor(Math.random() * 5); // 6–10 groups
+    const next: WorldEnemy[] = [];
 
-      const members = 3 + Math.floor(seededRandom(groupSeed + 222) * 3); // 3-5 per group
-      const eliteChance = 0.25 + Math.min(0.2, floor * 0.02); // 25% base, scales slightly with depth
-      const eliteIndex = seededRandom(groupSeed + 999) < eliteChance ? Math.floor(seededRandom(groupSeed + 888) * members) : -1;
-      const depthFactor = Math.min(1, floor / 10); // 0..1 by floor 10
+    for (let g = 0; g < groupCount; g++) {
+      const cx = Math.floor(Math.random() * WORLD_WIDTH);
+      const cy = Math.floor(Math.random() * WORLD_HEIGHT);
+      const members = 3 + Math.floor(Math.random() * 3); // 3–5 per group
 
       for (let m = 0; m < members; m++) {
-        const seed = groupSeed + m * 100;
-        const jitterR = 60 + seededRandom(seed) * 80;
-        const jitterA = seededRandom(seed + 55) * Math.PI * 2;
-        const pos = {
-          x: Math.floor(center.x + Math.cos(jitterA) * jitterR),
-          y: Math.floor(center.y + Math.sin(jitterA) * jitterR),
-        };
-
-        // Pick enemy type with deterministic roll
-        const roll = seededRandom(seed + 1000);
-        let type: RoomEventType = 'enemy';
-        const mimicThreshold = 0.005 + depthFactor * 0.01; // up to 1.5%
-        const miniBossSpread = 0.015 + depthFactor * 0.04; // up to ~5.5%
-        const rareSpread = 0.14 + depthFactor * 0.16; // 14% -> 30%
-
-        if (roll < mimicThreshold) type = 'mimic';
-        else if (roll < mimicThreshold + miniBossSpread) {
-          type = 'miniBoss';
-        } else if (roll < mimicThreshold + miniBossSpread + rareSpread) type = 'rareEnemy';
-
-        let e = generateEnemyVariant(type, floor, character?.level || 1, zoneHeat);
-        const isElite = m === eliteIndex && type === 'enemy';
-        if (isElite) {
-          e = {
-            ...e,
-            name: `Elite ${e.name}`,
-            health: Math.floor(e.health * 1.8),
-            max_health: Math.floor(e.max_health * 1.8),
-            damage: Math.floor(e.damage * 1.6),
-            experience: Math.floor(e.experience * 1.4),
-            gold: Math.floor(e.gold * 1.5),
-            rarity: 'elite',
-          };
-        }
-
-        // Use sequential ID that's unique per group/member/version
-        const enemyId = `floor${floor}-g${g}-m${m}-v${worldSpawnVersion}`;
-        if (!killedSet.has(enemyId)) {
-          arr.push({ ...e, id: enemyId, x: pos.x, y: pos.y });
-          if (DEBUG_WORLD_ENEMIES) {
-            console.log(
-              `[WorldGen] Spawned ${enemyId} type=${type}${isElite ? ' (elite)' : ''} lvl=${e.level} hp=${e.health}`,
-            );
-          }
-        } else if (DEBUG_WORLD_ENEMIES) {
-          console.log(`[WorldGen] Skipped previously killed ${enemyId}`);
-        }
+        const jitterR = 60 + Math.random() * 80;
+        const jitterA = Math.random() * Math.PI * 2;
+        const x = Math.floor(cx + Math.cos(jitterA) * jitterR);
+        const y = Math.floor(cy + Math.sin(jitterA) * jitterR);
+        const enemy = generateEnemyVariant('enemy', floor, character?.level || 1, zoneHeat);
+        next.push({
+          ...enemy,
+          id: `floor${floor}-g${g}-m${m}-v${worldSpawnVersion}`,
+          x,
+          y,
+        });
       }
     }
-    setEnemiesInWorld(arr);
+
+    setEnemiesInWorld(next);
     if (DEBUG_WORLD_ENEMIES) {
-      console.log(
-        `[WorldGen] Floor ${floor} active enemies=${arr.length}; killedSoFar=${killedSet.size}; enemyIds=${arr.map((e) => e.id).join(', ')}`,
-      );
+      console.log(`[WorldGen] Spawned ${next.length} world enemies`);
     }
     // Entry ladder: previous floor's exit (if any) or none on floor 1
+    const spawn = { x: 400, y: 450 };
     if (previousExitLadderPosRef.current && floor > 1) {
       setEntryLadderPos(previousExitLadderPosRef.current);
     } else if (floor === 1) {
@@ -685,48 +607,32 @@ export function GameProvider({
     } else {
       setEntryLadderPos(spawn);
     }
-    // Exit ladder must be far from entry (or spawn if no entry)
-    const reference =
-      previousExitLadderPosRef.current && floor > 1 ? previousExitLadderPosRef.current : spawn;
-    let exitLadder = {
+    // Exit ladder placement
+    const exitLadder = {
       x: Math.floor(Math.random() * WORLD_WIDTH),
       y: Math.floor(Math.random() * WORLD_HEIGHT),
     };
-    let guardL = 0;
-    const MIN_DIST_FROM_ENTRY = 600;
-    while (dist(exitLadder, reference) < MIN_DIST_FROM_ENTRY && guardL < 150) {
-      exitLadder = {
-        x: Math.floor(seededRandom(worldSpawnVersion + guardL * 3) * WORLD_WIDTH),
-        y: Math.floor(seededRandom(worldSpawnVersion + guardL * 3 + 500) * WORLD_HEIGHT),
-      };
-      guardL++;
-    }
     setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor, worldSpawnVersion, character, zoneHeat]);
   const onEngageEnemy = (enemyWorldId: string) => {
-    const found = enemiesInWorld.find(
-      (e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId,
-    );
+    const found = enemiesInWorld.find((e: WorldEnemy) => e.id === enemyWorldId);
     if (!found) return;
-    // Mark this enemy as killed for current floor
-    const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
-    // Don't mark as killed yet; store ID and mark on actual death to be precise
-    lastEngagedWorldEnemyIdRef.current = enemyWorldId;
-    engagedWorldEnemyIdRef.current = enemyWorldId;
     setEngagedWorldEnemyId(enemyWorldId);
-    killedWorldEnemiesRef.current.set(floor, killedSet);
-    inWorldCombatRef.current = true;
-    if (DEBUG_WORLD_ENEMIES) {
-      console.log(
-        `[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`,
-      );
-    }
-    // Set currentEnemy with full enemy data (keep type/rarity/etc.) but drop world coords
-    const { x: _x, y: _y, ...enemyData } = found as Enemy & { x: number; y: number };
-    console.log(`[Engage] Setting currentEnemy:`, enemyData);
+    const { x: _x, y: _y, ...enemyData } = found;
     setCurrentEnemy(enemyData as Enemy);
-    // Don't remove from enemiesInWorld - let rendering filter it out based on engagement status
+  };
+
+  const onKillCurrentEnemy = () => {
+    if (!currentEnemy || !engagedWorldEnemyId) return;
+    setKilledEnemyIds((prev) => {
+      const next = new Set(prev);
+      next.add(engagedWorldEnemyId);
+      return next;
+    });
+    setEnemiesInWorld((prev) => prev.filter((e) => e.id !== engagedWorldEnemyId));
+    setEngagedWorldEnemyId(null);
+    setCurrentEnemy(null);
   };
 
   const exploreRoom = (roomId: string) => {
@@ -734,8 +640,6 @@ export function GameProvider({
     const room = floorMap.rooms.find((r: FloorRoom) => r.id === roomId);
     if (!room) return;
     setCurrentRoomId(roomId);
-    // Room exploration resets world combat flag
-    inWorldCombatRef.current = false;
     if (!room.explored) {
       room.explored = true;
     }
@@ -1056,8 +960,7 @@ export function GameProvider({
       setZoneHeat((prev: number) => Math.min(100, prev + gainedHeat));
 
       // Mark room cleared after kill; respawns only if revisited (non-boss)
-      // Distinguish between room combat and world combat explicitly
-      if (!inWorldCombatRef.current && floorMap && currentRoomId) {
+      if (!engagedWorldEnemyId && floorMap && currentRoomId) {
         const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
         if (room) {
           room.cleared = true;
@@ -1065,30 +968,7 @@ export function GameProvider({
         }
         setCurrentEnemy(null);
       } else {
-        // World encounter finished: mark last engaged world enemy as killed to prevent respawn
-        const lastId = lastEngagedWorldEnemyIdRef.current || currentEnemy.id;
-        if (lastId) {
-          const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
-          killedSet.add(lastId);
-          killedWorldEnemiesRef.current.set(floor, killedSet);
-          const newKilledIds = new Set(killedSet);
-          setKilledEnemyIds(newKilledIds); // Update state for rendering
-          // Actively prune the killed world enemy from the active list to avoid visual respawns
-          setEnemiesInWorld((prev) =>
-            prev.filter((ew: Enemy & { id: string }) => ew.id !== lastId),
-          );
-          console.log(`[Kill] Updating killedEnemyIds state:`, Array.from(newKilledIds));
-          lastEngagedWorldEnemyIdRef.current = null;
-          if (DEBUG_WORLD_ENEMIES) {
-            console.log(
-              `[Kill] World enemy ${lastId} marked killed; killedCount=${killedSet.size}`,
-            );
-          }
-        }
-        inWorldCombatRef.current = false;
-        engagedWorldEnemyIdRef.current = null;
-        setEngagedWorldEnemyId(null);
-        setCurrentEnemy(null);
+        onKillCurrentEnemy();
       }
     } else {
       // Enemy counter-attack
@@ -1472,7 +1352,6 @@ export function GameProvider({
         enemiesInWorld,
         engagedWorldEnemyId,
         killedEnemyIds,
-        killedWorldEnemiesRef,
         respawnWorldEnemies,
         entryLadderPos,
         exitLadderPos,
@@ -1494,6 +1373,7 @@ export function GameProvider({
         setFloorDirect,
         exploreRoom,
         onEngageEnemy,
+        onKillCurrentEnemy,
         updateCharacter,
         sellItem,
         sellAllItems,

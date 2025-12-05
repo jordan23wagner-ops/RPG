@@ -162,6 +162,11 @@ export interface Enemy {
   rarity: 'normal' | 'rare' | 'elite' | 'boss';
 }
 
+export type WorldEnemy = Enemy & {
+  x: number;
+  y: number;
+};
+
 // ---------- Floor Exploration Types ----------
 
 export type RoomEventType =

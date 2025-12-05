@@ -163,10 +163,10 @@ export function DungeonView({
     enemiesInWorld,
     engagedWorldEnemyId,
     killedEnemyIds,
-    killedWorldEnemiesRef,
     entryLadderPos,
     exitLadderPos,
     onEngageEnemy,
+    onKillCurrentEnemy,
     items,
   } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -176,6 +176,9 @@ export function DungeonView({
     x: 400,
     y: 450,
   });
+  const worldEnemiesToRender = enemiesInWorld.filter(
+    (e: Enemy & { id: string }) => !killedEnemyIds.has(e.id) && e.id !== engagedWorldEnemyId,
+  );
 
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
@@ -379,10 +382,8 @@ export function DungeonView({
     if (enemy || engagedWorldEnemyId) return;
     if (!enemiesInWorld || enemiesInWorld.length === 0) return;
 
-    const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
     const alive = enemiesInWorld.filter(
-      (e: Enemy & { id: string; x: number; y: number }) =>
-        !killedSet.has(e.id) && !killedEnemyIds.has(e.id),
+      (e: Enemy & { id: string; x: number; y: number }) => !killedEnemyIds.has(e.id),
     );
     if (alive.length === 0) return;
 
@@ -995,10 +996,9 @@ export function DungeonView({
       // Draw world enemies as markers when not engaged
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
         // Filter out killed enemies and currently engaged enemy using ref for immediate updates
-        const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
         const visibleEnemies = enemiesInWorld.filter(
           (e: Enemy & { id: string; x: number; y: number }) =>
-            !killedSet.has(e.id) && (!engagedWorldEnemyId || e.id !== engagedWorldEnemyId),
+            !killedEnemyIds.has(e.id) && (!engagedWorldEnemyId || e.id !== engagedWorldEnemyId),
         );
 
       if (killedEnemyIds.size > 0) {
