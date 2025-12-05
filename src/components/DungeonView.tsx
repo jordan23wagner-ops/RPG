@@ -146,7 +146,6 @@ interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
   onAttack: () => void;
-  onEnemyMeleeAttack: () => void;
   damageNumbers: DamageNumber[];
   character?: Character | null;
   zoneHeat?: number;
@@ -156,7 +155,6 @@ export function DungeonView({
   enemy,
   floor,
   onAttack,
-  onEnemyMeleeAttack,
   damageNumbers,
   character,
   zoneHeat,
@@ -256,8 +254,6 @@ export function DungeonView({
   const MAX_CHASE_DISTANCE = 450;
   const ENEMY_SPEED = 2.2;
   const ATTACK_RANGE = 120;
-  const ENEMY_ATTACK_RANGE = 120;
-  const ENEMY_ATTACK_COOLDOWN_MS = 1200;
   const MIN_PLAYER_ENEMY_DISTANCE = 10; // Prevents overlap
   // Town gate world position (near initial spawn)
   const TOWN_GATE_POS = { x: 340, y: 450 };
@@ -279,7 +275,6 @@ export function DungeonView({
 
   // Attack cooldown tracking (stores next allowed attack time in ms)
   const nextAttackTimeRef = useRef(Date.now());
-  const enemyAttackCooldownRef = useRef<number>(0);
 
   // Keep latest props in refs so effects don't depend on them (prevents unnecessary re-runs)
   const enemyRef = useRef<Enemy | null>(enemy);
@@ -1287,24 +1282,6 @@ export function DungeonView({
 
       // (Removed legacy separate cooldown bar; unified in action panel.)
 
-      // Enemy melee AI: if enemy is close to the player, auto-attack on a cooldown
-      const enemyForAI = enemyRef.current;
-      if (enemyForAI && enemyForAI.health > 0) {
-        const nowAI = Date.now();
-        if (nowAI >= enemyAttackCooldownRef.current) {
-          const playerPosAI = playerPosRef.current;
-          const enemyPosAI = enemyPosRef.current;
-          const dxAI = playerPosAI.x - enemyPosAI.x;
-          const dyAI = playerPosAI.y - enemyPosAI.y;
-          const distanceAI = Math.sqrt(dxAI * dxAI + dyAI * dyAI);
-
-          if (distanceAI < ENEMY_ATTACK_RANGE) {
-            enemyAttackCooldownRef.current = nowAI + ENEMY_ATTACK_COOLDOWN_MS;
-            onEnemyMeleeAttack();
-          }
-        }
-      }
-
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -1426,97 +1403,12 @@ export function DungeonView({
       keysPressed.current[e.key] = true;
 
       // Handle attacks separately
-      if (e.code === 'Space') {
-        // Ignore key-repeat when holding Space
-        if (e.repeat) return;
-
-        console.log('[Space] pressed, checking cooldown. now=', Date.now(), 'nextAttackTime=', nextAttackTimeRef.current);
-        e.preventDefault();
-
-        const enemy = enemyRef.current;
-        console.log('[Space] enemyRef snapshot:', {
-          hasEnemy: !!enemy,
-          enemyHealth: enemy ? enemy.health : null,
-          enemyId: enemy ? enemy.id : null,
-        });
-
-        const playerPos = playerPosRef.current;
-
-        // 1) If we are NOT currently in combat, try to engage the nearest world enemy
-        if (!enemy || enemy.health <= 0) {
-          console.log('[Space] No valid enemy in enemyRef (null or dead). Aborting attack.');
-          const ENGAGE_RADIUS = ATTACK_RANGE * 1.5;
-
-          if (!enemiesInWorld || enemiesInWorld.length === 0) return;
-
-          const alive = enemiesInWorld.filter(
-            (we: Enemy & { id: string; x: number; y: number }) => !killedEnemyIds.has(we.id),
-          );
-          if (alive.length === 0) return;
-
-          let nearest: (Enemy & { id: string; x: number; y: number }) | null = null;
-          let bestDist = Number.POSITIVE_INFINITY;
-
-          for (const we of alive) {
-            const dx = playerPos.x - we.x;
-            const dy = playerPos.y - we.y;
-            const d = Math.sqrt(dx * dx + dy * dy);
-            if (d < bestDist) {
-              bestDist = d;
-              nearest = we;
-            }
-          }
-
-          if (!nearest || bestDist > ENGAGE_RADIUS) {
-            return; // no enemy close enough to engage
-          }
-
-          // Set initial world position for the engaged enemy
-          enemyPosRef.current = { x: nearest.x, y: nearest.y };
-
-          // Tell the context which world enemy we engaged
-          onEngageEnemy(nearest.id);
-
-          // Don't immediately attack this frame; next SPACE press will attack
+        if (e.code === 'Space') {
+          if (e.repeat) return;
+          e.preventDefault();
+          console.log('[Space] Attack/engage disabled in reset-foundation');
           return;
         }
-
-        // 2) Already in combat: run the existing attack logic
-        const now = Date.now();
-        console.log('[Space] now=', now, 'nextAttackTime=', nextAttackTimeRef.current);
-        // Only attack if cooldown has elapsed
-        if (now < nextAttackTimeRef.current) return;
-
-        if (!enemy || enemy.health <= 0) return;
-
-        const enemyPos = enemyPosRef.current;
-
-        const distX = playerPos.x - enemyPos.x;
-        const distY = playerPos.y - enemyPos.y;
-        const distance = Math.sqrt(distX * distX + distY * distY);
-
-        console.log('[Space] attack distance check:', {
-          playerPos,
-          enemyPos,
-          distance,
-          ATTACK_RANGE,
-        });
-
-        // Only attack if you're actually in melee range
-        if (distance < ATTACK_RANGE) {
-          console.log('[Space] ATTACKING enemy via onAttackRef.current()', {
-            now,
-            nextAttackTimeBefore: nextAttackTimeRef.current,
-            attackRange: ATTACK_RANGE,
-            distance,
-          });
-          nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
-          onAttackRef.current();
-        }
-
-        // Don’t do anything else for Space
-        return;
-      }
 
       // Toggle minimap with 'm' or 'M'
       if (e.key === 'm' || e.key === 'M') {

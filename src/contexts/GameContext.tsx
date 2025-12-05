@@ -569,55 +569,17 @@ export function GameProvider({
       console.log(`[WorldGen] Initializing floor ${floor} (version ${worldSpawnVersion})`);
     }
     initializedFloorRef.current = floor;
-
+    // Keep floor map/tile layout, but strip world enemies/portals for the reset foundation.
     initFloorIfNeeded();
-    const WORLD_WIDTH = 4000;
-    const WORLD_HEIGHT = 3000;
-    const groupCount = 6 + Math.floor(Math.random() * 5); // 6–10 groups
-    const next: WorldEnemy[] = [];
-
-    for (let g = 0; g < groupCount; g++) {
-      const cx = Math.floor(Math.random() * WORLD_WIDTH);
-      const cy = Math.floor(Math.random() * WORLD_HEIGHT);
-      const members = 3 + Math.floor(Math.random() * 3); // 3–5 per group
-
-      for (let m = 0; m < members; m++) {
-        const jitterR = 60 + Math.random() * 80;
-        const jitterA = Math.random() * Math.PI * 2;
-        const x = Math.floor(cx + Math.cos(jitterA) * jitterR);
-        const y = Math.floor(cy + Math.sin(jitterA) * jitterR);
-        const enemy = generateEnemyVariant('enemy', floor, character?.level || 1, zoneHeat);
-        next.push({
-          ...enemy,
-          id: `floor${floor}-g${g}-m${m}-v${worldSpawnVersion}`,
-          x,
-          y,
-        });
-      }
-    }
-
-    setEnemiesInWorld(next);
-    if (DEBUG_WORLD_ENEMIES) {
-      console.log(`[WorldGen] Spawned ${next.length} world enemies`);
-    }
-    // Entry ladder: previous floor's exit (if any) or none on floor 1
-    const spawn = { x: 400, y: 450 };
-    if (previousExitLadderPosRef.current && floor > 1) {
-      setEntryLadderPos(previousExitLadderPosRef.current);
-    } else if (floor === 1) {
-      setEntryLadderPos(null);
-    } else {
-      setEntryLadderPos(spawn);
-    }
-    // Exit ladder placement
-    const exitLadder = {
-      x: Math.floor(Math.random() * WORLD_WIDTH),
-      y: Math.floor(Math.random() * WORLD_HEIGHT),
-    };
-    setExitLadderPos(exitLadder);
+    setEnemiesInWorld([]);
+    setCurrentEnemy(null);
+    setEntryLadderPos(null);
+    setExitLadderPos(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor, worldSpawnVersion, character, zoneHeat]);
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
+    console.log('[EngageNearestEnemy] Disabled in reset-foundation');
+    return;
     if (!enemiesInWorld.length) return;
     const alive = enemiesInWorld.filter((e) => !killedEnemyIds.has(e.id));
     if (!alive.length) return;
@@ -639,6 +601,8 @@ export function GameProvider({
   };
 
   const onEngageEnemy = (enemyWorldId: string) => {
+    console.log('[Engage] Disabled in reset-foundation');
+    return;
     const found = enemiesInWorld.find((e) => e.id === enemyWorldId);
     if (!found) return;
     setEngagedWorldEnemyId(enemyWorldId);
@@ -654,6 +618,8 @@ export function GameProvider({
   };
 
   const onKillCurrentEnemy = () => {
+    console.log('[KillEnemy] Disabled in reset-foundation');
+    return;
     if (!currentEnemy || !engagedWorldEnemyId) return;
     setKilledEnemyIds((prev) => {
       const next = new Set(prev);
@@ -666,6 +632,9 @@ export function GameProvider({
   };
 
   const exploreRoom = (roomId: string) => {
+    console.log('[ExploreRoom] Disabled in reset-foundation');
+    setCurrentEnemy(null);
+    return;
     if (!floorMap) return;
     const room = floorMap.rooms.find((r: FloorRoom) => r.id === roomId);
     if (!room) return;
@@ -744,32 +713,12 @@ export function GameProvider({
   // --------------- Combat / Loot ---------------
 
   const enemyMeleeAttack = () => {
-    if (!character || !currentEnemy) return;
-
-    const enemyDamage = Math.floor(currentEnemy.damage + Math.random() * 5);
-
-    const totalArmor = items
-      .filter((i: Item) => i.equipped && i.armor)
-      .reduce((sum: number, i: Item) => sum + (i.armor || 0), 0);
-
-    const setBonusDef = computeSetBonuses(items.filter((i: Item) => i.equipped));
-    const effectiveArmor = totalArmor + setBonusDef.armor;
-
-    const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
-    const newHealth = Math.max(0, character.health - actualDamage);
-
-    if (newHealth <= 0) {
-      updateCharacter({
-        health: character.max_health,
-        gold: Math.floor(character.gold * 0.5),
-      });
-      setCurrentEnemy(null);
-    } else {
-      updateCharacter({ health: newHealth });
-    }
+    console.log('[EnemyMeleeAttack] Disabled in reset-foundation');
   };
 
   const attack = async () => {
+    console.log('[Attack] Disabled in reset-foundation');
+    return;
     if (!character || !currentEnemy) {
       console.log('[Attack] aborted: missing character or currentEnemy.', {
         hasCharacter: !!character,

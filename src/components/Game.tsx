@@ -150,7 +150,6 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
     zoneHeat,
     createCharacter,
     attack,
-    enemyMeleeAttack,
     consumePotion,
     equipItem,
     sellItem,
@@ -416,7 +415,7 @@ function GameContent({ notification, setNotification, shopOpen, setShopOpen, aut
         {/* Center: Town or Dungeon */}
         <div className="flex-shrink-0">
           {mode === 'dungeon' ? (
-            <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} onEnemyMeleeAttack={enemyMeleeAttack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
+            <DungeonView enemy={currentEnemy} floor={floor} onAttack={attack} damageNumbers={damageNumbers} character={character} zoneHeat={zoneHeat} />
           ) : (
             <TownScene onRequestDungeonEntry={() => setShowFloorSelect(true)} onOpenShop={() => setShopOpen(true)} />
           )}
