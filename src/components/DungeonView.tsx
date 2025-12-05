@@ -165,7 +165,9 @@ export function DungeonView({
     killedEnemyIds,
     entryLadderPos,
     exitLadderPos,
+    engageNearestEnemyAtPosition,
     onEngageEnemy,
+    currentEnemy,
     items,
   } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -363,6 +365,44 @@ export function DungeonView({
   useEffect(() => {
     damageNumbersRef.current = damageNumbers;
   }, [damageNumbers]);
+
+  // Auto-engage nearest alive world enemy when in range and not already in combat
+  useEffect(() => {
+    const ENGAGE_RADIUS = 150;
+    if (enemy || engagedWorldEnemyId) return;
+    if (!enemiesInWorld || enemiesInWorld.length === 0) return;
+
+    const alive = enemiesInWorld.filter(
+      (e: Enemy & { id: string; x: number; y: number }) => !killedEnemyIds.has(e.id),
+    );
+    if (alive.length === 0) return;
+
+    const { x: px, y: py } = playerPosState;
+    let nearest: (Enemy & { id: string; x: number; y: number }) | null = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const e of alive) {
+      const dx = px - e.x;
+      const dy = py - e.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = e;
+      }
+    }
+
+    if (nearest && bestDist < ENGAGE_RADIUS) {
+      enemyPosRef.current = { x: nearest.x, y: nearest.y };
+      onEngageEnemy(nearest.id);
+    }
+  }, [
+    playerPosState.x,
+    playerPosState.y,
+    enemiesInWorld,
+    killedEnemyIds,
+    enemy,
+    engagedWorldEnemyId,
+    onEngageEnemy,
+  ]);
 
   useEffect(() => {
     zoneHeatRef.current = zoneHeat;
@@ -1398,17 +1438,54 @@ export function DungeonView({
   // ---------- Keyboard handlers ----------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      console.log('[KeyDown]', e.code, 'repeat=', e.repeat);
       // Track movement keys
       keysPressed.current[e.key] = true;
 
       // Handle attacks separately
-        if (e.code === 'Space') {
-          if (e.repeat) return;
-          e.preventDefault();
-          console.log('[Space] Attack/engage disabled in reset-foundation');
-          return;
-        }
+if (e.code === 'Space') {
+  // Ignore key-repeat when holding Space
+  if (e.repeat) return;
+
+  e.preventDefault();
+
+  const playerPos = playerPosRef.current;
+
+  // 1) If we are NOT currently in combat, try to engage the nearest world enemy
+  if (!currentEnemy) {
+    // Use a reasonable engage radius; you can tweak this
+    const ENGAGE_RADIUS = ATTACK_RANGE * 1.5; // or a fixed value like 200
+
+    engageNearestEnemyAtPosition(playerPos.x, playerPos.y, ENGAGE_RADIUS);
+
+    // After engaging, don't immediately try to attack in the same keypress.
+    // The next SPACE press will run the attack logic below.
+    return;
+  }
+
+  // 2) Already in combat: run the existing attack logic
+
+  const now = Date.now();
+  // Only attack if cooldown has elapsed
+  if (now < nextAttackTimeRef.current) return;
+
+  const enemy = enemyRef.current;
+  if (!enemy || enemy.health <= 0) return;
+
+  const enemyPos = enemyPosRef.current;
+
+  const distX = playerPos.x - enemyPos.x;
+  const distY = playerPos.y - enemyPos.y;
+  const distance = Math.sqrt(distX * distX + distY * distY);
+
+  // Only attack if you're actually in melee range
+  if (distance < ATTACK_RANGE) {
+    nextAttackTimeRef.current = now + ATTACK_COOLDOWN_MS;
+    onAttackRef.current();
+  }
+
+  // Don’t do anything else for Space
+  return;
+}
 
       // Toggle minimap with 'm' or 'M'
       if (e.key === 'm' || e.key === 'M') {
@@ -1469,7 +1546,7 @@ export function DungeonView({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [enemiesInWorld, killedEnemyIds, exitLadderPos, entryLadderPos, onEngageEnemy]);
+  }, []);
 
   // ---------- Component render ----------
   return (
@@ -1481,4 +1558,3 @@ export function DungeonView({
     />
   );
 }
-
