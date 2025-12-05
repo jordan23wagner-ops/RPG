@@ -1443,17 +1443,11 @@ export function DungeonView({
 
         e.preventDefault();
 
-        const playerPos = playerPosRef.current;
-
-        // If we are NOT currently in combat, try to engage the nearest world enemy.
-        // Do not attempt to attack on the same keypress.
-        if (!currentEnemy) {
-          engageNearestEnemyAtPosition(playerPos.x, playerPos.y, 200);
-          return;
+        // Reset-foundation: if we have a currentEnemy, just attack.
+        // No world-enemy engagement or distance checks.
+        if (currentEnemy) {
+          onAttackRef.current?.();
         }
-
-        // Already in combat: immediately trigger an attack.
-        onAttackRef.current?.();
 
         return;
       }
