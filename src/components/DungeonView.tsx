@@ -15,6 +15,10 @@ import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 import { useGame } from '../contexts/GameContext';
 
+// Debug flag for verbose combat/enemy lifecycle logging
+// Set to false in production to avoid console spam
+const DEBUG_COMBAT = false;
+
 interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
@@ -36,6 +40,8 @@ export function DungeonView({
     enemiesInWorld,
     killedEnemyIds,
     killedWorldEnemiesRef,
+    lastEngagedWorldEnemyIdRef,
+    inWorldCombatRef,
     entryLadderPos,
     exitLadderPos,
     onEngageEnemy,
@@ -48,7 +54,8 @@ export function DungeonView({
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
   const ladderDiscoveredRef = useRef<boolean>(false);
-  const currentlyEngagedIdRef = useRef<string | null>(null);
+  // Enemy engagement state is now tracked in GameContext using lastEngagedWorldEnemyIdRef
+  // This ensures consistent state between DungeonView and GameContext for enemy filtering
 
   // Floor theme palette helper
   const getFloorTheme = (f: number) => {
@@ -149,6 +156,9 @@ export function DungeonView({
   const onAttackRef = useRef(onAttack);
   const damageNumbersRef = useRef(damageNumbers);
   const characterRef = useRef(character);
+  // FIX: Add ref for enemiesInWorld to ensure render loop always gets current value
+  // Without this, the render loop captures stale empty array from initial mount
+  const enemiesInWorldRef = useRef(enemiesInWorld);
 
   function canMoveToWorldPosition(grid: DungeonTileId[][], x: number, y: number): boolean {
     const tileX = Math.floor(x / TILE_SIZE);
@@ -220,13 +230,23 @@ export function DungeonView({
   }, [onAttack]);
 
   useEffect(() => {
-    // Track current enemy engagement status
-    if (enemy) {
-      currentlyEngagedIdRef.current = enemy.id || null;
-    } else {
-      currentlyEngagedIdRef.current = null;
+    // Sync engagement state with GameContext's refs
+    // When enemy becomes null (combat ends), clear the engaged enemy reference
+    // This fixes a race condition where enemies could disappear unexpectedly
+    // because the filter was checking an outdated engagement ref
+    if (!enemy) {
+      // Combat ended - clear engagement state in context
+      // This ensures the enemy can reappear in the world if it wasn't killed
+      if (DEBUG_COMBAT && lastEngagedWorldEnemyIdRef.current !== null) {
+        console.log(`[Combat] Combat ended, clearing engagement ref: ${lastEngagedWorldEnemyIdRef.current}`);
+      }
+      // NOTE: Only clear if we're not in world combat that ended in death
+      // The death handling in GameContext will properly mark enemies as killed
+      if (!inWorldCombatRef.current) {
+        lastEngagedWorldEnemyIdRef.current = null;
+      }
     }
-  }, [enemy]);
+  }, [enemy, lastEngagedWorldEnemyIdRef, inWorldCombatRef]);
 
   useEffect(() => {
     damageNumbersRef.current = damageNumbers;
@@ -239,6 +259,11 @@ export function DungeonView({
   useEffect(() => {
     characterRef.current = character || null;
   }, [character]);
+
+  // FIX: Sync enemiesInWorld ref to ensure render loop always has current enemies
+  useEffect(() => {
+    enemiesInWorldRef.current = enemiesInWorld;
+  }, [enemiesInWorld]);
 
   // ✅ Reset enemy position only when a NEW enemy spawns
   // (id changes) – not on every health update
@@ -909,17 +934,22 @@ export function DungeonView({
       }
 
       // Draw world enemies as markers when not engaged
-      if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
-        // Filter out killed enemies and currently engaged enemy using ref for immediate updates
-        const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
-        const visibleEnemies = enemiesInWorld.filter(
+      // FIX: Use enemiesInWorldRef.current instead of enemiesInWorld to avoid stale closure
+      const currentEnemiesInWorld = enemiesInWorldRef.current;
+      if (!enemy && currentEnemiesInWorld && currentEnemiesInWorld.length > 0) {
+        // Filter out killed enemies and currently engaged enemy using context refs for immediate updates
+        // FIX: Use lastEngagedWorldEnemyIdRef from GameContext instead of local ref
+        // This prevents race conditions where enemies disappear before being properly killed
+        const killedSet = killedWorldEnemiesRef?.current.get(currentFloor) || new Set<string>();
+        const engagedEnemyId = lastEngagedWorldEnemyIdRef?.current;
+        const visibleEnemies = currentEnemiesInWorld.filter(
           (e: Enemy & { id: string; x: number; y: number }) =>
-            !killedSet.has(e.id) && e.id !== currentlyEngagedIdRef.current,
+            !killedSet.has(e.id) && e.id !== engagedEnemyId,
         );
 
         if (killedEnemyIds.size > 0) {
           console.log(
-            `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
+            `[Render] Total enemies: ${currentEnemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, Engaged: ${engagedEnemyId || 'none'}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
           );
         }
 
@@ -951,7 +981,8 @@ export function DungeonView({
           // Auto-engage if close (only after initial floor spawn is complete)
           if (!hasSpawnedThisFloorRef.current) continue; // Wait for floor to fully load
           // Don't engage if already in combat or if this specific enemy is already engaged
-          if (currentlyEngagedIdRef.current !== null) continue;
+          // FIX: Use context ref instead of local ref for consistency
+          if (lastEngagedWorldEnemyIdRef?.current !== null) continue;
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx * dx + dy * dy);
@@ -959,7 +990,8 @@ export function DungeonView({
             console.log(`[AutoEngage] Attempting to engage ${ew.id} at distance ${d.toFixed(0)}px`);
             // Set enemy position to world enemy position for combat
             enemyPosRef.current = { x: ew.x, y: ew.y };
-            currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately
+            // FIX: Use context ref instead of local ref
+            // The context's onEngageEnemy will set lastEngagedWorldEnemyIdRef
             onEngageEnemy(ew.id);
             engagedThisFrame = true; // Prevent engaging multiple enemies
             break; // Exit the loop immediately
