@@ -54,8 +54,8 @@ export function DungeonView({
   const zoneHeatRef = useRef<number | undefined>(undefined);
   const minimapEnabledRef = useRef<boolean>(true);
   const ladderDiscoveredRef = useRef<boolean>(false);
-  // NOTE: currentlyEngagedIdRef removed - now using lastEngagedWorldEnemyIdRef from GameContext
-  // This ensures consistent state between combat engagement and enemy filtering
+  // Enemy engagement state is now tracked in GameContext using lastEngagedWorldEnemyIdRef
+  // This ensures consistent state between DungeonView and GameContext for enemy filtering
 
   // Floor theme palette helper
   const getFloorTheme = (f: number) => {

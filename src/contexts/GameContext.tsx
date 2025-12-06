@@ -5,7 +5,8 @@ import { generateEnemyVariant } from '../utils/gameLogic';
 import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '../utils/gameLogic';
 
 // Debug flag for verbose world enemy lifecycle logging
-const DEBUG_WORLD_ENEMIES = true;
+// Set to false for production builds to avoid console spam
+const DEBUG_WORLD_ENEMIES = false;
 
 export interface DamageNumber {
   id: string;
