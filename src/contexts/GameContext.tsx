@@ -630,6 +630,17 @@ export function GameProvider({
   // FIX: Only spawn a new enemy if there isn't already a living enemy engaged in combat.
   // This prevents the bug where updating character state (XP/gold) would trigger this
   // effect and reset the enemy to full health (causing "immortal enemy" behavior).
+  //
+  // NOTE: We use a ref to track the character level for enemy creation to avoid
+  // closure stale value issues. The effect depends on floor (for new floor spawns)
+  // and characterLevel (for level-appropriate enemies).
+  const characterLevelRef = useRef(character?.level ?? 1);
+  useEffect(() => {
+    if (character) {
+      characterLevelRef.current = character.level;
+    }
+  }, [character?.level]);
+
   useEffect(() => {
     if (!character) {
       setCurrentEnemy(null);
@@ -645,12 +656,55 @@ export function GameProvider({
         return prevEnemy; // Keep the existing enemy, don't reset!
       }
 
-      // No enemy or enemy is dead - spawn a fresh one
-      const newEnemy = createTestEnemy(character.level);
-      console.log('[TestCombat] Spawning test enemy for floor:', floor, newEnemy);
+      // No enemy or enemy is dead - spawn a fresh one using the ref for level
+      const levelForSpawn = characterLevelRef.current;
+      const newEnemy = createTestEnemy(levelForSpawn);
+      console.log('[TestCombat] Spawning test enemy for floor:', floor, 'at level:', levelForSpawn, newEnemy);
       return newEnemy;
     });
-  }, [floor, character]);
+  // Only depend on floor to trigger new spawns when changing floors.
+  // Character dependency removed to avoid immortal enemy bug.
+  // Character level is tracked via ref and used when spawning.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floor]);
+
+  // FIX: Respawn enemy shortly after death so combat can continue.
+  // This addresses the review feedback that enemies wouldn't respawn after being killed.
+  // We use a ref to track if a respawn is pending to avoid multiple respawn attempts.
+  const respawnPendingRef = useRef(false);
+  useEffect(() => {
+    // Determine if we need to respawn: enemy is null or has health <= 0
+    // FIX: Added null-safe check for currentEnemy.health to prevent potential runtime errors
+    const needsRespawn = !currentEnemy || (currentEnemy.health !== undefined && currentEnemy.health <= 0);
+    
+    // If enemy needs respawn, and we have a character, schedule a respawn
+    if (character && needsRespawn && !respawnPendingRef.current) {
+      respawnPendingRef.current = true;
+      
+      // FIX: Use a mounted flag to prevent state updates after unmount
+      // This addresses the race condition where the timeout could fire after unmount
+      let isMounted = true;
+      
+      const timer = setTimeout(() => {
+        if (!isMounted) {
+          console.log('[TestCombat] Respawn cancelled - component unmounted');
+          return;
+        }
+        respawnPendingRef.current = false;
+        const levelForSpawn = characterLevelRef.current;
+        const newEnemy = createTestEnemy(levelForSpawn);
+        console.log('[TestCombat] Respawning new enemy after death at level:', levelForSpawn);
+        setCurrentEnemy(newEnemy);
+      }, 1500); // 1.5 second delay before respawn
+      
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+        respawnPendingRef.current = false;
+      };
+    }
+  }, [currentEnemy, character]);
+  
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
     console.log('[EngageNearestEnemy] Disabled in reset-foundation', { x, y, radius });
     // World enemies are turned off in reset-foundation.
@@ -1010,8 +1064,9 @@ export function GameProvider({
       // FIX: Simplified enemy death handling for reset-foundation branch.
       // The previous logic had complex conditionals that could cause enemies to
       // "disappear unexpectedly" when conditions weren't met. Now we consistently
-      // set the enemy to null after death, allowing the spawn effect to create a new one.
-      console.log('[Attack] Enemy killed - clearing currentEnemy. A new enemy will spawn shortly.');
+      // set the enemy to null after death. The respawn effect (line ~680) will
+      // automatically spawn a new enemy after a 1.5 second delay.
+      console.log('[Attack] Enemy killed - clearing currentEnemy. A new enemy will respawn in 1.5s.');
       
       // Mark room as cleared if we have room tracking
       if (!engagedWorldEnemyId && floorMap && currentRoomId) {
@@ -1022,7 +1077,7 @@ export function GameProvider({
         }
       }
       
-      // Always clear the enemy after death - the spawn effect will create a new one
+      // Always clear the enemy after death - the respawn effect will create a new one
       setCurrentEnemy(null);
     } else {
       console.log('[Attack] Enemy survived. Scheduling counter-attack in 500ms.', {
