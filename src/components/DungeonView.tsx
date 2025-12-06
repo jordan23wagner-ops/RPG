@@ -15,6 +15,9 @@ import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 import { useGame } from '../contexts/GameContext';
 
+// Debug flag for verbose world enemy lifecycle logging (matches GameContext)
+const DEBUG_WORLD_ENEMIES = true;
+
 interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
@@ -219,11 +222,26 @@ export function DungeonView({
     onAttackRef.current = onAttack;
   }, [onAttack]);
 
+  /**
+   * Track current enemy engagement status via ref for immediate access in render loop.
+   *
+   * Bug fix: This ref is the single source of truth for tracking which enemy is
+   * currently engaged. It prevents:
+   * - Multiple enemies being engaged simultaneously
+   * - Stale engagement state causing "immortal" enemies
+   * - Race conditions between render loop and state updates
+   */
   useEffect(() => {
-    // Track current enemy engagement status
     if (enemy) {
+      // Log engagement tracking for debugging
+      if (currentlyEngagedIdRef.current !== enemy.id) {
+        console.log(`[EngageTrack] Switching engagement: ${currentlyEngagedIdRef.current} -> ${enemy.id}`);
+      }
       currentlyEngagedIdRef.current = enemy.id || null;
     } else {
+      if (currentlyEngagedIdRef.current !== null) {
+        console.log(`[EngageTrack] Clearing engagement: ${currentlyEngagedIdRef.current} -> null`);
+      }
       currentlyEngagedIdRef.current = null;
     }
   }, [enemy]);
@@ -240,13 +258,17 @@ export function DungeonView({
     characterRef.current = character || null;
   }, [character]);
 
-  // ✅ Reset enemy position only when a NEW enemy spawns
-  // (id changes) – not on every health update
-  // BUT: Don't reset for world enemies (their position is set by auto-engage)
+  /**
+   * Reset enemy position only when a NEW enemy spawns (id changes).
+   * World enemies use their world position, room enemies get a default position.
+   *
+   * Bug fix: Don't reset position on every render or health change, only on
+   * actual enemy change. This prevents enemies from "teleporting" during combat.
+   */
   useEffect(() => {
     if (!enemy) return;
 
-    // World enemies have IDs like "floor1-pos37-5", room enemies don't
+    // World enemies have IDs like "floor1-enemy5", room enemies don't
     const isWorldEnemy = typeof enemy.id === 'string' && enemy.id.startsWith('floor');
     if (isWorldEnemy) return; // Position already set by auto-engage
 
@@ -908,7 +930,15 @@ export function DungeonView({
         }
       }
 
-      // Draw world enemies as markers when not engaged
+      /**
+       * Draw world enemies as markers when not in combat.
+       *
+       * Bug fixes applied:
+       * - Only draw enemies that haven't been killed (using killedSet ref)
+       * - Don't draw currently engaged enemy (prevents visual duplication)
+       * - Auto-engage only triggers once per enemy approach (using engagedThisFrame flag)
+       * - Ref-based engagement tracking prevents race conditions
+       */
       if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
         // Filter out killed enemies and currently engaged enemy using ref for immediate updates
         const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
@@ -917,13 +947,14 @@ export function DungeonView({
             !killedSet.has(e.id) && e.id !== currentlyEngagedIdRef.current,
         );
 
-        if (killedEnemyIds.size > 0) {
+        // Debug logging only when there are killed enemies to track
+        if (DEBUG_WORLD_ENEMIES && killedEnemyIds.size > 0) {
           console.log(
-            `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
+            `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}`,
           );
         }
 
-        // Track if we've engaged an enemy this frame
+        // Track if we've engaged an enemy this frame to prevent multi-engage
         let engagedThisFrame = false;
 
         for (const ew of visibleEnemies) {
@@ -948,20 +979,25 @@ export function DungeonView({
           ctx.fillStyle = theme.hudAccent;
           ctx.textAlign = 'center';
           ctx.fillText(ew.name, sx, sy - 16);
+
           // Auto-engage if close (only after initial floor spawn is complete)
           if (!hasSpawnedThisFloorRef.current) continue; // Wait for floor to fully load
-          // Don't engage if already in combat or if this specific enemy is already engaged
+
+          // Don't engage if already in combat (check ref for immediate state)
           if (currentlyEngagedIdRef.current !== null) continue;
+
           const dx = playerPos.x - ew.x;
           const dy = playerPos.y - ew.y;
           const d = Math.sqrt(dx * dx + dy * dy);
           if (d < 140) {
-            console.log(`[AutoEngage] Attempting to engage ${ew.id} at distance ${d.toFixed(0)}px`);
+            console.log(`[AutoEngage] Engaging ${ew.id} (${ew.name}) at distance ${d.toFixed(0)}px`);
             // Set enemy position to world enemy position for combat
             enemyPosRef.current = { x: ew.x, y: ew.y };
-            currentlyEngagedIdRef.current = ew.id; // Mark as engaged immediately
+            // Mark as engaged immediately via ref to prevent re-engagement in same frame
+            currentlyEngagedIdRef.current = ew.id;
+            // Trigger engagement in game context
             onEngageEnemy(ew.id);
-            engagedThisFrame = true; // Prevent engaging multiple enemies
+            engagedThisFrame = true; // Prevent engaging multiple enemies this frame
             break; // Exit the loop immediately
           }
         }

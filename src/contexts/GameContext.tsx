@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType } from '../types/game';
+import { Character, Item, Enemy, FloorMap, FloorRoom, RoomEventType, Affix } from '../types/game';
 import { generateEnemyVariant } from '../utils/gameLogic';
 import { generateLoot, getEquipmentSlot, computeSetBonuses, isTwoHanded } from '../utils/gameLogic';
 
@@ -581,24 +581,40 @@ export function GameProvider({
     setExitLadderPos(exitLadder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor]);
+  /**
+   * Engage a world enemy for combat. This function:
+   * 1. Finds the enemy by ID in the world list
+   * 2. Stores the enemy ID for later marking as killed (only on actual death)
+   * 3. Sets combat flags to track world vs room combat
+   * 4. Creates a fresh enemy object as the currentEnemy for combat
+   *
+   * Bug fixes:
+   * - Enemy is NOT removed from enemiesInWorld - filtering handles visibility
+   * - Enemy is NOT marked as killed until actually defeated
+   * - Health is copied directly to prevent stale state issues
+   */
   const onEngageEnemy = (enemyWorldId: string) => {
     const found = enemiesInWorld.find(
       (e: Enemy & { id: string; x: number; y: number }) => e.id === enemyWorldId,
     );
-    if (!found) return;
-    // Mark this enemy as killed for current floor
+    if (!found) {
+      console.warn(`[Engage] Enemy ${enemyWorldId} not found in world list`);
+      return;
+    }
+
+    // Store engagement info - don't mark as killed yet
     const killedSet = killedWorldEnemiesRef.current.get(floor) || new Set<string>();
-    // Don't mark as killed yet; store ID and mark on actual death to be precise
     lastEngagedWorldEnemyIdRef.current = enemyWorldId;
     killedWorldEnemiesRef.current.set(floor, killedSet);
     inWorldCombatRef.current = true;
+
     if (DEBUG_WORLD_ENEMIES) {
       console.log(
-        `[Engage] Engaged world enemy ${enemyWorldId}; worldCountBeforeRemoval=${enemiesInWorld.length}`,
+        `[Engage] Engaged world enemy ${enemyWorldId} (${found.name}); hp=${found.health}/${found.max_health}`,
       );
     }
-    // Set currentEnemy and remove from world list
-    // Include id so downstream canvas logic (animation seed, sprite cache) does not crash
+
+    // Create fresh enemy object for combat - copy all properties including health
     const engagedEnemy = {
       id: enemyWorldId,
       name: found.name,
@@ -610,9 +626,10 @@ export function GameProvider({
       gold: found.gold,
       rarity: found.rarity,
     } as Enemy;
-    console.log(`[Engage] Setting currentEnemy:`, engagedEnemy);
+
+    console.log(`[Engage] Setting currentEnemy: ${engagedEnemy.name} hp=${engagedEnemy.health}`);
     setCurrentEnemy(engagedEnemy);
-    // Don't remove from enemiesInWorld - let rendering filter it out based on engagement status
+    // Don't remove from enemiesInWorld - let rendering filter based on engagement status
   };
 
   const exploreRoom = (roomId: string) => {
@@ -689,8 +706,38 @@ export function GameProvider({
 
   // --------------- Combat / Loot ---------------
 
+  /**
+   * Player attack function. This is the single source of truth for applying
+   * damage to enemies. Key guarantees:
+   * - Damage is applied exactly once per attack call
+   * - Enemy health is updated atomically via setCurrentEnemy
+   * - Enemy death is handled only when health reaches 0
+   *
+   * Bug fixes:
+   * - Added defensive checks to prevent attacks on null/dead enemies
+   * - Added debug logging to track attack flow
+   * - Ensure enemy health decrease is always reflected in state
+   */
   const attack = async () => {
-    if (!character || !currentEnemy) return;
+    // Defensive check: don't attack if no character or enemy
+    if (!character) {
+      console.warn('[Attack] Aborted: No character');
+      return;
+    }
+    if (!currentEnemy) {
+      console.warn('[Attack] Aborted: No currentEnemy');
+      return;
+    }
+    // Defensive check: don't attack already dead enemies
+    if (currentEnemy.health <= 0) {
+      console.warn('[Attack] Aborted: Enemy already dead', currentEnemy.id);
+      return;
+    }
+
+    // Log attack initiation for debugging
+    console.log(
+      `[Attack] Starting attack on ${currentEnemy.name} (id=${currentEnemy.id}, hp=${currentEnemy.health}/${currentEnemy.max_health})`,
+    );
 
     const equippedWeapon = items.find(
       (i: Item) =>
@@ -736,12 +783,20 @@ export function GameProvider({
     const isCrit = Math.random() < critChance;
     const critMultiplier = isCrit ? critDamage : 1.0;
 
-    const playerDamage = Math.floor(
-      (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier,
-    );
+    // Calculate damage - ensure minimum of 1 damage per attack to prevent immortality
+    const rawDamage = (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier;
+    const playerDamage = Math.max(1, Math.floor(rawDamage));
 
+    // Calculate new health and create updated enemy object
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
     const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
+
+    // Log damage application for debugging
+    console.log(
+      `[Attack] Damage dealt: ${playerDamage} (crit=${isCrit}). Enemy HP: ${currentEnemy.health} -> ${newEnemyHealth}`,
+    );
+
+    // Update enemy state - this is the single source of truth for enemy health
     setCurrentEnemy(enemyAfterHit);
 
     // Add damage number near enemy world position (fallback to center if unknown)
@@ -752,8 +807,10 @@ export function GameProvider({
     const dmgY = enemyWorld ? enemyWorld.y : 220;
     addDamageNumber(playerDamage, dmgX, dmgY, isCrit);
 
-    // Enemy died
+    // Enemy died - handle death exactly once when health reaches 0
     if (newEnemyHealth <= 0) {
+      console.log(`[Attack] Enemy ${currentEnemy.name} (id=${currentEnemy.id}) died!`);
+
       const gainedExp = currentEnemy.experience;
       const gainedGold = currentEnemy.gold;
 
@@ -957,7 +1014,18 @@ export function GameProvider({
         setCurrentEnemy(null);
       }
     } else {
-      // Enemy counter-attack
+      /**
+       * Enemy counter-attack after player attacks.
+       *
+       * Bug fix: When player dies, the enemy should NOT disappear. The enemy
+       * should remain for the player to re-engage after respawning. Previously,
+       * setCurrentEnemy(null) was called which caused the enemy to vanish.
+       *
+       * New behavior:
+       * - On player death: Clear engagement but don't mark enemy as killed
+       * - World enemies return to their world position for re-engagement
+       * - Room enemies remain in the room until the room is cleared
+       */
       setTimeout(() => {
         if (!character || !currentEnemy) return;
 
@@ -973,13 +1041,28 @@ export function GameProvider({
         const actualDamage = Math.max(1, enemyDamage - effectiveArmor);
         const newHealth = Math.max(0, character.health - actualDamage);
 
+        console.log(
+          `[CounterAttack] Enemy ${currentEnemy.name} dealt ${actualDamage} damage. Player HP: ${character.health} -> ${newHealth}`,
+        );
+
         if (newHealth <= 0) {
+          console.log(`[Death] Player died to ${currentEnemy.name}. Respawning...`);
+
           // "death" penalty: lose half gold, restore HP, same floor
           updateCharacter({
             health: character.max_health,
             gold: Math.floor(character.gold * 0.5),
           });
-          // Don't spawn new enemy; player can explore world to find more
+
+          // Clear the engagement but DON'T mark the enemy as killed
+          // This allows the player to re-engage the same enemy after respawning
+          if (inWorldCombatRef.current) {
+            // World enemy: clear engagement refs so enemy can be re-engaged
+            lastEngagedWorldEnemyIdRef.current = null;
+            inWorldCombatRef.current = false;
+          }
+
+          // Clear current enemy so player isn't stuck in combat after death
           setCurrentEnemy(null);
         } else {
           updateCharacter({ health: newHealth });
