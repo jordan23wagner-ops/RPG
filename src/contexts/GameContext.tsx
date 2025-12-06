@@ -32,6 +32,8 @@ interface GameContextType {
   rarityFilter: Set<string>;
   killedEnemyIds: Set<string>;
   killedWorldEnemiesRef: React.MutableRefObject<Map<number, Set<string>>>;
+  lastEngagedWorldEnemyIdRef: React.MutableRefObject<string | null>;
+  inWorldCombatRef: React.MutableRefObject<boolean>;
   increaseZoneHeat: (amount?: number) => void;
   resetZoneHeat: () => void;
   toggleRarityFilter: (rarity: string) => void;
@@ -690,7 +692,17 @@ export function GameProvider({
   // --------------- Combat / Loot ---------------
 
   const attack = async () => {
-    if (!character || !currentEnemy) return;
+    // Debug: Log attack initiation
+    if (DEBUG_WORLD_ENEMIES) {
+      console.log(`[Attack] Initiated. character=${!!character}, currentEnemy=${currentEnemy?.id || 'null'}, health=${currentEnemy?.health || 'N/A'}`);
+    }
+
+    if (!character || !currentEnemy) {
+      if (DEBUG_WORLD_ENEMIES) {
+        console.log(`[Attack] Aborted: missing character or currentEnemy`);
+      }
+      return;
+    }
 
     const equippedWeapon = items.find(
       (i: Item) =>
@@ -740,13 +752,24 @@ export function GameProvider({
       (baseDamage + setBonuses.damage + Math.random() * 10) * critMultiplier,
     );
 
+    // Calculate new health and create updated enemy state
+    // FIX: Store the enemy ID before creating the new state to maintain reference consistency
+    const enemyId = currentEnemy.id;
     const newEnemyHealth = Math.max(0, currentEnemy.health - playerDamage);
     const enemyAfterHit: Enemy = { ...currentEnemy, health: newEnemyHealth };
+
+    // Debug: Log damage calculation
+    if (DEBUG_WORLD_ENEMIES) {
+      console.log(`[Attack] Damage=${playerDamage} (base=${baseDamage.toFixed(1)}, crit=${isCrit}). Enemy health: ${currentEnemy.health} -> ${newEnemyHealth}`);
+    }
+
+    // Update enemy state with new health
+    // NOTE: This is an async state update - the new health won't be reflected immediately
     setCurrentEnemy(enemyAfterHit);
 
     // Add damage number near enemy world position (fallback to center if unknown)
     const enemyWorld = enemiesInWorld.find(
-      (e: Enemy & { id: string; x: number; y: number }) => e.id === currentEnemy.id,
+      (e: Enemy & { id: string; x: number; y: number }) => e.id === enemyId,
     );
     const dmgX = enemyWorld ? enemyWorld.x : 600;
     const dmgY = enemyWorld ? enemyWorld.y : 220;
@@ -754,6 +777,9 @@ export function GameProvider({
 
     // Enemy died
     if (newEnemyHealth <= 0) {
+      if (DEBUG_WORLD_ENEMIES) {
+        console.log(`[Attack] Enemy ${enemyId} killed! Processing death...`);
+      }
       const gainedExp = currentEnemy.experience;
       const gainedGold = currentEnemy.gold;
 
@@ -975,10 +1001,17 @@ export function GameProvider({
 
         if (newHealth <= 0) {
           // "death" penalty: lose half gold, restore HP, same floor
+          if (DEBUG_WORLD_ENEMIES) {
+            console.log(`[Death] Player died. Restoring HP and clearing combat state.`);
+          }
           updateCharacter({
             health: character.max_health,
             gold: Math.floor(character.gold * 0.5),
           });
+          // FIX: Clear engagement refs when player dies so the enemy can reappear
+          // Previously this would leave the enemy filtered out, causing "disappearing enemies"
+          lastEngagedWorldEnemyIdRef.current = null;
+          inWorldCombatRef.current = false;
           // Don't spawn new enemy; player can explore world to find more
           setCurrentEnemy(null);
         } else {
@@ -1338,6 +1371,8 @@ export function GameProvider({
         enemiesInWorld,
         killedEnemyIds,
         killedWorldEnemiesRef,
+        lastEngagedWorldEnemyIdRef,
+        inWorldCombatRef,
         entryLadderPos,
         exitLadderPos,
         loading,
