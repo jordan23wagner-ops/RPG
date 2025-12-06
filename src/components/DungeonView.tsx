@@ -15,6 +15,10 @@ import { Enemy, Character } from '../types/game';
 import { DamageNumber } from '../contexts/GameContext';
 import { useGame } from '../contexts/GameContext';
 
+// Debug flag for verbose combat/enemy lifecycle logging
+// Set to false in production to avoid console spam
+const DEBUG_COMBAT = false;
+
 interface DungeonViewProps {
   enemy: Enemy | null;
   floor: number;
@@ -230,7 +234,7 @@ export function DungeonView({
     if (!enemy) {
       // Combat ended - clear engagement state in context
       // This ensures the enemy can reappear in the world if it wasn't killed
-      if (lastEngagedWorldEnemyIdRef.current !== null) {
+      if (DEBUG_COMBAT && lastEngagedWorldEnemyIdRef.current !== null) {
         console.log(`[Combat] Combat ended, clearing engagement ref: ${lastEngagedWorldEnemyIdRef.current}`);
       }
       // NOTE: Only clear if we're not in world combat that ended in death
