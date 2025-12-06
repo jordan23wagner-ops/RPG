@@ -151,7 +151,10 @@ export function GameProvider({
   // No waves: encounters are single per room; respawns only for non-boss rooms
 
   const respawnWorldEnemies = () => {
-    // Clear kill markers and bump version to force re-roll of world mobs
+    // Clear kill markers and bump version to force re-roll of world mobs.
+    // NOTE: This intentionally clears currentEnemy to allow fresh spawns.
+    // This is called when entering the dungeon from town, so clearing is expected.
+    console.log('[RespawnWorldEnemies] Clearing enemies and bumping spawn version');
     setKilledEnemyIds(new Set());
     setEngagedWorldEnemyId(null);
     setCurrentEnemy(null);
@@ -624,15 +627,29 @@ export function GameProvider({
   }, [floor, worldSpawnVersion]);
 
   // Spawn a single test enemy when entering a floor, if a character exists.
+  // FIX: Only spawn a new enemy if there isn't already a living enemy engaged in combat.
+  // This prevents the bug where updating character state (XP/gold) would trigger this
+  // effect and reset the enemy to full health (causing "immortal enemy" behavior).
   useEffect(() => {
     if (!character) {
       setCurrentEnemy(null);
       return;
     }
 
-    const enemy = createTestEnemy(character.level);
-    console.log('[TestCombat] Spawning test enemy for floor:', floor, enemy);
-    setCurrentEnemy(enemy);
+    // FIX: Check if we already have a living enemy - don't overwrite it!
+    // This prevents the "immortal enemy" bug where the enemy was being reset
+    // to full health every time character state changed (e.g., after gaining XP).
+    setCurrentEnemy((prevEnemy) => {
+      if (prevEnemy && prevEnemy.health > 0) {
+        console.log('[TestCombat] Skipping spawn - existing enemy still alive:', prevEnemy.name, 'HP:', prevEnemy.health);
+        return prevEnemy; // Keep the existing enemy, don't reset!
+      }
+
+      // No enemy or enemy is dead - spawn a fresh one
+      const newEnemy = createTestEnemy(character.level);
+      console.log('[TestCombat] Spawning test enemy for floor:', floor, newEnemy);
+      return newEnemy;
+    });
   }, [floor, character]);
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
     console.log('[EngageNearestEnemy] Disabled in reset-foundation', { x, y, radius });
@@ -652,7 +669,11 @@ export function GameProvider({
   const exploreRoom = (roomId: string) => {
     console.log('[ExploreRoom] Disabled in reset-foundation', { roomId });
     setCurrentRoomId(roomId);
-    setCurrentEnemy(null);
+    // FIX: Don't clear the enemy when exploring rooms in reset-foundation.
+    // This was causing the "disappearing enemy" bug where moving between rooms
+    // would unexpectedly clear the test enemy. Since we only have one test enemy
+    // per floor in this branch, we should keep it until it's killed.
+    // setCurrentEnemy(null); // REMOVED - was causing disappearing enemies
     // Old room/encounter logic removed for reset-foundation.
   };
 
@@ -986,16 +1007,23 @@ export function GameProvider({
       // heat disabled: do not change zoneHeat
       setZoneHeat(0);
 
+      // FIX: Simplified enemy death handling for reset-foundation branch.
+      // The previous logic had complex conditionals that could cause enemies to
+      // "disappear unexpectedly" when conditions weren't met. Now we consistently
+      // set the enemy to null after death, allowing the spawn effect to create a new one.
+      console.log('[Attack] Enemy killed - clearing currentEnemy. A new enemy will spawn shortly.');
+      
+      // Mark room as cleared if we have room tracking
       if (!engagedWorldEnemyId && floorMap && currentRoomId) {
         const room = floorMap.rooms.find((r: FloorRoom) => r.id === currentRoomId);
         if (room) {
           room.cleared = true;
           setFloorMap({ ...floorMap, rooms: [...floorMap.rooms] });
         }
-        setCurrentEnemy(null);
-      } else {
-        onKillCurrentEnemy();
       }
+      
+      // Always clear the enemy after death - the spawn effect will create a new one
+      setCurrentEnemy(null);
     } else {
       console.log('[Attack] Enemy survived. Scheduling counter-attack in 500ms.', {
         enemyId: currentEnemy.id,
