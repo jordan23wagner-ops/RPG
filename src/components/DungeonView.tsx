@@ -156,6 +156,9 @@ export function DungeonView({
   const onAttackRef = useRef(onAttack);
   const damageNumbersRef = useRef(damageNumbers);
   const characterRef = useRef(character);
+  // FIX: Add ref for enemiesInWorld to ensure render loop always gets current value
+  // Without this, the render loop captures stale empty array from initial mount
+  const enemiesInWorldRef = useRef(enemiesInWorld);
 
   function canMoveToWorldPosition(grid: DungeonTileId[][], x: number, y: number): boolean {
     const tileX = Math.floor(x / TILE_SIZE);
@@ -256,6 +259,11 @@ export function DungeonView({
   useEffect(() => {
     characterRef.current = character || null;
   }, [character]);
+
+  // FIX: Sync enemiesInWorld ref to ensure render loop always has current enemies
+  useEffect(() => {
+    enemiesInWorldRef.current = enemiesInWorld;
+  }, [enemiesInWorld]);
 
   // ✅ Reset enemy position only when a NEW enemy spawns
   // (id changes) – not on every health update
@@ -926,20 +934,22 @@ export function DungeonView({
       }
 
       // Draw world enemies as markers when not engaged
-      if (!enemy && enemiesInWorld && enemiesInWorld.length > 0) {
+      // FIX: Use enemiesInWorldRef.current instead of enemiesInWorld to avoid stale closure
+      const currentEnemiesInWorld = enemiesInWorldRef.current;
+      if (!enemy && currentEnemiesInWorld && currentEnemiesInWorld.length > 0) {
         // Filter out killed enemies and currently engaged enemy using context refs for immediate updates
         // FIX: Use lastEngagedWorldEnemyIdRef from GameContext instead of local ref
         // This prevents race conditions where enemies disappear before being properly killed
-        const killedSet = killedWorldEnemiesRef?.current.get(floor) || new Set<string>();
+        const killedSet = killedWorldEnemiesRef?.current.get(currentFloor) || new Set<string>();
         const engagedEnemyId = lastEngagedWorldEnemyIdRef?.current;
-        const visibleEnemies = enemiesInWorld.filter(
+        const visibleEnemies = currentEnemiesInWorld.filter(
           (e: Enemy & { id: string; x: number; y: number }) =>
             !killedSet.has(e.id) && e.id !== engagedEnemyId,
         );
 
         if (killedEnemyIds.size > 0) {
           console.log(
-            `[Render] Total enemies: ${enemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, Engaged: ${engagedEnemyId || 'none'}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
+            `[Render] Total enemies: ${currentEnemiesInWorld.length}, Killed: ${killedEnemyIds.size}, Visible: ${visibleEnemies.length}, Engaged: ${engagedEnemyId || 'none'}, KilledIds: ${Array.from(killedEnemyIds).join(', ')}`,
           );
         }
 
