@@ -607,42 +607,33 @@ export function GameProvider({
     }
   };
 
+  // Initialize floor layout once per floor change.
   useEffect(() => {
     if (DEBUG_WORLD_ENEMIES) {
       console.log(
         `[WorldGen] Initializing floor ${floor} (version ${worldSpawnVersion}) on reset-foundation`,
       );
     }
-    initializedFloorRef.current = floor;
 
-    // Keep floor map/tile layout, but strip world enemies/portals for the reset foundation.
+    initializedFloorRef.current = floor;
     initFloorIfNeeded();
     setEnemiesInWorld([]);
     setEntryLadderPos(null);
     setExitLadderPos(null);
-
-    if (!AUTO_RESPAWN_TEST_ENEMY) {
-      // One-shot spawn behavior: let combat / heat changes kill the enemy permanently
-      // until the floor/world spawn version or character changes.
-      if (character) {
-        const enemy = createTestEnemy(character.level);
-        console.log('[TestCombat] Spawning test enemy for floor:', floor, enemy);
-        setCurrentEnemy(enemy);
-      } else {
-        setCurrentEnemy(null);
-      }
-    } else {
-      // Legacy behavior (punching bag): always ensure a test enemy exists.
-      if (!currentEnemy && character) {
-        const enemy = createTestEnemy(character.level);
-        console.log('[TestCombat] Auto-respawning test enemy for floor:', floor, enemy);
-        setCurrentEnemy(enemy);
-      } else if (!character) {
-        setCurrentEnemy(null);
-      }
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [floor, worldSpawnVersion, character]);
+  }, [floor, worldSpawnVersion]);
+
+  // Spawn a single test enemy when entering a floor, if a character exists.
+  useEffect(() => {
+    if (!character) {
+      setCurrentEnemy(null);
+      return;
+    }
+
+    const enemy = createTestEnemy(character.level);
+    console.log('[TestCombat] Spawning test enemy for floor:', floor, enemy);
+    setCurrentEnemy(enemy);
+  }, [floor, character]);
   const engageNearestEnemyAtPosition = (x: number, y: number, radius: number) => {
     console.log('[EngageNearestEnemy] Disabled in reset-foundation', { x, y, radius });
     // World enemies are turned off in reset-foundation.

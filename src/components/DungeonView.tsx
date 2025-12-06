@@ -249,7 +249,8 @@ export function DungeonView({
   const CANVAS_HEIGHT = 480;
   const MOVE_SPEED = 5;
   // const BOUNDARY_PADDING = 50; // deprecated with world bounds
-  const ATTACK_COOLDOWN_MS = 400;
+  // Attack cooldown constants are unused with the simplified input model
+  // const ATTACK_COOLDOWN_MS = 400;
   const MAX_CHASE_DISTANCE = 450;
   const ENEMY_SPEED = 2.2;
   const ATTACK_RANGE = 120;
@@ -273,7 +274,7 @@ export function DungeonView({
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
   // Attack cooldown tracking (stores next allowed attack time in ms)
-  const nextAttackTimeRef = useRef(Date.now());
+  // const nextAttackTimeRef = useRef(Date.now());
 
   // Keep latest props in refs so effects don't depend on them (prevents unnecessary re-runs)
   const enemyRef = useRef<Enemy | null>(enemy);
@@ -1177,59 +1178,7 @@ export function DungeonView({
       ctx.font = '12px Arial';
       ctx.fillText('Use Arrow Keys to move across the world', 20, 60);
 
-      // Draw character HUD (HP, Mana, EXP)
-      // Draw simplified action area: Heat bar + cooldown bar grouped at bottom center
-      const padding = 18;
-      const barHeight = 12;
-      const heatPercent = 0;
-      const groupWidth = 300;
-      const groupX = Math.round(CANVAS_WIDTH / 2 - groupWidth / 2);
-      const groupY = CANVAS_HEIGHT - padding - barHeight * 2 - 28; // allow space for two bars + label
-      // Background panel
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
-      ctx.strokeStyle = theme.hudAccent;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(groupX - 10, groupY - 10, groupWidth + 20, barHeight * 2 + 40);
-      ctx.font = '12px Arial';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.fillText('Action', groupX + groupWidth / 2, groupY + 2);
-      // Heat bar
-      const heatY = groupY + 14;
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(groupX, heatY, groupWidth, barHeight);
-      ctx.fillStyle = '#ff6b6b';
-      ctx.fillRect(groupX, heatY, (heatPercent / 100) * groupWidth, barHeight);
-      ctx.font = '10px Arial';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        `Heat ${Math.round(heatPercent)}%`,
-        groupX + groupWidth / 2,
-        heatY + barHeight - 2,
-      );
-      // Cooldown bar
-      const now = Date.now();
-      const remaining = Math.max(0, nextAttackTimeRef.current - now);
-      const percent = remaining / ATTACK_COOLDOWN_MS;
-      const cdY = heatY + barHeight + 10;
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(groupX, cdY, groupWidth, barHeight);
-      ctx.fillStyle = '#60a5fa';
-      ctx.fillRect(groupX, cdY, groupWidth * (1 - percent), barHeight);
-      ctx.font = '10px Arial';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        remaining > 0 ? 'Cooling...' : 'Ready',
-        groupX + groupWidth / 2,
-        cdY + barHeight - 2,
-      );
-      // Attack hint
-      ctx.font = '11px Arial';
-      ctx.fillStyle = theme.hudAccent;
-      ctx.fillText('Press SPACE in range to attack', groupX + groupWidth / 2, cdY + barHeight + 16);
+      // Draw character HUD (HP, Mana, EXP) — action panel removed for reset-foundation
 
       // Minimap overlay: world bounds, viewport, player (toggleable)
       if (minimapEnabledRef.current) {
